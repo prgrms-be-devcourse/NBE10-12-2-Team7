@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: dongnemarket
+
+  # 운영/개발 DB: MySQL (접속정보는 환경변수로 주입, 기본값은 로컬 docker-compose 기준)
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/dongne_market?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:dongne}
+    password: ${DB_PASSWORD:dongne1234}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update          # 초기 개발 편의 (운영 전 validate 권장)
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+    open-in-view: false
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false   # LocalDateTime -> ISO-8601 문자열
+
+# JWT (시크릿은 운영 시 반드시 JWT_SECRET 환경변수로 교체)
+jwt:
+  secret: ${JWT_SECRET:dongne-market-local-dev-secret-key-please-change-in-production-0123456789}
+  access-token-validity-seconds: ${JWT_ACCESS_TTL:3600}
+
+# Swagger / Springdoc
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    org.hibernate.SQL: debug
