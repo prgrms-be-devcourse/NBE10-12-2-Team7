@@ -1,0 +1,22 @@
+# 로컬 개발용 MySQL 8 (application.yml 기본값과 일치)
+# 사용: docker compose up -d
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: dongne-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root1234
+      MYSQL_DATABASE: dongne_market
+      MYSQL_USER: dongne
+      MYSQL_PASSWORD: dongne1234
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - dongne-mysql-data:/var/lib/mysql
+
+volumes:
+  dongne-mysql-data:
