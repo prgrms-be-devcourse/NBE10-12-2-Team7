@@ -5,7 +5,6 @@ import com.dongnemarket.global.response.ErrorResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
@@ -16,10 +15,13 @@ import java.nio.charset.StandardCharsets;
 
 /** 인가 실패(권한 없음) → 403 을 공통 {@link ErrorResponse}(JSON) 으로 응답한다. */
 @Component
-@RequiredArgsConstructor
 public class JwtAccessDeniedHandler implements AccessDeniedHandler {
 
 	private final ObjectMapper objectMapper;
+
+	public JwtAccessDeniedHandler(ObjectMapper objectMapper) {
+		this.objectMapper = objectMapper;
+	}
 
 	@Override
 	public void handle(HttpServletRequest request, HttpServletResponse response,

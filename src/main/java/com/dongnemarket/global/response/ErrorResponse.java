@@ -1,7 +1,6 @@
 package com.dongnemarket.global.response;
 
 import com.dongnemarket.global.exception.ErrorCode;
-import lombok.Getter;
 
 import java.time.LocalDateTime;
 
@@ -10,7 +9,6 @@ import java.time.LocalDateTime;
  * <pre>{ "status": 404, "error": "PRODUCT_NOT_FOUND", "message": "...", "timestamp": "2026-06-17T12:00:00" }</pre>
  * {@code error} 는 ErrorCode 의 이름(enum 상수명)이다.
  */
-@Getter
 public class ErrorResponse {
 
 	private final int status;
@@ -31,5 +29,21 @@ public class ErrorResponse {
 
 	public static ErrorResponse of(ErrorCode errorCode, String message) {
 		return new ErrorResponse(errorCode.getStatus(), errorCode.name(), message);
+	}
+
+	public int getStatus() {
+		return status;
+	}
+
+	public String getError() {
+		return error;
+	}
+
+	public String getMessage() {
+		return message;
+	}
+
+	public LocalDateTime getTimestamp() {
+		return timestamp;
 	}
 }

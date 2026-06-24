@@ -1,14 +1,12 @@
 package com.dongnemarket.global.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.Getter;
 
 /**
  * 공통 성공 응답 포맷.
  * <pre>{ "status": 200, "message": "...", "data": {} }</pre>
  * 모든 도메인은 Controller에서 성공 응답을 이 타입으로 감싼다.
  */
-@Getter
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
 
@@ -42,5 +40,17 @@ public class ApiResponse<T> {
 	/** 데이터 없는 성공 (예: 삭제) */
 	public static ApiResponse<Void> success() {
 		return new ApiResponse<>(200, DEFAULT_SUCCESS_MESSAGE, null);
+	}
+
+	public int getStatus() {
+		return status;
+	}
+
+	public String getMessage() {
+		return message;
+	}
+
+	public T getData() {
+		return data;
 	}
 }

@@ -4,7 +4,6 @@ import com.dongnemarket.global.security.jwt.JwtAccessDeniedHandler;
 import com.dongnemarket.global.security.jwt.JwtAuthenticationEntryPoint;
 import com.dongnemarket.global.security.jwt.JwtAuthenticationFilter;
 import com.dongnemarket.global.security.jwt.JwtTokenProvider;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -23,16 +22,23 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * 팀장만 수정한다.
  */
 @Configuration
-@RequiredArgsConstructor
 public class SecurityConfig {
+
+	private static final String[] SWAGGER_WHITELIST = {
+			"/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**"
+	};
 
 	private final JwtTokenProvider jwtTokenProvider;
 	private final JwtAuthenticationEntryPoint authenticationEntryPoint;
 	private final JwtAccessDeniedHandler accessDeniedHandler;
 
-	private static final String[] SWAGGER_WHITELIST = {
-			"/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**"
-	};
+	public SecurityConfig(JwtTokenProvider jwtTokenProvider,
+						  JwtAuthenticationEntryPoint authenticationEntryPoint,
+						  JwtAccessDeniedHandler accessDeniedHandler) {
+		this.jwtTokenProvider = jwtTokenProvider;
+		this.authenticationEntryPoint = authenticationEntryPoint;
+		this.accessDeniedHandler = accessDeniedHandler;
+	}
 
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
