@@ -38,3 +38,16 @@
 - 관리자는 작성자가 아니어도 상품 숨김 처리를 할 수 있다.
 - 관리자는 부적절한 댓글을 소프트 삭제할 수 있다.
 - 회원 상태는 ACTIVE / SUSPENDED / DELETED로 변경할 수 있고, 정지 회원은 로그인할 수 없다.
+
+## 개발 도구 활용 — IntelliJ Ultimate (Admin 기능 개발 시)
+Admin 기능을 구현할 때는 코드 작성에 그치지 않고, IntelliJ Ultimate 기능으로 **내부 로직을 시각적으로 파악하며** 진행한다. Admin은 members·products·reports·comments를 가로질러 조회·관리하므로 아래 도구가 특히 유효하다. 각 기능은 00의 5단계 흐름을 따르되 **②구현·④검증** 단계에서 적극 활용한다.
+
+- **Database 도구창**: 로컬 MySQL(`dongne_market`)에 연결해 members/products/reports/comments 테이블·ER 다이어그램을 보며 관리 쿼리를 설계한다.
+- **JPA / Persistence + JPQL 콘솔**: 엔티티 ER 확인, 대시보드·목록용 JPQL을 콘솔에서 즉석 검증한 뒤 Repository로 옮긴다. JPA 인스펙션으로 N+1을 사전 점검한다.
+- **HTTP Client(`.http`)**: `/api/admin/**`를 ROLE_ADMIN 토큰으로 호출하는 시나리오(회원 상태 변경·상품 숨김·댓글 소프트삭제·신고 상태 변경·대시보드)를 작성해 Postman 없이 검증한다.
+- **Endpoints 도구창**: 추가한 `/api/admin/**` 매핑을 한눈에 보고 누락·중복을 점검한다.
+- **UML Diagrams · Call Hierarchy**: admin Service가 다른 도메인을 어떻게 참조하는지(담당 경계 침범이 없는지)를 시각적으로 확인한다.
+- **Debugger · Stream Debugger**: 대시보드 집계·필터, 상태 전이 로직을 단계별로 추적한다.
+- **IntelliJ Profiler(플레임 그래프)**: 관리 목록·대시보드 쿼리가 무거울 때 병목 지점을 확인한다.
+
+> 원칙: **"구현 → 실행 → 시각적 확인"** 을 한 사이클로 가져간다. 필요하면 SequenceDiagram 플러그인이나 code-map으로 흐름을 그려 이해를 보강한다.

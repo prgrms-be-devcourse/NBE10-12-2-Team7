@@ -37,12 +37,6 @@ dependencies {
 	runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
 	runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
 
-	// Lombok
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
-	testCompileOnly 'org.projectlombok:lombok'
-	testAnnotationProcessor 'org.projectlombok:lombok'
-
 	// DB drivers
 	runtimeOnly 'com.mysql:mysql-connector-j'   // 운영/개발 DB
 	testRuntimeOnly 'com.h2database:h2'          // 테스트 전용 in-memory

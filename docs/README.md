@@ -36,6 +36,8 @@ PR을 올리면 팀장이 별도 도구로 코드 로직·구조를 검증·테�
 
 ## 폴더 구조 (팀원용)
 
+> **모노레포**: 레포 루트에 **`backend/`**(Spring Boot 백엔드 — `build.gradle`·`src`·`docker-compose.yml`)와 **`docs/`**·**`lead-only/`**가 함께 있습니다. 백엔드 작업은 `cd backend` 후 진행합니다.
+
 ```
 docs/
 ├── README.md                          (이 문서)

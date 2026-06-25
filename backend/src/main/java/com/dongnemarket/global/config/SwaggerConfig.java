@@ -27,8 +27,8 @@ public class SwaggerConfig {
 
 		return new OpenAPI()
 				.info(new Info()
-						.title("동네마켓 API")
-						.description("지역 기반 중고거래 플랫폼 REST API")
+						.title("마켓온 API")
+						.description("마켓온 REST API")
 						.version("v1.0.0"))
 				.addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))
 				.components(new Components().addSecuritySchemes(SECURITY_SCHEME_NAME, bearerScheme));

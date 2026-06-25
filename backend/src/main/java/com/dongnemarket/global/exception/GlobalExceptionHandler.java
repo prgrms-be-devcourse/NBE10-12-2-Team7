@@ -1,7 +1,8 @@
 package com.dongnemarket.global.exception;
 
 import com.dongnemarket.global.response.ErrorResponse;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
@@ -12,9 +13,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 /**
  * 전역 예외 처리기. 모든 예외를 공통 {@link ErrorResponse} 포맷으로 변환한다.
  */
-@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
 	/** 비즈니스 예외 (도메인 ErrorCode 기반) */
 	@ExceptionHandler(BusinessException.class)
