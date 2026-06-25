@@ -53,6 +53,7 @@ public enum ErrorCode {
 	CANNOT_REPORT_OWN_PRODUCT(400, "REPORT_002", "본인이 등록한 상품은 신고할 수 없습니다."),
 	CANNOT_REPORT_SELF(400, "REPORT_003", "본인 계정은 신고할 수 없습니다."),
 	INVALID_REPORT_TARGET(400, "REPORT_004", "잘못된 신고 대상입니다."),
+	DUPLICATE_REPORT(409, "REPORT_005", "이미 신고한 대상입니다."),
 
 	// ===== ADMIN ERROR (팀장) =====
 	ADMIN_ONLY(403, "ADMIN_001", "관리자만 접근할 수 있습니다.");
