@@ -30,6 +30,8 @@ cd NBE9-11-final-Team7
 git checkout develop
 git pull origin develop
 
+cd backend          # ★ 모노레포: 백엔드 프로젝트는 backend/ 아래 (이후 명령은 여기서)
+
 # (선택) 로컬 MySQL 한 번에 띄우기
 docker compose up -d
 
@@ -43,6 +45,7 @@ docker compose up -d
 > 💡 첫 빌드는 JDK 21 toolchain·의존성을 받느라 시간이 걸립니다. 이후엔 빨라요.
 > 💡 DB 기본값: DB `dongne_market` / 계정 `dongne` / 비번 `dongne1234` (개발용). 운영 시 환경변수 `DB_URL`·`DB_USERNAME`·`DB_PASSWORD`·`JWT_SECRET`로 주입.
 > ⚠️ public 저장소입니다 — 시크릿은 절대 커밋 금지 (`application-secret.yml`·`.env`는 `.gitignore`로 차단됨).
+> 💡 **모노레포 구조**: IntelliJ는 레포 루트가 아니라 **`backend/build.gradle`** 을 Gradle 프로젝트로 열어 import. 빌드·실행 명령은 모두 `backend/`에서.
 
 ---
 
