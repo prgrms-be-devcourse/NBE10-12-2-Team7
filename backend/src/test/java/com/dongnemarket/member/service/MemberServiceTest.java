@@ -19,6 +19,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class MemberServiceTest {
@@ -51,6 +52,30 @@ class MemberServiceTest {
 		assertThatThrownBy(() -> memberService.getMyInfo(999L))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("탈퇴 회원이 내 정보를 조회하면 DELETED_MEMBER 예외가 발생한다")
+	void getMyInfo_deletedMember_throwsException() {
+		Member member = Member.createUser("test@example.com", "encoded", "nick");
+		member.softDelete();
+		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+
+		assertThatThrownBy(() -> memberService.getMyInfo(1L))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DELETED_MEMBER);
+	}
+
+	@Test
+	@DisplayName("정지 회원이 내 정보를 조회하면 SUSPENDED_MEMBER 예외가 발생한다")
+	void getMyInfo_suspendedMember_throwsException() {
+		Member suspendedMember = mock(Member.class);
+		given(suspendedMember.getStatus()).willReturn(MemberStatus.SUSPENDED);
+		given(memberRepository.findById(1L)).willReturn(Optional.of(suspendedMember));
+
+		assertThatThrownBy(() -> memberService.getMyInfo(1L))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.SUSPENDED_MEMBER);
 	}
 
 	// ===== updateMyInfo =====
@@ -93,6 +118,32 @@ class MemberServiceTest {
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_NICKNAME);
 	}
 
+	@Test
+	@DisplayName("탈퇴 회원이 내 정보를 수정하면 DELETED_MEMBER 예외가 발생한다")
+	void updateMyInfo_deletedMember_throwsException() {
+		Member member = Member.createUser("test@example.com", "encoded", "nick");
+		member.softDelete();
+		MemberUpdateRequest request = new MemberUpdateRequest("newNick");
+		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+
+		assertThatThrownBy(() -> memberService.updateMyInfo(1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DELETED_MEMBER);
+	}
+
+	@Test
+	@DisplayName("정지 회원이 내 정보를 수정하면 SUSPENDED_MEMBER 예외가 발생한다")
+	void updateMyInfo_suspendedMember_throwsException() {
+		Member suspendedMember = mock(Member.class);
+		given(suspendedMember.getStatus()).willReturn(MemberStatus.SUSPENDED);
+		MemberUpdateRequest request = new MemberUpdateRequest("newNick");
+		given(memberRepository.findById(1L)).willReturn(Optional.of(suspendedMember));
+
+		assertThatThrownBy(() -> memberService.updateMyInfo(1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.SUSPENDED_MEMBER);
+	}
+
 	// ===== deleteMyInfo =====
 
 	@Test
@@ -115,5 +166,29 @@ class MemberServiceTest {
 		assertThatThrownBy(() -> memberService.deleteMyInfo(999L))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("이미 탈퇴한 회원이 탈퇴 요청하면 DELETED_MEMBER 예외가 발생한다")
+	void deleteMyInfo_alreadyDeleted_throwsException() {
+		Member member = Member.createUser("test@example.com", "encoded", "nick");
+		member.softDelete();
+		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+
+		assertThatThrownBy(() -> memberService.deleteMyInfo(1L))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DELETED_MEMBER);
+	}
+
+	@Test
+	@DisplayName("정지 회원이 탈퇴 요청하면 SUSPENDED_MEMBER 예외가 발생한다")
+	void deleteMyInfo_suspendedMember_throwsException() {
+		Member suspendedMember = mock(Member.class);
+		given(suspendedMember.getStatus()).willReturn(MemberStatus.SUSPENDED);
+		given(memberRepository.findById(1L)).willReturn(Optional.of(suspendedMember));
+
+		assertThatThrownBy(() -> memberService.deleteMyInfo(1L))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.SUSPENDED_MEMBER);
 	}
 }
