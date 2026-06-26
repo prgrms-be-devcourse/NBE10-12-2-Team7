@@ -11,5 +11,9 @@ public class CommentCreateRequest {
 
     protected CommentCreateRequest() {}
 
+    public CommentCreateRequest(String content) {
+        this.content = content;
+    }
+
     public String getContent() { return content; }
 }
