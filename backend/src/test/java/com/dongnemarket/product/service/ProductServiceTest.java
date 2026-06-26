@@ -8,6 +8,7 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.dto.ProductCreateRequest;
 import com.dongnemarket.product.dto.ProductResponse;
+import com.dongnemarket.product.dto.ProductSummaryResponse;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.ProductRepository;
@@ -18,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -121,6 +123,23 @@ class ProductServiceTest {
 
 		verify(memberRepository, never()).findById(any());
 		verify(productRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("상품 목록을 최신 등록순 요약 응답으로 조회한다")
+	void getsProductsInLatestOrder() {
+		Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
+		Category category = new Category("디지털기기");
+		Product oldProduct = Product.create(member, category, "오래된 상품", "오래된 상품 설명", 10000, "서울 강남구");
+		Product newProduct = Product.create(member, category, "최신 상품", "최신 상품 설명", 20000, "서울 서초구");
+		given(productRepository.findAllByDeletedAtIsNullAndHiddenFalseOrderByIdDesc())
+				.willReturn(List.of(newProduct, oldProduct));
+
+		List<ProductSummaryResponse> responses = productService.getProducts();
+
+		assertThat(responses).hasSize(2);
+		assertThat(responses.get(0).getTitle()).isEqualTo("최신 상품");
+		assertThat(responses.get(1).getTitle()).isEqualTo("오래된 상품");
 	}
 
 	private ProductCreateRequest createRequest(String title, Integer price) {

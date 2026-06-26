@@ -8,11 +8,14 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.dto.ProductCreateRequest;
 import com.dongnemarket.product.dto.ProductResponse;
+import com.dongnemarket.product.dto.ProductSummaryResponse;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
@@ -48,6 +51,13 @@ public class ProductService {
 		);
 		Product savedProduct = productRepository.save(product);
 		return ProductResponse.from(savedProduct);
+	}
+
+	public List<ProductSummaryResponse> getProducts() {
+		return productRepository.findAllByDeletedAtIsNullAndHiddenFalseOrderByIdDesc()
+				.stream()
+				.map(ProductSummaryResponse::from)
+				.toList();
 	}
 
 	private void validateRequest(ProductCreateRequest request) {
