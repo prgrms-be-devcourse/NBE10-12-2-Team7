@@ -83,4 +83,63 @@ class AuthControllerTest {
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
 	}
+
+	// ===== login =====
+
+	@Test
+	@DisplayName("올바른 이메일·비밀번호로 로그인하면 200과 accessToken을 반환한다")
+	void login_success() throws Exception {
+		String signup = "{ \"email\": \"login@example.com\", \"password\": \"password123\", \"nickname\": \"loginUser\" }";
+		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
+				.andExpect(status().isCreated());
+
+		String login = "{ \"email\": \"login@example.com\", \"password\": \"password123\" }";
+		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200))
+				.andExpect(jsonPath("$.data.accessToken").exists());
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 이메일로 로그인하면 404와 MEMBER_NOT_FOUND를 반환한다")
+	void login_emailNotFound() throws Exception {
+		String body = "{ \"email\": \"none@example.com\", \"password\": \"password123\" }";
+
+		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("MEMBER_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("비밀번호가 틀리면 401과 INVALID_PASSWORD를 반환한다")
+	void login_wrongPassword() throws Exception {
+		String signup = "{ \"email\": \"pw@example.com\", \"password\": \"password123\", \"nickname\": \"pwUser\" }";
+		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
+				.andExpect(status().isCreated());
+
+		String login = "{ \"email\": \"pw@example.com\", \"password\": \"wrongPassword\" }";
+		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("INVALID_PASSWORD"));
+	}
+
+	@Test
+	@DisplayName("이메일 형식이 올바르지 않으면 400과 INVALID_INPUT_VALUE를 반환한다")
+	void login_invalidEmailFormat() throws Exception {
+		String body = "{ \"email\": \"not-an-email\", \"password\": \"password123\" }";
+
+		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
+	}
+
+	@Test
+	@DisplayName("비밀번호가 빈 값이면 400과 INVALID_INPUT_VALUE를 반환한다")
+	void login_blankPassword() throws Exception {
+		String body = "{ \"email\": \"test@example.com\", \"password\": \"\" }";
+
+		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
+	}
 }
