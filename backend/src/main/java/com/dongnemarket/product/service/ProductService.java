@@ -61,6 +61,17 @@ public class ProductService {
 				.toList();
 	}
 
+	public List<ProductSummaryResponse> getProductsByCategory(Long categoryId) {
+		if (!categoryRepository.existsById(categoryId)) {
+			throw new BusinessException(ErrorCode.CATEGORY_NOT_FOUND);
+		}
+
+		return productRepository.findAllByCategoryIdAndDeletedAtIsNullAndHiddenFalseOrderByIdDesc(categoryId)
+				.stream()
+				.map(ProductSummaryResponse::from)
+				.toList();
+	}
+
 	@Transactional
 	public ProductResponse getProduct(Long productId) {
 		Product product = productRepository.findById(productId)
