@@ -56,6 +56,15 @@ public class Member extends BaseTimeEntity {
 		return new Member(email, password, nickname, Role.ROLE_USER, MemberStatus.ACTIVE);
 	}
 
+	public void update(String nickname) {
+		this.nickname = nickname;
+	}
+
+	public void softDelete() {
+		this.status = MemberStatus.DELETED;
+		this.deletedAt = LocalDateTime.now();
+	}
+
 	public Long getId() {
 		return id;
 	}
