@@ -60,6 +60,21 @@ public class ProductService {
 				.toList();
 	}
 
+	@Transactional
+	public ProductResponse getProduct(Long productId) {
+		Product product = productRepository.findById(productId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+		if (product.isDeleted()) {
+			throw new BusinessException(ErrorCode.DELETED_PRODUCT);
+		}
+		if (product.isHidden()) {
+			throw new BusinessException(ErrorCode.HIDDEN_PRODUCT);
+		}
+
+		product.increaseViewCount();
+		return ProductResponse.from(product);
+	}
+
 	private void validateRequest(ProductCreateRequest request) {
 		if (!StringUtils.hasText(request.getTitle())) {
 			throw new BusinessException(ErrorCode.INVALID_PRODUCT_TITLE);

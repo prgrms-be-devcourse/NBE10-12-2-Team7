@@ -217,4 +217,69 @@ class ProductControllerTest {
 				.andExpect(jsonPath("$.data[1].productId").value(oldProduct.getId()))
 				.andExpect(jsonPath("$.data[1].title").value("오래된 상품"));
 	}
+
+	@Test
+	@DisplayName("상품 상세는 인증 없이 조회할 수 있고 조회수가 1 증가한다")
+	void getsProductDetailWithoutAuthentication() throws Exception {
+		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리5"));
+		Product product = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"아이폰 15",
+				"상태 좋은 아이폰입니다.",
+				800000,
+				"서울 강남구"
+		));
+
+		mockMvc.perform(get("/api/products/{productId}", product.getId()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200))
+				.andExpect(jsonPath("$.data.productId").value(product.getId()))
+				.andExpect(jsonPath("$.data.memberId").value(member.getId()))
+				.andExpect(jsonPath("$.data.categoryId").value(category.getId()))
+				.andExpect(jsonPath("$.data.title").value("아이폰 15"))
+				.andExpect(jsonPath("$.data.description").value("상태 좋은 아이폰입니다."))
+				.andExpect(jsonPath("$.data.price").value(800000))
+				.andExpect(jsonPath("$.data.tradeStatus").value("ON_SALE"))
+				.andExpect(jsonPath("$.data.region").value("서울 강남구"))
+				.andExpect(jsonPath("$.data.viewCount").value(1))
+				.andExpect(jsonPath("$.data.hidden").value(false));
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 상품 상세 조회 시 PRODUCT_NOT_FOUND를 반환한다")
+	void returnsProductNotFoundWhenProductDoesNotExist() throws Exception {
+		mockMvc.perform(get("/api/products/{productId}", 999L))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("PRODUCT_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("삭제된 상품 상세 조회 시 DELETED_PRODUCT를 반환한다")
+	void returnsDeletedProductWhenProductIsDeleted() throws Exception {
+		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리6"));
+		Product product = Product.create(member, category, "삭제 상품", "삭제 상품 설명", 40000, "서울 마포구");
+		product.softDelete();
+		Product savedProduct = productRepository.saveAndFlush(product);
+
+		mockMvc.perform(get("/api/products/{productId}", savedProduct.getId()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("DELETED_PRODUCT"));
+	}
+
+	@Test
+	@DisplayName("숨김 상품 상세 조회 시 HIDDEN_PRODUCT를 반환한다")
+	void returnsHiddenProductWhenProductIsHidden() throws Exception {
+		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리7"));
+		Product product = Product.create(member, category, "숨김 상품", "숨김 상품 설명", 30000, "서울 송파구");
+		product.hide();
+		Product savedProduct = productRepository.saveAndFlush(product);
+
+		mockMvc.perform(get("/api/products/{productId}", savedProduct.getId()))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.error").value("HIDDEN_PRODUCT"));
+	}
 }
