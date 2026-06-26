@@ -1,5 +1,7 @@
 package com.dongnemarket.auth.controller;
 
+import com.dongnemarket.auth.dto.LoginRequest;
+import com.dongnemarket.auth.dto.LoginResponse;
 import com.dongnemarket.auth.dto.SignupRequest;
 import com.dongnemarket.auth.dto.SignupResponse;
 import com.dongnemarket.auth.service.AuthService;
@@ -31,5 +33,12 @@ public class AuthController {
 		SignupResponse response = authService.signup(request);
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(ApiResponse.success(HttpStatus.CREATED.value(), "회원가입이 완료되었습니다.", response));
+	}
+
+	@Operation(summary = "로그인", description = "이메일/비밀번호로 로그인하고 JWT Access Token을 발급한다.")
+	@PostMapping("/login")
+	public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
+		LoginResponse response = authService.login(request);
+		return ResponseEntity.ok(ApiResponse.success("로그인이 완료되었습니다.", response));
 	}
 }
