@@ -14,6 +14,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -84,5 +86,30 @@ class FavoriteServiceTest {
         assertThatThrownBy(() -> favoriteService.add(MEMBER_ID, PRODUCT_ID))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.FAVORITE_ALREADY_EXISTS);
+    }
+
+    @Test
+    @DisplayName("등록한 관심 상품이면 취소에 성공한다")
+    void remove_success() {
+        Favorite favorite = Favorite.of(MEMBER_ID, PRODUCT_ID);
+        given(favoriteRepository.findByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID))
+                .willReturn(Optional.of(favorite));
+
+        favoriteService.remove(MEMBER_ID, PRODUCT_ID);
+
+        verify(favoriteRepository).delete(favorite);
+    }
+
+    @Test
+    @DisplayName("등록하지 않은 상품을 취소하면 FAVORITE_NOT_FOUND 예외가 발생한다")
+    void remove_notFound_throwsException() {
+        given(favoriteRepository.findByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> favoriteService.remove(MEMBER_ID, PRODUCT_ID))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.FAVORITE_NOT_FOUND);
+
+        verify(favoriteRepository, never()).delete(any());
     }
 }

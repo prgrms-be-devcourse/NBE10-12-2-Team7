@@ -37,6 +37,14 @@ public class FavoriteService {
         }
     }
 
+    /** 관심 상품 취소. 로그인 사용자가 자신이 등록한 관심 상품을 제거한다. */
+    @Transactional
+    public void remove(Long memberId, Long productId) {
+        Favorite favorite = favoriteRepository.findByMemberIdAndProductId(memberId, productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FAVORITE_NOT_FOUND));
+        favoriteRepository.delete(favorite);
+    }
+
     /** 관심 등록 가능 여부 검증: 상품이 존재해야 하고, 동일 사용자가 이미 등록하지 않았어야 한다. */
     private void validateFavoriteCreatable(Long memberId, Long productId) {
         if (!productRepository.existsById(productId)) {
