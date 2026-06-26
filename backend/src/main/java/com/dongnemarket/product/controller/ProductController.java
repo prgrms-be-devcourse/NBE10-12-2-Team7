@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,5 +44,11 @@ public class ProductController {
 	@GetMapping
 	public ApiResponse<List<ProductSummaryResponse>> getProducts() {
 		return ApiResponse.success(productService.getProducts());
+	}
+
+	@Operation(summary = "상품 상세 조회", description = "상품 상세 정보를 조회하고 조회수를 1 증가시킵니다.")
+	@GetMapping("/{productId}")
+	public ApiResponse<ProductResponse> getProduct(@PathVariable Long productId) {
+		return ApiResponse.success(productService.getProduct(productId));
 	}
 }

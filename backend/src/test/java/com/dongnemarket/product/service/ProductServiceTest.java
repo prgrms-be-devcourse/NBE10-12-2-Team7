@@ -142,6 +142,60 @@ class ProductServiceTest {
 		assertThat(responses.get(1).getTitle()).isEqualTo("오래된 상품");
 	}
 
+	@Test
+	@DisplayName("상품 상세 조회에 성공하면 조회수가 1 증가한다")
+	void getsProductAndIncreasesViewCount() {
+		Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		ProductResponse response = productService.getProduct(1L);
+
+		assertThat(response.getTitle()).isEqualTo("아이폰 15");
+		assertThat(response.getDescription()).isEqualTo("상태 좋은 아이폰입니다.");
+		assertThat(response.getViewCount()).isEqualTo(1);
+		assertThat(product.getViewCount()).isEqualTo(1);
+	}
+
+	@Test
+	@DisplayName("상품이 없으면 PRODUCT_NOT_FOUND 예외가 발생한다")
+	void throwsProductNotFoundWhenProductDoesNotExist() {
+		given(productRepository.findById(1L)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> productService.getProduct(1L))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("삭제된 상품이면 DELETED_PRODUCT 예외가 발생한다")
+	void throwsDeletedProductWhenProductIsDeleted() {
+		Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		product.softDelete();
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		assertThatThrownBy(() -> productService.getProduct(1L))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DELETED_PRODUCT);
+	}
+
+	@Test
+	@DisplayName("숨김 상품이면 HIDDEN_PRODUCT 예외가 발생한다")
+	void throwsHiddenProductWhenProductIsHidden() {
+		Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		product.hide();
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		assertThatThrownBy(() -> productService.getProduct(1L))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.HIDDEN_PRODUCT);
+	}
+
 	private ProductCreateRequest createRequest(String title, Integer price) {
 		return new ProductCreateRequest(
 				1L,

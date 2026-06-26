@@ -87,6 +87,14 @@ public class Product extends BaseTimeEntity {
 		this.deletedAt = LocalDateTime.now();
 	}
 
+	public void increaseViewCount() {
+		this.viewCount++;
+	}
+
+	public boolean isDeleted() {
+		return deletedAt != null;
+	}
+
 	public Long getId() {
 		return id;
 	}
