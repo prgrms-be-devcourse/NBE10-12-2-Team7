@@ -1,5 +1,7 @@
 package com.dongnemarket.global.security;
 
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,6 +9,10 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+
+import javax.crypto.SecretKey;
+
+import java.nio.charset.StandardCharsets;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -41,5 +47,32 @@ class SecurityPolicyTest {
 	void swaggerApiDocs_isPublic() throws Exception {
 		mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk());
+	}
+	@Test
+	@DisplayName("깨진(malformed) 토큰으로 접근 시 401 + INVALID_TOKEN")
+	void protectedApi_withMalformedToken_returns401InvalidToken() throws Exception {
+		mockMvc.perform(get("/api/admin/members")
+						.header("Authorization", "Bearer not.a.valid.token"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.status").value(401))
+				.andExpect(jsonPath("$.error").value("INVALID_TOKEN"))
+				.andExpect(jsonPath("$.message").exists());
+	}
+
+	@Test
+	@DisplayName("다른 키로 서명된(위조) 토큰으로 접근 시 401 + INVALID_TOKEN")
+	void protectedApi_withForgedSignature_returns401InvalidToken() throws Exception {
+		SecretKey wrongKey = Keys.hmacShaKeyFor(
+				"a-totally-different-secret-key-for-forgery-0123456789".getBytes(StandardCharsets.UTF_8));
+		String forgedToken = Jwts.builder()
+				.subject("1")
+				.claim("role", "ROLE_USER")
+				.signWith(wrongKey)
+				.compact();
+
+		mockMvc.perform(get("/api/admin/members")
+						.header("Authorization", "Bearer " + forgedToken))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("INVALID_TOKEN"));
 	}
 }

@@ -1,5 +1,7 @@
 package com.dongnemarket.global.security.jwt;
 
+import com.dongnemarket.global.exception.ErrorCode;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,9 +34,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 									@NonNull HttpServletResponse response,
 									@NonNull FilterChain filterChain) throws ServletException, IOException {
 		String token = resolveToken(request);
-		if (token != null && jwtTokenProvider.validateToken(token)) {
-			Authentication authentication = jwtTokenProvider.getAuthentication(token);
-			SecurityContextHolder.getContext().setAuthentication(authentication);
+		if (token != null) {
+			try {
+				Authentication authentication = jwtTokenProvider.getAuthentication(token);
+				SecurityContextHolder.getContext().setAuthentication(authentication);
+			} catch (JwtException | IllegalArgumentException e) {
+				request.setAttribute("authError", ErrorCode.INVALID_TOKEN); // 토큰은 왔는데 깨짐
+			}
 		}
 		filterChain.doFilter(request, response);
 	}
