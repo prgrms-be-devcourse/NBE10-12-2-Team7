@@ -1,0 +1,34 @@
+package com.dongnemarket.favorite.controller;
+
+import com.dongnemarket.favorite.dto.FavoriteResponse;
+import com.dongnemarket.favorite.service.FavoriteService;
+import com.dongnemarket.global.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@Tag(name = "Favorite", description = "관심 상품 API")
+@RestController
+public class FavoriteController {
+
+    private final FavoriteService favoriteService;
+
+    public FavoriteController(FavoriteService favoriteService) {
+        this.favoriteService = favoriteService;
+    }
+
+    @Operation(summary = "관심 상품 등록", description = "로그인 사용자가 특정 상품을 관심 목록에 등록한다.")
+    @PostMapping("/api/products/{productId}/favorites")
+    public ResponseEntity<ApiResponse<FavoriteResponse>> addFavorite(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long productId) {
+        FavoriteResponse response = favoriteService.add(memberId, productId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(HttpStatus.CREATED.value(), "관심 상품으로 등록되었습니다.", response));
+    }
+}
