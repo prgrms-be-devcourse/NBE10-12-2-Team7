@@ -117,6 +117,12 @@ public class ProductService {
 		product.softDelete();
 	}
 
+	public void validateAccessibleProduct(Long productId) {
+		if (!productRepository.existsByIdAndDeletedAtIsNullAndHiddenFalse(productId)) {
+			throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
+		}
+	}
+
 	private void validateRequest(ProductCreateRequest request) {
 		validateProductFields(request.getTitle(), request.getPrice());
 	}
