@@ -7,7 +7,7 @@
 
 ## 현재 검증 상태
 - [x] MySQL Docker 연결 및 `reports` 테이블 생성 확인 완료
-- [x] `POST /api/products/{productId}/reports` 성공/실패 케이스 실제 호출로 확인 완료
+- [x] `POST /api/products/{productId}/reports` 성공/실패 케이스 실제 호출로 확인 완료 (PRODUCT_NOT_FOUND, CANNOT_REPORT_OWN_PRODUCT 포함)
 - [x] `POST /api/members/{memberId}/reports` 성공/실패 케이스 실제 호출로 확인 완료
 - [x] `GET /api/members/me/reports` 성공 케이스 실제 호출로 확인 완료
 
@@ -50,7 +50,57 @@ POST /api/products/1/reports
 
 ---
 
-## 2) 실패 — 중복 신고
+## 2) 실패 — 존재하지 않는 상품 신고
+
+**Request**
+```
+POST /api/products/999/reports
+```
+```json
+{
+  "reason": "FAKE_ITEM",
+  "content": "존재하지 않는 상품 신고 테스트"
+}
+```
+
+**Actual Response** `404 Not Found`
+```json
+{
+  "status": 404,
+  "error": "PRODUCT_NOT_FOUND",
+  "message": "상품을 찾을 수 없습니다.",
+  "timestamp": "2026-06-26T14:06:57.4137362"
+}
+```
+
+---
+
+## 3) 실패 — 본인 상품 신고
+
+**Request**
+```
+POST /api/products/1/reports
+```
+```json
+{
+  "reason": "FAKE_ITEM",
+  "content": "본인 상품 신고 테스트"
+}
+```
+
+**Actual Response** `400 Bad Request`
+```json
+{
+  "status": 400,
+  "error": "CANNOT_REPORT_OWN_PRODUCT",
+  "message": "본인이 등록한 상품은 신고할 수 없습니다.",
+  "timestamp": "2026-06-26T14:19:05.801866"
+}
+```
+
+---
+
+## 4) 실패 — 중복 신고
 
 같은 상품을 동일한 사용자가 두 번째 신고 시도.
 
@@ -121,6 +171,8 @@ POST /api/products/1/reports
 - [x] 중복 신고 시 409 + `DUPLICATE_REPORT`
 - [x] 인증 없이 요청 시 401 + `UNAUTHORIZED`
 - [x] `reason` 누락 시 400 + `INVALID_INPUT_VALUE`
+- [x] 존재하지 않는 상품 신고 시 404 + `PRODUCT_NOT_FOUND`
+- [x] 본인 상품 신고 시 400 + `CANNOT_REPORT_OWN_PRODUCT`
 - [x] `reports` 테이블에 신고 데이터 저장 확인 (MySQL 직접 조회)
 
 ---
@@ -282,6 +334,3 @@ GET /api/members/me/reports
 
 ---
 
-## 미검증 항목 (Product Entity 머지 전 보류)
-- 존재하지 않는 상품 신고 시 `PRODUCT_NOT_FOUND` — Product Entity 머지 후 구현 예정
-- 본인 상품 신고 시 `CANNOT_REPORT_OWN_PRODUCT` — Product Entity 머지 후 구현 예정
