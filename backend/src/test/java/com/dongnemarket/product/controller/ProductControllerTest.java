@@ -18,6 +18,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -281,5 +282,124 @@ class ProductControllerTest {
 		mockMvc.perform(get("/api/products/{productId}", savedProduct.getId()))
 				.andExpect(status().isForbidden())
 				.andExpect(jsonPath("$.error").value("HIDDEN_PRODUCT"));
+	}
+
+	@Test
+	@DisplayName("작성자는 상품 정보를 수정할 수 있다")
+	void updatesProductByOwner() throws Exception {
+		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
+		Category oldCategory = categoryRepository.save(new Category("테스트카테고리8"));
+		Category newCategory = categoryRepository.save(new Category("테스트카테고리9"));
+		Product product = productRepository.saveAndFlush(Product.create(
+				member,
+				oldCategory,
+				"아이폰 15",
+				"상태 좋은 아이폰입니다.",
+				800000,
+				"서울 강남구"
+		));
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "categoryId": %d,
+				  "title": "맥북 프로",
+				  "description": "수정된 상품 설명입니다.",
+				  "price": 1500000,
+				  "region": "서울 서초구"
+				}
+				""".formatted(newCategory.getId());
+
+		mockMvc.perform(patch("/api/products/{productId}", product.getId())
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200))
+				.andExpect(jsonPath("$.data.productId").value(product.getId()))
+				.andExpect(jsonPath("$.data.categoryId").value(newCategory.getId()))
+				.andExpect(jsonPath("$.data.title").value("맥북 프로"))
+				.andExpect(jsonPath("$.data.description").value("수정된 상품 설명입니다."))
+				.andExpect(jsonPath("$.data.price").value(1500000))
+				.andExpect(jsonPath("$.data.region").value("서울 서초구"));
+	}
+
+	@Test
+	@DisplayName("인증 없이 상품 수정 요청 시 401을 반환한다")
+	void returnsUnauthorizedWhenUpdatingWithoutAuthentication() throws Exception {
+		String body = """
+				{
+				  "categoryId": 1,
+				  "title": "맥북 프로",
+				  "description": "수정된 상품 설명입니다.",
+				  "price": 1500000,
+				  "region": "서울 서초구"
+				}
+				""";
+
+		mockMvc.perform(patch("/api/products/{productId}", 1L)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
+	}
+
+	@Test
+	@DisplayName("작성자가 아니면 상품 수정 시 PRODUCT_OWNER_ONLY를 반환한다")
+	void returnsProductOwnerOnlyWhenUpdatingByNonOwner() throws Exception {
+		Member owner = memberRepository.save(Member.createUser("owner@example.com", "encodedPassword", "작성자"));
+		Member other = memberRepository.save(Member.createUser("other@example.com", "encodedPassword", "다른사용자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리10"));
+		Product product = productRepository.saveAndFlush(Product.create(
+				owner,
+				category,
+				"아이폰 15",
+				"상태 좋은 아이폰입니다.",
+				800000,
+				"서울 강남구"
+		));
+		String token = jwtTokenProvider.createAccessToken(other.getId(), other.getRole().name());
+		String body = """
+				{
+				  "categoryId": %d,
+				  "title": "맥북 프로",
+				  "description": "수정된 상품 설명입니다.",
+				  "price": 1500000,
+				  "region": "서울 서초구"
+				}
+				""".formatted(category.getId());
+
+		mockMvc.perform(patch("/api/products/{productId}", product.getId())
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.error").value("PRODUCT_OWNER_ONLY"));
+	}
+
+	@Test
+	@DisplayName("거래완료 상품 수정 시 CANNOT_UPDATE_COMPLETED_PRODUCT를 반환한다")
+	void returnsCannotUpdateCompletedProductWhenUpdatingCompletedProduct() throws Exception {
+		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리11"));
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		product.complete();
+		Product savedProduct = productRepository.saveAndFlush(product);
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "categoryId": %d,
+				  "title": "맥북 프로",
+				  "description": "수정된 상품 설명입니다.",
+				  "price": 1500000,
+				  "region": "서울 서초구"
+				}
+				""".formatted(category.getId());
+
+		mockMvc.perform(patch("/api/products/{productId}", savedProduct.getId())
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("CANNOT_UPDATE_COMPLETED_PRODUCT"));
 	}
 }

@@ -9,6 +9,7 @@ import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.dto.ProductCreateRequest;
 import com.dongnemarket.product.dto.ProductResponse;
 import com.dongnemarket.product.dto.ProductSummaryResponse;
+import com.dongnemarket.product.dto.ProductUpdateRequest;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.ProductRepository;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -196,6 +198,120 @@ class ProductServiceTest {
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.HIDDEN_PRODUCT);
 	}
 
+	@Test
+	@DisplayName("작성자는 상품 정보를 수정할 수 있다")
+	void updatesProductByOwner() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category oldCategory = new Category("디지털기기");
+		Category newCategory = new Category("생활가전");
+		Product product = Product.create(member, oldCategory, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		ProductUpdateRequest request = createUpdateRequest("맥북 프로", 1500000);
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+		given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
+
+		ProductResponse response = productService.updateProduct(1L, 1L, request);
+
+		assertThat(response.getTitle()).isEqualTo("맥북 프로");
+		assertThat(response.getDescription()).isEqualTo("수정된 상품 설명입니다.");
+		assertThat(response.getPrice()).isEqualTo(1500000);
+		assertThat(response.getRegion()).isEqualTo("서울 서초구");
+		assertThat(product.getCategory()).isEqualTo(newCategory);
+	}
+
+	@Test
+	@DisplayName("수정할 상품이 없으면 PRODUCT_NOT_FOUND 예외가 발생한다")
+	void throwsProductNotFoundWhenUpdatingMissingProduct() {
+		ProductUpdateRequest request = createUpdateRequest("맥북 프로", 1500000);
+		given(productRepository.findById(1L)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> productService.updateProduct(1L, 1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("삭제된 상품은 수정할 수 없다")
+	void throwsDeletedProductWhenUpdatingDeletedProduct() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		product.softDelete();
+		ProductUpdateRequest request = createUpdateRequest("맥북 프로", 1500000);
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		assertThatThrownBy(() -> productService.updateProduct(1L, 1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DELETED_PRODUCT);
+	}
+
+	@Test
+	@DisplayName("작성자가 아니면 상품을 수정할 수 없다")
+	void throwsProductOwnerOnlyWhenUpdatingByNonOwner() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		ProductUpdateRequest request = createUpdateRequest("맥북 프로", 1500000);
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		assertThatThrownBy(() -> productService.updateProduct(2L, 1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_OWNER_ONLY);
+	}
+
+	@Test
+	@DisplayName("거래완료 상품은 수정할 수 없다")
+	void throwsCannotUpdateCompletedProductWhenProductIsCompleted() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		product.complete();
+		ProductUpdateRequest request = createUpdateRequest("맥북 프로", 1500000);
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		assertThatThrownBy(() -> productService.updateProduct(1L, 1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_UPDATE_COMPLETED_PRODUCT);
+	}
+
+	@Test
+	@DisplayName("수정 요청 카테고리가 없으면 CATEGORY_NOT_FOUND 예외가 발생한다")
+	void throwsCategoryNotFoundWhenUpdatingWithMissingCategory() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		ProductUpdateRequest request = createUpdateRequest("맥북 프로", 1500000);
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+		given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> productService.updateProduct(1L, 1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CATEGORY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("수정 제목이 비어 있으면 INVALID_PRODUCT_TITLE 예외가 발생한다")
+	void throwsInvalidProductTitleWhenUpdatingWithBlankTitle() {
+		ProductUpdateRequest request = createUpdateRequest(" ", 1500000);
+
+		assertThatThrownBy(() -> productService.updateProduct(1L, 1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_PRODUCT_TITLE);
+
+		verify(productRepository, never()).findById(any());
+	}
+
+	@Test
+	@DisplayName("수정 가격이 음수이면 INVALID_PRODUCT_PRICE 예외가 발생한다")
+	void throwsInvalidProductPriceWhenUpdatingWithNegativePrice() {
+		ProductUpdateRequest request = createUpdateRequest("맥북 프로", -1);
+
+		assertThatThrownBy(() -> productService.updateProduct(1L, 1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_PRODUCT_PRICE);
+
+		verify(productRepository, never()).findById(any());
+	}
+
 	private ProductCreateRequest createRequest(String title, Integer price) {
 		return new ProductCreateRequest(
 				1L,
@@ -204,5 +320,21 @@ class ProductServiceTest {
 				price,
 				"서울 강남구"
 		);
+	}
+
+	private ProductUpdateRequest createUpdateRequest(String title, Integer price) {
+		return new ProductUpdateRequest(
+				2L,
+				title,
+				"수정된 상품 설명입니다.",
+				price,
+				"서울 서초구"
+		);
+	}
+
+	private Member createMemberWithId(Long id, String email, String nickname) {
+		Member member = Member.createUser(email, "encodedPassword", nickname);
+		ReflectionTestUtils.setField(member, "id", id);
+		return member;
 	}
 }

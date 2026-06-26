@@ -31,6 +31,7 @@ public enum ErrorCode {
 	DELETED_PRODUCT(404, "PRODUCT_004", "삭제된 상품입니다."),
 	INVALID_PRODUCT_TITLE(400, "PRODUCT_005", "상품 제목은 필수입니다."),
 	INVALID_PRODUCT_PRICE(400, "PRODUCT_006", "상품 가격은 0원 이상이어야 합니다."),
+	CANNOT_UPDATE_COMPLETED_PRODUCT(400, "PRODUCT_007", "거래완료된 상품은 수정할 수 없습니다."),
 
 	// ===== CATEGORY ERROR (한상민) =====
 	CATEGORY_NOT_FOUND(404, "CATEGORY_001", "카테고리를 찾을 수 없습니다."),
