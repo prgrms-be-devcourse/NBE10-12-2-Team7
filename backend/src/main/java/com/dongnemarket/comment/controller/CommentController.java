@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -46,5 +47,14 @@ public class CommentController {
             @Valid @RequestBody CommentUpdateRequest request) {
         CommentResponse response = commentService.update(memberId, commentId, request);
         return ResponseEntity.ok(ApiResponse.success("댓글이 수정되었습니다.", response));
+    }
+
+    @Operation(summary = "댓글 삭제", description = "작성자 본인이 자신의 댓글을 삭제한다. (소프트 삭제)")
+    @DeleteMapping("/api/comments/{commentId}")
+    public ResponseEntity<ApiResponse<Void>> deleteComment(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long commentId) {
+        commentService.delete(memberId, commentId);
+        return ResponseEntity.ok(ApiResponse.success("댓글이 삭제되었습니다.", null));
     }
 }

@@ -98,4 +98,36 @@ class CommentServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMMENT_OWNER_ONLY);
     }
+
+    @Test
+    @DisplayName("작성자 본인이면 댓글 삭제(소프트)에 성공한다")
+    void delete_success() {
+        Comment comment = Comment.of(MEMBER_ID, PRODUCT_ID, "삭제될 댓글");
+        given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.of(comment));
+
+        commentService.delete(MEMBER_ID, COMMENT_ID);
+
+        assertThat(comment.isDeleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("존재하지 않거나 이미 삭제된 댓글을 삭제하면 COMMENT_NOT_FOUND 예외가 발생한다")
+    void delete_notFound_throwsException() {
+        given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> commentService.delete(MEMBER_ID, COMMENT_ID))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMMENT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("작성자가 아니면 댓글 삭제 시 COMMENT_OWNER_ONLY 예외가 발생한다")
+    void delete_notOwner_throwsException() {
+        Comment othersComment = Comment.of(999L, PRODUCT_ID, "남의 댓글");
+        given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.of(othersComment));
+
+        assertThatThrownBy(() -> commentService.delete(MEMBER_ID, COMMENT_ID))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMMENT_OWNER_ONLY);
+    }
 }

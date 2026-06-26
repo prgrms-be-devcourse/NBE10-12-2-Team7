@@ -45,4 +45,15 @@ public class CommentService {
         comment.updateContent(request.getContent());
         return CommentResponse.from(comment);
     }
+
+    /** 댓글 삭제. 작성자 본인만 자신의 댓글을 소프트 삭제한다. */
+    @Transactional
+    public void delete(Long memberId, Long commentId) {
+        Comment comment = commentRepository.findByIdAndDeletedAtIsNull(commentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
+        if (!comment.getMemberId().equals(memberId)) {
+            throw new BusinessException(ErrorCode.COMMENT_OWNER_ONLY);
+        }
+        comment.softDelete();
+    }
 }
