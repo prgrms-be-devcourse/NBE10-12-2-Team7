@@ -79,6 +79,14 @@ public class Product extends BaseTimeEntity {
 		return new Product(member, category, title, description, price, region);
 	}
 
+	public void hide() {
+		this.hidden = true;
+	}
+
+	public void softDelete() {
+		this.deletedAt = LocalDateTime.now();
+	}
+
 	public Long getId() {
 		return id;
 	}

@@ -5,6 +5,7 @@ import com.dongnemarket.category.repository.CategoryRepository;
 import com.dongnemarket.global.security.jwt.JwtTokenProvider;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
+import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -170,5 +172,49 @@ class ProductControllerTest {
 						.content(body))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("INVALID_PRODUCT_PRICE"));
+	}
+
+	@Test
+	@DisplayName("상품 목록은 인증 없이 최신 등록순으로 조회하고 숨김·삭제 상품은 제외한다")
+	void getsProductsInLatestOrderWithoutAuthentication() throws Exception {
+		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리4"));
+		Product oldProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"오래된 상품",
+				"오래된 상품 설명",
+				10000,
+				"서울 강남구"
+		));
+		Product newProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"최신 상품",
+				"최신 상품 설명",
+				20000,
+				"서울 서초구"
+		));
+		Product hiddenProduct = Product.create(member, category, "숨김 상품", "숨김 상품 설명", 30000, "서울 송파구");
+		hiddenProduct.hide();
+		productRepository.save(hiddenProduct);
+		Product deletedProduct = Product.create(member, category, "삭제 상품", "삭제 상품 설명", 40000, "서울 마포구");
+		deletedProduct.softDelete();
+		productRepository.saveAndFlush(deletedProduct);
+
+		mockMvc.perform(get("/api/products"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200))
+				.andExpect(jsonPath("$.data.length()").value(2))
+				.andExpect(jsonPath("$.data[0].productId").value(newProduct.getId()))
+				.andExpect(jsonPath("$.data[0].title").value("최신 상품"))
+				.andExpect(jsonPath("$.data[0].description").doesNotExist())
+				.andExpect(jsonPath("$.data[0].price").value(20000))
+				.andExpect(jsonPath("$.data[0].tradeStatus").value("ON_SALE"))
+				.andExpect(jsonPath("$.data[0].region").value("서울 서초구"))
+				.andExpect(jsonPath("$.data[0].viewCount").value(0))
+				.andExpect(jsonPath("$.data[0].hidden").value(false))
+				.andExpect(jsonPath("$.data[1].productId").value(oldProduct.getId()))
+				.andExpect(jsonPath("$.data[1].title").value("오래된 상품"));
 	}
 }
