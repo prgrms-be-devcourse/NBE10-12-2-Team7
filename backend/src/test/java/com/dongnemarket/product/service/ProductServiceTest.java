@@ -378,6 +378,46 @@ class ProductServiceTest {
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_OWNER_ONLY);
 	}
 
+	@Test
+	@DisplayName("접근 가능한 상품이면 검증을 통과한다")
+	void validatesAccessibleProduct() {
+		given(productRepository.existsByIdAndDeletedAtIsNullAndHiddenFalse(1L)).willReturn(true);
+
+		productService.validateAccessibleProduct(1L);
+
+		verify(productRepository).existsByIdAndDeletedAtIsNullAndHiddenFalse(1L);
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 상품이면 접근 가능한 상품 검증 시 PRODUCT_NOT_FOUND 예외가 발생한다")
+	void throwsProductNotFoundWhenValidatingMissingProduct() {
+		given(productRepository.existsByIdAndDeletedAtIsNullAndHiddenFalse(1L)).willReturn(false);
+
+		assertThatThrownBy(() -> productService.validateAccessibleProduct(1L))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("삭제된 상품이면 접근 가능한 상품 검증 시 PRODUCT_NOT_FOUND 예외가 발생한다")
+	void throwsProductNotFoundWhenValidatingDeletedProduct() {
+		given(productRepository.existsByIdAndDeletedAtIsNullAndHiddenFalse(1L)).willReturn(false);
+
+		assertThatThrownBy(() -> productService.validateAccessibleProduct(1L))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("숨김 상품이면 접근 가능한 상품 검증 시 PRODUCT_NOT_FOUND 예외가 발생한다")
+	void throwsProductNotFoundWhenValidatingHiddenProduct() {
+		given(productRepository.existsByIdAndDeletedAtIsNullAndHiddenFalse(1L)).willReturn(false);
+
+		assertThatThrownBy(() -> productService.validateAccessibleProduct(1L))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
 	private ProductCreateRequest createRequest(String title, Integer price) {
 		return new ProductCreateRequest(
 				1L,
