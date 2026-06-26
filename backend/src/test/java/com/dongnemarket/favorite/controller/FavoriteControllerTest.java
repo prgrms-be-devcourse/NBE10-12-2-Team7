@@ -18,6 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -115,5 +116,35 @@ class FavoriteControllerTest {
                         .header("Authorization", token))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("FAVORITE_ALREADY_EXISTS"));
+    }
+
+    @Test
+    @DisplayName("등록한 관심 상품을 취소하면 200을 반환한다")
+    void removeFavorite_success() throws Exception {
+        mockMvc.perform(post("/api/products/{productId}/favorites", productId)
+                        .header("Authorization", token))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(delete("/api/products/{productId}/favorites", productId)
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200));
+    }
+
+    @Test
+    @DisplayName("등록하지 않은 상품을 취소하면 404와 FAVORITE_NOT_FOUND를 반환한다")
+    void removeFavorite_notFound_returns404() throws Exception {
+        mockMvc.perform(delete("/api/products/{productId}/favorites", productId)
+                        .header("Authorization", token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("FAVORITE_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("토큰 없이 관심 취소 요청하면 401과 UNAUTHORIZED를 반환한다")
+    void removeFavorite_withoutToken_returns401() throws Exception {
+        mockMvc.perform(delete("/api/products/{productId}/favorites", productId))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
     }
 }

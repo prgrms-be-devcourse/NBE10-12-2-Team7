@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,5 +31,14 @@ public class FavoriteController {
         FavoriteResponse response = favoriteService.add(memberId, productId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), "관심 상품으로 등록되었습니다.", response));
+    }
+
+    @Operation(summary = "관심 상품 취소", description = "로그인 사용자가 자신이 등록한 관심 상품을 취소한다.")
+    @DeleteMapping("/api/products/{productId}/favorites")
+    public ResponseEntity<ApiResponse<Void>> removeFavorite(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long productId) {
+        favoriteService.remove(memberId, productId);
+        return ResponseEntity.ok(ApiResponse.success("관심 상품에서 제거되었습니다.", null));
     }
 }
