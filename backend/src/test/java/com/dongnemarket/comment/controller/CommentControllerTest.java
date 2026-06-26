@@ -20,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -174,6 +175,45 @@ class CommentControllerTest {
         mockMvc.perform(patch("/api/comments/{commentId}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{ \"content\": \"수정\" }"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    @DisplayName("작성자 본인이 자신의 댓글을 삭제하면 200을 반환한다")
+    void deleteComment_success() throws Exception {
+        Long commentId = commentRepository.save(Comment.of(memberId, productId, "삭제될 댓글")).getId();
+
+        mockMvc.perform(delete("/api/comments/{commentId}", commentId)
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200));
+    }
+
+    @Test
+    @DisplayName("작성자가 아닌 사용자가 삭제하면 403과 COMMENT_OWNER_ONLY를 반환한다")
+    void deleteComment_notOwner_returns403() throws Exception {
+        Long commentId = commentRepository.save(Comment.of(otherMemberId, productId, "남의 댓글")).getId();
+
+        mockMvc.perform(delete("/api/comments/{commentId}", commentId)
+                        .header("Authorization", token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("COMMENT_OWNER_ONLY"));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 댓글을 삭제하면 404와 COMMENT_NOT_FOUND를 반환한다")
+    void deleteComment_notFound_returns404() throws Exception {
+        mockMvc.perform(delete("/api/comments/{commentId}", 999_999L)
+                        .header("Authorization", token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("COMMENT_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("토큰 없이 댓글 삭제 요청하면 401과 UNAUTHORIZED를 반환한다")
+    void deleteComment_withoutToken_returns401() throws Exception {
+        mockMvc.perform(delete("/api/comments/{commentId}", 1L))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
     }
