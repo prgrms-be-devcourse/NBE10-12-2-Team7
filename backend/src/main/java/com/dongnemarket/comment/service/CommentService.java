@@ -2,6 +2,7 @@ package com.dongnemarket.comment.service;
 
 import com.dongnemarket.comment.dto.CommentCreateRequest;
 import com.dongnemarket.comment.dto.CommentResponse;
+import com.dongnemarket.comment.dto.CommentUpdateRequest;
 import com.dongnemarket.comment.entity.Comment;
 import com.dongnemarket.comment.repository.CommentRepository;
 import com.dongnemarket.global.exception.BusinessException;
@@ -31,5 +32,17 @@ public class CommentService {
         }
         Comment saved = commentRepository.save(Comment.of(memberId, productId, request.getContent()));
         return CommentResponse.from(saved);
+    }
+
+    /** 댓글 수정. 작성자 본인만 자신의 댓글 내용을 수정할 수 있다. */
+    @Transactional
+    public CommentResponse update(Long memberId, Long commentId, CommentUpdateRequest request) {
+        Comment comment = commentRepository.findByIdAndDeletedAtIsNull(commentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
+        if (!comment.getMemberId().equals(memberId)) {
+            throw new BusinessException(ErrorCode.COMMENT_OWNER_ONLY);
+        }
+        comment.updateContent(request.getContent());
+        return CommentResponse.from(comment);
     }
 }
