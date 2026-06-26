@@ -9,6 +9,7 @@ import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.dto.ProductCreateRequest;
 import com.dongnemarket.product.dto.ProductResponse;
 import com.dongnemarket.product.dto.ProductSummaryResponse;
+import com.dongnemarket.product.dto.ProductUpdateRequest;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
 import org.springframework.stereotype.Service;
@@ -75,11 +76,46 @@ public class ProductService {
 		return ProductResponse.from(product);
 	}
 
+	@Transactional
+	public ProductResponse updateProduct(Long memberId, Long productId, ProductUpdateRequest request) {
+		validateRequest(request);
+		Product product = productRepository.findById(productId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+		if (product.isDeleted()) {
+			throw new BusinessException(ErrorCode.DELETED_PRODUCT);
+		}
+		if (!product.getMember().getId().equals(memberId)) {
+			throw new BusinessException(ErrorCode.PRODUCT_OWNER_ONLY);
+		}
+		if (product.isCompleted()) {
+			throw new BusinessException(ErrorCode.CANNOT_UPDATE_COMPLETED_PRODUCT);
+		}
+
+		Category category = categoryRepository.findById(request.getCategoryId())
+				.orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND));
+		product.update(
+				category,
+				request.getTitle(),
+				request.getDescription(),
+				request.getPrice(),
+				request.getRegion()
+		);
+		return ProductResponse.from(product);
+	}
+
 	private void validateRequest(ProductCreateRequest request) {
-		if (!StringUtils.hasText(request.getTitle())) {
+		validateProductFields(request.getTitle(), request.getPrice());
+	}
+
+	private void validateRequest(ProductUpdateRequest request) {
+		validateProductFields(request.getTitle(), request.getPrice());
+	}
+
+	private void validateProductFields(String title, Integer price) {
+		if (!StringUtils.hasText(title)) {
 			throw new BusinessException(ErrorCode.INVALID_PRODUCT_TITLE);
 		}
-		if (request.getPrice() == null || request.getPrice() < 0) {
+		if (price == null || price < 0) {
 			throw new BusinessException(ErrorCode.INVALID_PRODUCT_PRICE);
 		}
 	}

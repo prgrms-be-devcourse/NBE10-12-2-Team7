@@ -4,6 +4,7 @@ import com.dongnemarket.global.response.ApiResponse;
 import com.dongnemarket.product.dto.ProductCreateRequest;
 import com.dongnemarket.product.dto.ProductResponse;
 import com.dongnemarket.product.dto.ProductSummaryResponse;
+import com.dongnemarket.product.dto.ProductUpdateRequest;
 import com.dongnemarket.product.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -50,5 +52,14 @@ public class ProductController {
 	@GetMapping("/{productId}")
 	public ApiResponse<ProductResponse> getProduct(@PathVariable Long productId) {
 		return ApiResponse.success(productService.getProduct(productId));
+	}
+
+	@Operation(summary = "상품 수정", description = "작성자가 상품 기본 정보를 수정합니다. 거래완료 상품은 수정할 수 없습니다.")
+	@PatchMapping("/{productId}")
+	public ApiResponse<ProductResponse> updateProduct(
+			@AuthenticationPrincipal Long memberId,
+			@PathVariable Long productId,
+			@RequestBody ProductUpdateRequest request) {
+		return ApiResponse.success(productService.updateProduct(memberId, productId, request));
 	}
 }

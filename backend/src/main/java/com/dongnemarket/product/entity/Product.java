@@ -91,8 +91,24 @@ public class Product extends BaseTimeEntity {
 		this.viewCount++;
 	}
 
+	public void update(Category category, String title, String description, Integer price, String region) {
+		this.category = category;
+		this.title = title;
+		this.description = description;
+		this.price = price;
+		this.region = region;
+	}
+
+	public void complete() {
+		this.tradeStatus = TradeStatus.COMPLETED;
+	}
+
 	public boolean isDeleted() {
 		return deletedAt != null;
+	}
+
+	public boolean isCompleted() {
+		return tradeStatus == TradeStatus.COMPLETED;
 	}
 
 	public Long getId() {
