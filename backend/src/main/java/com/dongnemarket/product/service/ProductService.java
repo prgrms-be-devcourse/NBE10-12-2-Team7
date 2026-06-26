@@ -103,6 +103,20 @@ public class ProductService {
 		return ProductResponse.from(product);
 	}
 
+	@Transactional
+	public void deleteProduct(Long memberId, Long productId) {
+		Product product = productRepository.findById(productId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+		if (product.isDeleted()) {
+			throw new BusinessException(ErrorCode.DELETED_PRODUCT);
+		}
+		if (!product.getMember().getId().equals(memberId)) {
+			throw new BusinessException(ErrorCode.PRODUCT_OWNER_ONLY);
+		}
+
+		product.softDelete();
+	}
+
 	private void validateRequest(ProductCreateRequest request) {
 		validateProductFields(request.getTitle(), request.getPrice());
 	}

@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -61,5 +62,14 @@ public class ProductController {
 			@PathVariable Long productId,
 			@RequestBody ProductUpdateRequest request) {
 		return ApiResponse.success(productService.updateProduct(memberId, productId, request));
+	}
+
+	@Operation(summary = "상품 삭제", description = "작성자가 상품을 논리 삭제합니다.")
+	@DeleteMapping("/{productId}")
+	public ApiResponse<Void> deleteProduct(
+			@AuthenticationPrincipal Long memberId,
+			@PathVariable Long productId) {
+		productService.deleteProduct(memberId, productId);
+		return ApiResponse.success();
 	}
 }
