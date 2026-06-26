@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -401,5 +402,60 @@ class ProductControllerTest {
 						.content(body))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("CANNOT_UPDATE_COMPLETED_PRODUCT"));
+	}
+
+	@Test
+	@DisplayName("작성자는 상품을 삭제할 수 있다")
+	void deletesProductByOwner() throws Exception {
+		Member member = memberRepository.save(Member.createUser("seller-delete@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리12"));
+		Product product = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"아이폰 15",
+				"상태 좋은 아이폰입니다.",
+				800000,
+				"서울 강남구"
+		));
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+
+		mockMvc.perform(delete("/api/products/{productId}", product.getId())
+						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200));
+
+		mockMvc.perform(get("/api/products/{productId}", product.getId()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("DELETED_PRODUCT"));
+	}
+
+	@Test
+	@DisplayName("인증 없이 상품 삭제 요청 시 401을 반환한다")
+	void returnsUnauthorizedWhenDeletingWithoutAuthentication() throws Exception {
+		mockMvc.perform(delete("/api/products/{productId}", 1L))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
+	}
+
+	@Test
+	@DisplayName("작성자가 아니면 상품 삭제 시 PRODUCT_OWNER_ONLY를 반환한다")
+	void returnsProductOwnerOnlyWhenDeletingByNonOwner() throws Exception {
+		Member owner = memberRepository.save(Member.createUser("owner-delete@example.com", "encodedPassword", "작성자"));
+		Member other = memberRepository.save(Member.createUser("other-delete@example.com", "encodedPassword", "다른사용자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리13"));
+		Product product = productRepository.saveAndFlush(Product.create(
+				owner,
+				category,
+				"아이폰 15",
+				"상태 좋은 아이폰입니다.",
+				800000,
+				"서울 강남구"
+		));
+		String token = jwtTokenProvider.createAccessToken(other.getId(), other.getRole().name());
+
+		mockMvc.perform(delete("/api/products/{productId}", product.getId())
+						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.error").value("PRODUCT_OWNER_ONLY"));
 	}
 }

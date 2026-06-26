@@ -312,6 +312,72 @@ class ProductServiceTest {
 		verify(productRepository, never()).findById(any());
 	}
 
+	@Test
+	@DisplayName("작성자는 상품을 논리 삭제할 수 있다")
+	void deletesProductByOwner() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		productService.deleteProduct(1L, 1L);
+
+		assertThat(product.isDeleted()).isTrue();
+		assertThat(product.getDeletedAt()).isNotNull();
+	}
+
+	@Test
+	@DisplayName("거래완료 상품도 작성자라면 논리 삭제할 수 있다")
+	void deletesCompletedProductByOwner() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		ReflectionTestUtils.setField(product, "tradeStatus", TradeStatus.COMPLETED);
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		productService.deleteProduct(1L, 1L);
+
+		assertThat(product.isDeleted()).isTrue();
+		assertThat(product.getTradeStatus()).isEqualTo(TradeStatus.COMPLETED);
+	}
+
+	@Test
+	@DisplayName("삭제할 상품이 없으면 PRODUCT_NOT_FOUND 예외가 발생한다")
+	void throwsProductNotFoundWhenDeletingMissingProduct() {
+		given(productRepository.findById(1L)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> productService.deleteProduct(1L, 1L))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("이미 삭제된 상품은 다시 삭제할 수 없다")
+	void throwsDeletedProductWhenDeletingDeletedProduct() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		product.softDelete();
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		assertThatThrownBy(() -> productService.deleteProduct(1L, 1L))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DELETED_PRODUCT);
+	}
+
+	@Test
+	@DisplayName("작성자가 아니면 상품을 삭제할 수 없다")
+	void throwsProductOwnerOnlyWhenDeletingByNonOwner() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		assertThatThrownBy(() -> productService.deleteProduct(2L, 1L))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_OWNER_ONLY);
+	}
+
 	private ProductCreateRequest createRequest(String title, Integer price) {
 		return new ProductCreateRequest(
 				1L,
