@@ -2,6 +2,7 @@ package com.dongnemarket.comment.controller;
 
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
+import com.dongnemarket.comment.entity.Comment;
 import com.dongnemarket.comment.repository.CommentRepository;
 import com.dongnemarket.global.security.jwt.JwtTokenProvider;
 import com.dongnemarket.member.entity.Member;
@@ -19,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -53,6 +55,8 @@ class CommentControllerTest {
 
     private Long productId;
     private Long categoryId;
+    private Long memberId;
+    private Long otherMemberId;
     private String token;
 
     @BeforeEach
@@ -66,6 +70,8 @@ class CommentControllerTest {
 
         categoryId = category.getId();
         productId = product.getId();
+        memberId = writer.getId();
+        otherMemberId = seller.getId();
         token = "Bearer " + jwtTokenProvider.createAccessToken(writer.getId(), "ROLE_USER");
     }
 
@@ -122,5 +128,53 @@ class CommentControllerTest {
                         .content("{ \"content\": \" \" }"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
+    }
+
+    @Test
+    @DisplayName("작성자 본인이 자신의 댓글을 수정하면 200과 수정된 내용을 반환한다")
+    void updateComment_success() throws Exception {
+        Long commentId = commentRepository.save(Comment.of(memberId, productId, "원본 내용")).getId();
+
+        mockMvc.perform(patch("/api/comments/{commentId}", commentId)
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"content\": \"수정된 내용\" }"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.data.content").value("수정된 내용"));
+    }
+
+    @Test
+    @DisplayName("작성자가 아닌 사용자가 수정하면 403과 COMMENT_OWNER_ONLY를 반환한다")
+    void updateComment_notOwner_returns403() throws Exception {
+        Long commentId = commentRepository.save(Comment.of(otherMemberId, productId, "남의 댓글")).getId();
+
+        mockMvc.perform(patch("/api/comments/{commentId}", commentId)
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"content\": \"수정 시도\" }"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("COMMENT_OWNER_ONLY"));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 댓글을 수정하면 404와 COMMENT_NOT_FOUND를 반환한다")
+    void updateComment_notFound_returns404() throws Exception {
+        mockMvc.perform(patch("/api/comments/{commentId}", 999_999L)
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"content\": \"수정\" }"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("COMMENT_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("토큰 없이 댓글 수정 요청하면 401과 UNAUTHORIZED를 반환한다")
+    void updateComment_withoutToken_returns401() throws Exception {
+        mockMvc.perform(patch("/api/comments/{commentId}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"content\": \"수정\" }"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
     }
 }

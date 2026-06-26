@@ -11,5 +11,9 @@ public class CommentUpdateRequest {
 
     protected CommentUpdateRequest() {}
 
+    public CommentUpdateRequest(String content) {
+        this.content = content;
+    }
+
     public String getContent() { return content; }
 }
