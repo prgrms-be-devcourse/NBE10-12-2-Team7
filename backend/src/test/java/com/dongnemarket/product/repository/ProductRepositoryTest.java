@@ -15,6 +15,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
@@ -123,5 +125,47 @@ class ProductRepositoryTest {
 		boolean exists = productRepository.existsByIdAndDeletedAtIsNullAndHiddenFalse(savedProduct.getId());
 
 		assertThat(exists).isFalse();
+	}
+
+	@Test
+	@DisplayName("카테고리별 상품은 최신 등록순으로 조회하고 숨김·삭제 상품은 제외한다")
+	void findsProductsByCategoryInLatestOrder() {
+		Member member = memberRepository.save(Member.createUser("category-seller@example.com", "encodedPassword", "판매자"));
+		Category targetCategory = categoryRepository.save(new Category("생활가전"));
+		Category otherCategory = categoryRepository.save(new Category("도서"));
+		Product oldProduct = productRepository.save(Product.create(
+				member,
+				targetCategory,
+				"오래된 생활가전",
+				"오래된 생활가전 설명",
+				10000,
+				"서울 강남구"
+		));
+		Product newProduct = productRepository.save(Product.create(
+				member,
+				targetCategory,
+				"최신 생활가전",
+				"최신 생활가전 설명",
+				20000,
+				"서울 서초구"
+		));
+		productRepository.save(Product.create(
+				member,
+				otherCategory,
+				"다른 카테고리 상품",
+				"다른 카테고리 상품 설명",
+				30000,
+				"서울 송파구"
+		));
+		Product hiddenProduct = Product.create(member, targetCategory, "숨김 상품", "숨김 상품 설명", 40000, "서울 마포구");
+		hiddenProduct.hide();
+		productRepository.save(hiddenProduct);
+		Product deletedProduct = Product.create(member, targetCategory, "삭제 상품", "삭제 상품 설명", 50000, "서울 용산구");
+		deletedProduct.softDelete();
+		productRepository.saveAndFlush(deletedProduct);
+
+		List<Product> products = productRepository.findAllByCategoryIdAndDeletedAtIsNullAndHiddenFalseOrderByIdDesc(targetCategory.getId());
+
+		assertThat(products).containsExactly(newProduct, oldProduct);
 	}
 }

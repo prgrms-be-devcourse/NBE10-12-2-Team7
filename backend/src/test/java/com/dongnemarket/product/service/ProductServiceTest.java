@@ -145,6 +145,36 @@ class ProductServiceTest {
 	}
 
 	@Test
+	@DisplayName("카테고리별 상품 목록을 최신 등록순 요약 응답으로 조회한다")
+	void getsProductsByCategoryInLatestOrder() {
+		Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
+		Category category = new Category("디지털기기");
+		Product oldProduct = Product.create(member, category, "오래된 상품", "오래된 상품 설명", 10000, "서울 강남구");
+		Product newProduct = Product.create(member, category, "최신 상품", "최신 상품 설명", 20000, "서울 서초구");
+		given(categoryRepository.existsById(1L)).willReturn(true);
+		given(productRepository.findAllByCategoryIdAndDeletedAtIsNullAndHiddenFalseOrderByIdDesc(1L))
+				.willReturn(List.of(newProduct, oldProduct));
+
+		List<ProductSummaryResponse> responses = productService.getProductsByCategory(1L);
+
+		assertThat(responses).hasSize(2);
+		assertThat(responses.get(0).getTitle()).isEqualTo("최신 상품");
+		assertThat(responses.get(1).getTitle()).isEqualTo("오래된 상품");
+	}
+
+	@Test
+	@DisplayName("카테고리가 없으면 카테고리별 상품 목록 조회 시 CATEGORY_NOT_FOUND 예외가 발생한다")
+	void throwsCategoryNotFoundWhenGettingProductsByMissingCategory() {
+		given(categoryRepository.existsById(1L)).willReturn(false);
+
+		assertThatThrownBy(() -> productService.getProductsByCategory(1L))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CATEGORY_NOT_FOUND);
+
+		verify(productRepository, never()).findAllByCategoryIdAndDeletedAtIsNullAndHiddenFalseOrderByIdDesc(any());
+	}
+
+	@Test
 	@DisplayName("상품 상세 조회에 성공하면 조회수가 1 증가한다")
 	void getsProductAndIncreasesViewCount() {
 		Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");

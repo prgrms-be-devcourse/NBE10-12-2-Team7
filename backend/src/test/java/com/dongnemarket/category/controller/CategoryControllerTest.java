@@ -1,5 +1,12 @@
 package com.dongnemarket.category.controller;
 
+import com.dongnemarket.category.entity.Category;
+import com.dongnemarket.category.repository.CategoryRepository;
+import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.member.repository.MemberRepository;
+import com.dongnemarket.product.entity.Product;
+import com.dongnemarket.product.repository.ProductRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +27,21 @@ class CategoryControllerTest {
 	@Autowired
 	MockMvc mockMvc;
 
+	@Autowired
+	MemberRepository memberRepository;
+
+	@Autowired
+	CategoryRepository categoryRepository;
+
+	@Autowired
+	ProductRepository productRepository;
+
+	@AfterEach
+	void cleanUp() {
+		productRepository.deleteAll();
+		memberRepository.deleteAll();
+	}
+
 	@Test
 	@DisplayName("카테고리 목록을 인증 없이 조회할 수 있다")
 	void getsCategoriesWithoutAuthentication() throws Exception {
@@ -32,5 +54,74 @@ class CategoryControllerTest {
 				.andExpect(jsonPath("$.data[0].id").isNumber())
 				.andExpect(jsonPath("$.data[0].name").value("디지털기기"))
 				.andExpect(jsonPath("$.data[7].name").value("기타"));
+	}
+
+	@Test
+	@DisplayName("카테고리별 상품 목록은 인증 없이 최신 등록순으로 조회하고 숨김·삭제 상품은 제외한다")
+	void getsProductsByCategoryWithoutAuthentication() throws Exception {
+		Member member = memberRepository.save(Member.createUser("category-seller@example.com", "encodedPassword", "판매자"));
+		Category targetCategory = categoryRepository.findAllByOrderByIdAsc().get(0);
+		Category otherCategory = categoryRepository.findAllByOrderByIdAsc().get(1);
+		Product oldProduct = productRepository.save(Product.create(
+				member,
+				targetCategory,
+				"오래된 상품",
+				"오래된 상품 설명",
+				10000,
+				"서울 강남구"
+		));
+		Product newProduct = productRepository.save(Product.create(
+				member,
+				targetCategory,
+				"최신 상품",
+				"최신 상품 설명",
+				20000,
+				"서울 서초구"
+		));
+		productRepository.save(Product.create(
+				member,
+				otherCategory,
+				"다른 카테고리 상품",
+				"다른 카테고리 상품 설명",
+				30000,
+				"서울 송파구"
+		));
+		Product hiddenProduct = Product.create(member, targetCategory, "숨김 상품", "숨김 상품 설명", 40000, "서울 마포구");
+		hiddenProduct.hide();
+		productRepository.save(hiddenProduct);
+		Product deletedProduct = Product.create(member, targetCategory, "삭제 상품", "삭제 상품 설명", 50000, "서울 용산구");
+		deletedProduct.softDelete();
+		productRepository.saveAndFlush(deletedProduct);
+
+		mockMvc.perform(get("/api/categories/{categoryId}/products", targetCategory.getId()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200))
+				.andExpect(jsonPath("$.data.length()").value(2))
+				.andExpect(jsonPath("$.data[0].productId").value(newProduct.getId()))
+				.andExpect(jsonPath("$.data[0].title").value("최신 상품"))
+				.andExpect(jsonPath("$.data[0].description").doesNotExist())
+				.andExpect(jsonPath("$.data[0].categoryId").value(targetCategory.getId()))
+				.andExpect(jsonPath("$.data[1].productId").value(oldProduct.getId()))
+				.andExpect(jsonPath("$.data[1].title").value("오래된 상품"));
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 카테고리 상품 목록 조회 시 CATEGORY_NOT_FOUND를 반환한다")
+	void returnsCategoryNotFoundWhenGettingProductsByMissingCategory() throws Exception {
+		mockMvc.perform(get("/api/categories/{categoryId}/products", 9999L))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("CATEGORY_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("카테고리는 존재하지만 상품이 없으면 빈 목록을 반환한다")
+	void returnsEmptyProductsWhenCategoryHasNoProducts() throws Exception {
+		Category category = categoryRepository.findAllByOrderByIdAsc().get(7);
+
+		mockMvc.perform(get("/api/categories/{categoryId}/products", category.getId()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200))
+				.andExpect(jsonPath("$.data").isArray())
+				.andExpect(jsonPath("$.data.length()").value(0));
 	}
 }
