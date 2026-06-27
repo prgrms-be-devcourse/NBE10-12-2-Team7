@@ -3,6 +3,7 @@ package com.dongnemarket.product.controller;
 import com.dongnemarket.global.response.ApiResponse;
 import com.dongnemarket.product.dto.ProductCreateRequest;
 import com.dongnemarket.product.dto.ProductResponse;
+import com.dongnemarket.product.dto.ProductStatusUpdateRequest;
 import com.dongnemarket.product.dto.ProductSummaryResponse;
 import com.dongnemarket.product.dto.ProductUpdateRequest;
 import com.dongnemarket.product.service.ProductService;
@@ -71,5 +72,14 @@ public class ProductController {
 			@PathVariable Long productId) {
 		productService.deleteProduct(memberId, productId);
 		return ApiResponse.success();
+	}
+
+	@Operation(summary = "상품 거래 상태 변경", description = "작성자가 상품 거래 상태를 변경합니다. 거래완료 상품은 거래완료 상태만 유지할 수 있습니다.")
+	@PatchMapping("/{productId}/status")
+	public ApiResponse<ProductResponse> updateProductStatus(
+			@AuthenticationPrincipal Long memberId,
+			@PathVariable Long productId,
+			@RequestBody ProductStatusUpdateRequest request) {
+		return ApiResponse.success(productService.updateProductStatus(memberId, productId, request));
 	}
 }
