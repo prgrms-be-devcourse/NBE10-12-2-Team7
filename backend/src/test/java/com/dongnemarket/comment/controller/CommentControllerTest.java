@@ -21,6 +21,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -129,6 +130,40 @@ class CommentControllerTest {
                         .content("{ \"content\": \" \" }"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자도 댓글 목록을 조회하면 200과 삭제되지 않은 댓글을 작성순으로 반환한다")
+    void getComments_withoutToken_success() throws Exception {
+        commentRepository.save(Comment.of(memberId, productId, "첫 번째 댓글"));
+        commentRepository.save(Comment.of(otherMemberId, productId, "두 번째 댓글"));
+        Comment deleted = commentRepository.save(Comment.of(memberId, productId, "삭제된 댓글"));
+        deleted.softDelete();
+        commentRepository.save(deleted);
+
+        mockMvc.perform(get("/api/products/{productId}/comments", productId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].content").value("첫 번째 댓글"))
+                .andExpect(jsonPath("$.data[1].content").value("두 번째 댓글"));
+    }
+
+    @Test
+    @DisplayName("댓글이 없는 상품을 조회하면 200과 빈 배열을 반환한다")
+    void getComments_empty_success() throws Exception {
+        mockMvc.perform(get("/api/products/{productId}/comments", productId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 상품의 댓글을 조회하면 404와 PRODUCT_NOT_FOUND를 반환한다")
+    void getComments_productNotFound_returns404() throws Exception {
+        mockMvc.perform(get("/api/products/{productId}/comments", 999_999L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("PRODUCT_NOT_FOUND"));
     }
 
     @Test

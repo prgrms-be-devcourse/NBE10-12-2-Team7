@@ -28,7 +28,7 @@ class CommentRepositoryTest {
         Comment saved = commentRepository.saveAndFlush(Comment.of(1L, 100L, "좋은 상품이네요!"));
 
         // 저장 후 삭제되지 않은 댓글 목록 조회
-        List<Comment> comments = commentRepository.findAllByProductIdAndDeletedAtIsNull(100L);
+        List<Comment> comments = commentRepository.findAllByProductIdAndDeletedAtIsNullOrderByCreatedAtAsc(100L);
         assertThat(comments).hasSize(1);
 
         // DTO 변환
@@ -39,7 +39,7 @@ class CommentRepositoryTest {
         // 소프트 삭제 후 목록에서 제외
         saved.softDelete();
         commentRepository.saveAndFlush(saved);
-        List<Comment> afterDelete = commentRepository.findAllByProductIdAndDeletedAtIsNull(100L);
+        List<Comment> afterDelete = commentRepository.findAllByProductIdAndDeletedAtIsNullOrderByCreatedAtAsc(100L);
         assertThat(afterDelete).isEmpty();
     }
 
