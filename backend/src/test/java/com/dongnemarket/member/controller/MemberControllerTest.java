@@ -2,6 +2,7 @@ package com.dongnemarket.member.controller;
 
 import com.dongnemarket.member.repository.MemberRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,9 @@ class MemberControllerTest {
 
 	@Autowired
 	MemberRepository memberRepository;
+
+	@Autowired
+	JdbcTemplate jdbcTemplate;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -182,5 +186,86 @@ class MemberControllerTest {
 		mockMvc.perform(delete("/api/members/me"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
+	}
+
+	@Test
+	@DisplayName("이미 탈퇴한 회원이 DELETE /api/members/me 재요청하면 400과 DELETED_MEMBER를 반환한다")
+	void deleteMyInfo_alreadyDeleted_returns400() throws Exception {
+		String token = getAccessToken("del3@example.com", "password123", "del3User");
+		mockMvc.perform(delete("/api/members/me")
+				.header("Authorization", "Bearer " + token));
+
+		mockMvc.perform(delete("/api/members/me")
+						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("DELETED_MEMBER"));
+	}
+
+	@Test
+	@DisplayName("정지된 회원이 DELETE /api/members/me 요청하면 403과 SUSPENDED_MEMBER를 반환한다")
+	void deleteMyInfo_suspendedMember_returns403() throws Exception {
+		String token = getAccessToken("susp3@example.com", "password123", "susp3User");
+		jdbcTemplate.update("UPDATE members SET status = 'SUSPENDED' WHERE email = ?", "susp3@example.com");
+
+		mockMvc.perform(delete("/api/members/me")
+						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.error").value("SUSPENDED_MEMBER"));
+	}
+
+	// ===== 상태 체크 — GET =====
+
+	@Test
+	@DisplayName("탈퇴한 회원 토큰으로 GET /api/members/me 요청하면 400과 DELETED_MEMBER를 반환한다")
+	void getMyInfo_deletedMember_returns400() throws Exception {
+		String token = getAccessToken("del4@example.com", "password123", "del4User");
+		jdbcTemplate.update("UPDATE members SET status = 'DELETED' WHERE email = ?", "del4@example.com");
+
+		mockMvc.perform(get("/api/members/me")
+						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("DELETED_MEMBER"));
+	}
+
+	@Test
+	@DisplayName("정지된 회원 토큰으로 GET /api/members/me 요청하면 403과 SUSPENDED_MEMBER를 반환한다")
+	void getMyInfo_suspendedMember_returns403() throws Exception {
+		String token = getAccessToken("susp1@example.com", "password123", "susp1User");
+		jdbcTemplate.update("UPDATE members SET status = 'SUSPENDED' WHERE email = ?", "susp1@example.com");
+
+		mockMvc.perform(get("/api/members/me")
+						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.error").value("SUSPENDED_MEMBER"));
+	}
+
+	// ===== 상태 체크 — PATCH =====
+
+	@Test
+	@DisplayName("탈퇴한 회원 토큰으로 PATCH /api/members/me 요청하면 400과 DELETED_MEMBER를 반환한다")
+	void updateMyInfo_deletedMember_returns400() throws Exception {
+		String token = getAccessToken("del5@example.com", "password123", "del5User");
+		jdbcTemplate.update("UPDATE members SET status = 'DELETED' WHERE email = ?", "del5@example.com");
+
+		mockMvc.perform(patch("/api/members/me")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"nickname\":\"newNick\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("DELETED_MEMBER"));
+	}
+
+	@Test
+	@DisplayName("정지된 회원 토큰으로 PATCH /api/members/me 요청하면 403과 SUSPENDED_MEMBER를 반환한다")
+	void updateMyInfo_suspendedMember_returns403() throws Exception {
+		String token = getAccessToken("susp2@example.com", "password123", "susp2User");
+		jdbcTemplate.update("UPDATE members SET status = 'SUSPENDED' WHERE email = ?", "susp2@example.com");
+
+		mockMvc.perform(patch("/api/members/me")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"nickname\":\"newNick\"}"))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.error").value("SUSPENDED_MEMBER"));
 	}
 }

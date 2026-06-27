@@ -5,6 +5,7 @@ import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.dto.MemberResponse;
 import com.dongnemarket.member.dto.MemberUpdateRequest;
 import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.member.repository.MemberRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ public class MemberService {
 	public MemberResponse getMyInfo(Long memberId) {
 		Member member = memberRepository.findById(memberId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+		validateActiveMember(member);
 		return MemberResponse.from(member);
 	}
 
@@ -29,6 +31,7 @@ public class MemberService {
 	public MemberResponse updateMyInfo(Long memberId, MemberUpdateRequest request) {
 		Member member = memberRepository.findById(memberId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+		validateActiveMember(member);
 
 		if (memberRepository.existsByNicknameAndIdNot(request.getNickname(), memberId)) {
 			throw new BusinessException(ErrorCode.DUPLICATE_NICKNAME);
@@ -42,6 +45,16 @@ public class MemberService {
 	public void deleteMyInfo(Long memberId) {
 		Member member = memberRepository.findById(memberId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+		validateActiveMember(member);
 		member.softDelete();
+	}
+
+	private void validateActiveMember(Member member) {
+		if (member.getStatus() == MemberStatus.DELETED) {
+			throw new BusinessException(ErrorCode.DELETED_MEMBER);
+		}
+		if (member.getStatus() == MemberStatus.SUSPENDED) {
+			throw new BusinessException(ErrorCode.SUSPENDED_MEMBER);
+		}
 	}
 }
