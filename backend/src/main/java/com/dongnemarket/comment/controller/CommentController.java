@@ -12,11 +12,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @Tag(name = "Comment", description = "댓글 API")
 @RestController
@@ -37,6 +40,14 @@ public class CommentController {
         CommentResponse response = commentService.create(memberId, productId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), "댓글이 작성되었습니다.", response));
+    }
+
+    @Operation(summary = "댓글 목록 조회", description = "특정 상품의 댓글 목록을 조회한다. 비로그인 사용자도 조회할 수 있으며, 삭제된 댓글은 제외된다.")
+    @GetMapping("/api/products/{productId}/comments")
+    public ResponseEntity<ApiResponse<List<CommentResponse>>> getComments(
+            @PathVariable Long productId) {
+        List<CommentResponse> response = commentService.getComments(productId);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @Operation(summary = "댓글 수정", description = "작성자 본인이 자신의 댓글 내용을 수정한다.")

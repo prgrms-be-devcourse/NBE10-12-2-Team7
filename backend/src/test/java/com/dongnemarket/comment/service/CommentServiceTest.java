@@ -15,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -65,6 +66,46 @@ class CommentServiceTest {
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
 
         verify(commentRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("상품이 존재하면 삭제되지 않은 댓글 목록을 반환한다")
+    void getComments_success() {
+        given(productRepository.existsById(PRODUCT_ID)).willReturn(true);
+        given(commentRepository.findAllByProductIdAndDeletedAtIsNullOrderByCreatedAtAsc(PRODUCT_ID))
+                .willReturn(List.of(
+                        Comment.of(MEMBER_ID, PRODUCT_ID, "첫 번째 댓글"),
+                        Comment.of(2L, PRODUCT_ID, "두 번째 댓글")));
+
+        List<CommentResponse> responses = commentService.getComments(PRODUCT_ID);
+
+        assertThat(responses).hasSize(2);
+        assertThat(responses).extracting(CommentResponse::getContent)
+                .containsExactly("첫 번째 댓글", "두 번째 댓글");
+    }
+
+    @Test
+    @DisplayName("댓글이 없는 상품을 조회하면 빈 목록을 반환한다")
+    void getComments_empty() {
+        given(productRepository.existsById(PRODUCT_ID)).willReturn(true);
+        given(commentRepository.findAllByProductIdAndDeletedAtIsNullOrderByCreatedAtAsc(PRODUCT_ID))
+                .willReturn(List.of());
+
+        List<CommentResponse> responses = commentService.getComments(PRODUCT_ID);
+
+        assertThat(responses).isEmpty();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 상품의 댓글을 조회하면 PRODUCT_NOT_FOUND 예외가 발생한다")
+    void getComments_productNotFound_throwsException() {
+        given(productRepository.existsById(PRODUCT_ID)).willReturn(false);
+
+        assertThatThrownBy(() -> commentService.getComments(PRODUCT_ID))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
+
+        verify(commentRepository, never()).findAllByProductIdAndDeletedAtIsNullOrderByCreatedAtAsc(any());
     }
 
     @Test
