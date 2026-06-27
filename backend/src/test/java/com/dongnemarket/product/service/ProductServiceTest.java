@@ -8,6 +8,7 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.dto.ProductCreateRequest;
 import com.dongnemarket.product.dto.ProductResponse;
+import com.dongnemarket.product.dto.ProductStatusUpdateRequest;
 import com.dongnemarket.product.dto.ProductSummaryResponse;
 import com.dongnemarket.product.dto.ProductUpdateRequest;
 import com.dongnemarket.product.entity.Product;
@@ -338,6 +339,169 @@ class ProductServiceTest {
 		assertThatThrownBy(() -> productService.updateProduct(1L, 1L, request))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_PRODUCT_PRICE);
+
+		verify(productRepository, never()).findById(any());
+	}
+
+	@Test
+	@DisplayName("작성자는 상품 거래 상태를 변경할 수 있다")
+	void updatesProductStatusByOwner() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("RESERVED");
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		ProductResponse response = productService.updateProductStatus(1L, 1L, request);
+
+		assertThat(response.getTradeStatus()).isEqualTo(TradeStatus.RESERVED);
+		assertThat(product.getTradeStatus()).isEqualTo(TradeStatus.RESERVED);
+	}
+
+	@Test
+	@DisplayName("같은 거래 상태로 변경하면 현재 상태를 그대로 반환한다")
+	void keepsProductStatusWhenRequestingSameStatus() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("ON_SALE");
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		ProductResponse response = productService.updateProductStatus(1L, 1L, request);
+
+		assertThat(response.getTradeStatus()).isEqualTo(TradeStatus.ON_SALE);
+		assertThat(product.getTradeStatus()).isEqualTo(TradeStatus.ON_SALE);
+	}
+
+	@Test
+	@DisplayName("거래완료 상품에 거래완료 상태를 다시 요청하면 현재 상태를 그대로 반환한다")
+	void keepsCompletedProductStatusWhenRequestingCompletedAgain() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		product.complete();
+		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("COMPLETED");
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		ProductResponse response = productService.updateProductStatus(1L, 1L, request);
+
+		assertThat(response.getTradeStatus()).isEqualTo(TradeStatus.COMPLETED);
+		assertThat(product.getTradeStatus()).isEqualTo(TradeStatus.COMPLETED);
+	}
+
+	@Test
+	@DisplayName("숨김 상품도 작성자라면 거래 상태를 변경할 수 있다")
+	void updatesHiddenProductStatusByOwner() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		product.hide();
+		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("RESERVED");
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		ProductResponse response = productService.updateProductStatus(1L, 1L, request);
+
+		assertThat(response.getTradeStatus()).isEqualTo(TradeStatus.RESERVED);
+		assertThat(product.isHidden()).isTrue();
+	}
+
+	@Test
+	@DisplayName("거래 상태를 변경할 상품이 없으면 PRODUCT_NOT_FOUND 예외가 발생한다")
+	void throwsProductNotFoundWhenUpdatingStatusOfMissingProduct() {
+		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("RESERVED");
+		given(productRepository.findById(1L)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> productService.updateProductStatus(1L, 1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("삭제된 상품은 거래 상태를 변경할 수 없다")
+	void throwsDeletedProductWhenUpdatingStatusOfDeletedProduct() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		product.softDelete();
+		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("RESERVED");
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		assertThatThrownBy(() -> productService.updateProductStatus(1L, 1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DELETED_PRODUCT);
+	}
+
+	@Test
+	@DisplayName("작성자가 아니면 상품 거래 상태를 변경할 수 없다")
+	void throwsProductOwnerOnlyWhenUpdatingStatusByNonOwner() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("RESERVED");
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		assertThatThrownBy(() -> productService.updateProductStatus(2L, 1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_OWNER_ONLY);
+	}
+
+	@Test
+	@DisplayName("거래완료 상품은 다른 거래 상태로 변경할 수 없다")
+	void throwsCannotChangeCompletedProductWhenUpdatingCompletedStatus() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		product.complete();
+		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("ON_SALE");
+		given(productRepository.findById(1L)).willReturn(Optional.of(product));
+
+		assertThatThrownBy(() -> productService.updateProductStatus(1L, 1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_CHANGE_COMPLETED_PRODUCT);
+	}
+
+	@Test
+	@DisplayName("거래 상태 값이 유효하지 않으면 INVALID_TRADE_STATUS 예외가 발생한다")
+	void throwsInvalidTradeStatusWhenUpdatingWithInvalidStatus() {
+		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("INVALID");
+
+		assertThatThrownBy(() -> productService.updateProductStatus(1L, 1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_TRADE_STATUS);
+
+		verify(productRepository, never()).findById(any());
+	}
+
+	@Test
+	@DisplayName("거래 상태 값이 비어 있으면 INVALID_TRADE_STATUS 예외가 발생한다")
+	void throwsInvalidTradeStatusWhenUpdatingWithBlankStatus() {
+		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest(" ");
+
+		assertThatThrownBy(() -> productService.updateProductStatus(1L, 1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_TRADE_STATUS);
+
+		verify(productRepository, never()).findById(any());
+	}
+
+	@Test
+	@DisplayName("거래 상태 값이 null이면 INVALID_TRADE_STATUS 예외가 발생한다")
+	void throwsInvalidTradeStatusWhenUpdatingWithNullStatus() {
+		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest(null);
+
+		assertThatThrownBy(() -> productService.updateProductStatus(1L, 1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_TRADE_STATUS);
+
+		verify(productRepository, never()).findById(any());
+	}
+
+	@Test
+	@DisplayName("거래 상태 변경 요청 객체가 null이면 INVALID_TRADE_STATUS 예외가 발생한다")
+	void throwsInvalidTradeStatusWhenUpdatingWithNullRequest() {
+		assertThatThrownBy(() -> productService.updateProductStatus(1L, 1L, null))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_TRADE_STATUS);
 
 		verify(productRepository, never()).findById(any());
 	}

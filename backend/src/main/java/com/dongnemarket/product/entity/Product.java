@@ -99,6 +99,10 @@ public class Product extends BaseTimeEntity {
 		this.region = region;
 	}
 
+	public void changeTradeStatus(TradeStatus tradeStatus) {
+		this.tradeStatus = tradeStatus;
+	}
+
 	public void complete() {
 		this.tradeStatus = TradeStatus.COMPLETED;
 	}

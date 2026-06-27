@@ -405,10 +405,253 @@ class ProductControllerTest {
 	}
 
 	@Test
+	@DisplayName("작성자는 상품 거래 상태를 변경할 수 있다")
+	void updatesProductStatusByOwner() throws Exception {
+		Member member = memberRepository.save(Member.createUser("seller-status@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리12"));
+		Product product = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"아이폰 15",
+				"상태 좋은 아이폰입니다.",
+				800000,
+				"서울 강남구"
+		));
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "tradeStatus": "RESERVED"
+				}
+				""";
+
+		mockMvc.perform(patch("/api/products/{productId}/status", product.getId())
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200))
+				.andExpect(jsonPath("$.data.productId").value(product.getId()))
+				.andExpect(jsonPath("$.data.tradeStatus").value("RESERVED"));
+	}
+
+	@Test
+	@DisplayName("숨김 상품도 작성자라면 상품 거래 상태를 변경할 수 있다")
+	void updatesHiddenProductStatusByOwner() throws Exception {
+		Member member = memberRepository.save(Member.createUser("hidden-status@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리13"));
+		Product product = Product.create(member, category, "숨김 상품", "숨김 상품 설명", 30000, "서울 송파구");
+		product.hide();
+		Product savedProduct = productRepository.saveAndFlush(product);
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "tradeStatus": "RESERVED"
+				}
+				""";
+
+		mockMvc.perform(patch("/api/products/{productId}/status", savedProduct.getId())
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.tradeStatus").value("RESERVED"))
+				.andExpect(jsonPath("$.data.hidden").value(true));
+	}
+
+	@Test
+	@DisplayName("거래완료 상품에 거래완료 상태를 다시 요청하면 현재 상태를 그대로 반환한다")
+	void keepsCompletedProductStatusWhenRequestingCompletedAgain() throws Exception {
+		Member member = memberRepository.save(Member.createUser("same-completed-status@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리14"));
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		product.complete();
+		Product savedProduct = productRepository.saveAndFlush(product);
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "tradeStatus": "COMPLETED"
+				}
+				""";
+
+		mockMvc.perform(patch("/api/products/{productId}/status", savedProduct.getId())
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.tradeStatus").value("COMPLETED"));
+	}
+
+	@Test
+	@DisplayName("인증 없이 상품 거래 상태 변경 요청 시 401을 반환한다")
+	void returnsUnauthorizedWhenUpdatingStatusWithoutAuthentication() throws Exception {
+		String body = """
+				{
+				  "tradeStatus": "RESERVED"
+				}
+				""";
+
+		mockMvc.perform(patch("/api/products/{productId}/status", 1L)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
+	}
+
+	@Test
+	@DisplayName("작성자가 아니면 상품 거래 상태 변경 시 PRODUCT_OWNER_ONLY를 반환한다")
+	void returnsProductOwnerOnlyWhenUpdatingStatusByNonOwner() throws Exception {
+		Member owner = memberRepository.save(Member.createUser("owner-status@example.com", "encodedPassword", "작성자"));
+		Member other = memberRepository.save(Member.createUser("other-status@example.com", "encodedPassword", "다른사용자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리15"));
+		Product product = productRepository.saveAndFlush(Product.create(
+				owner,
+				category,
+				"아이폰 15",
+				"상태 좋은 아이폰입니다.",
+				800000,
+				"서울 강남구"
+		));
+		String token = jwtTokenProvider.createAccessToken(other.getId(), other.getRole().name());
+		String body = """
+				{
+				  "tradeStatus": "RESERVED"
+				}
+				""";
+
+		mockMvc.perform(patch("/api/products/{productId}/status", product.getId())
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.error").value("PRODUCT_OWNER_ONLY"));
+	}
+
+	@Test
+	@DisplayName("거래완료 상품을 다른 거래 상태로 변경하면 CANNOT_CHANGE_COMPLETED_PRODUCT를 반환한다")
+	void returnsCannotChangeCompletedProductWhenUpdatingCompletedStatus() throws Exception {
+		Member member = memberRepository.save(Member.createUser("completed-status@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리16"));
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		product.complete();
+		Product savedProduct = productRepository.saveAndFlush(product);
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "tradeStatus": "ON_SALE"
+				}
+				""";
+
+		mockMvc.perform(patch("/api/products/{productId}/status", savedProduct.getId())
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("CANNOT_CHANGE_COMPLETED_PRODUCT"));
+	}
+
+	@Test
+	@DisplayName("삭제된 상품 거래 상태 변경 시 DELETED_PRODUCT를 반환한다")
+	void returnsDeletedProductWhenUpdatingStatusOfDeletedProduct() throws Exception {
+		Member member = memberRepository.save(Member.createUser("deleted-status@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리17"));
+		Product product = Product.create(member, category, "삭제 상품", "삭제 상품 설명", 40000, "서울 마포구");
+		product.softDelete();
+		Product savedProduct = productRepository.saveAndFlush(product);
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "tradeStatus": "RESERVED"
+				}
+				""";
+
+		mockMvc.perform(patch("/api/products/{productId}/status", savedProduct.getId())
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("DELETED_PRODUCT"));
+	}
+
+	@Test
+	@DisplayName("유효하지 않은 거래 상태로 변경하면 INVALID_TRADE_STATUS를 반환한다")
+	void returnsInvalidTradeStatusWhenUpdatingWithInvalidStatus() throws Exception {
+		Member member = memberRepository.save(Member.createUser("invalid-status@example.com", "encodedPassword", "판매자"));
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "tradeStatus": "INVALID"
+				}
+				""";
+
+		mockMvc.perform(patch("/api/products/{productId}/status", 1L)
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_TRADE_STATUS"));
+	}
+
+	@Test
+	@DisplayName("비어 있는 거래 상태로 변경하면 INVALID_TRADE_STATUS를 반환한다")
+	void returnsInvalidTradeStatusWhenUpdatingWithBlankStatus() throws Exception {
+		Member member = memberRepository.save(Member.createUser("blank-status@example.com", "encodedPassword", "판매자"));
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "tradeStatus": " "
+				}
+				""";
+
+		mockMvc.perform(patch("/api/products/{productId}/status", 1L)
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_TRADE_STATUS"));
+	}
+
+	@Test
+	@DisplayName("null 거래 상태로 변경하면 INVALID_TRADE_STATUS를 반환한다")
+	void returnsInvalidTradeStatusWhenUpdatingWithNullStatus() throws Exception {
+		Member member = memberRepository.save(Member.createUser("null-status@example.com", "encodedPassword", "판매자"));
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "tradeStatus": null
+				}
+				""";
+
+		mockMvc.perform(patch("/api/products/{productId}/status", 1L)
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_TRADE_STATUS"));
+	}
+
+	@Test
+	@DisplayName("거래 상태 필드가 없으면 INVALID_TRADE_STATUS를 반환한다")
+	void returnsInvalidTradeStatusWhenUpdatingWithoutStatusField() throws Exception {
+		Member member = memberRepository.save(Member.createUser("missing-status@example.com", "encodedPassword", "판매자"));
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				}
+				""";
+
+		mockMvc.perform(patch("/api/products/{productId}/status", 1L)
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_TRADE_STATUS"));
+	}
+
+	@Test
 	@DisplayName("작성자는 상품을 삭제할 수 있다")
 	void deletesProductByOwner() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller-delete@example.com", "encodedPassword", "판매자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리12"));
+		Category category = categoryRepository.save(new Category("테스트카테고리18"));
 		Product product = productRepository.saveAndFlush(Product.create(
 				member,
 				category,
@@ -442,7 +685,7 @@ class ProductControllerTest {
 	void returnsProductOwnerOnlyWhenDeletingByNonOwner() throws Exception {
 		Member owner = memberRepository.save(Member.createUser("owner-delete@example.com", "encodedPassword", "작성자"));
 		Member other = memberRepository.save(Member.createUser("other-delete@example.com", "encodedPassword", "다른사용자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리13"));
+		Category category = categoryRepository.save(new Category("테스트카테고리19"));
 		Product product = productRepository.saveAndFlush(Product.create(
 				owner,
 				category,

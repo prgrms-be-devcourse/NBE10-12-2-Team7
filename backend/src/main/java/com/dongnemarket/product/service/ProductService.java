@@ -8,9 +8,11 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.dto.ProductCreateRequest;
 import com.dongnemarket.product.dto.ProductResponse;
+import com.dongnemarket.product.dto.ProductStatusUpdateRequest;
 import com.dongnemarket.product.dto.ProductSummaryResponse;
 import com.dongnemarket.product.dto.ProductUpdateRequest;
 import com.dongnemarket.product.entity.Product;
+import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.ProductRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -128,6 +130,27 @@ public class ProductService {
 		product.softDelete();
 	}
 
+	@Transactional
+	public ProductResponse updateProductStatus(Long memberId, Long productId, ProductStatusUpdateRequest request) {
+		TradeStatus requestedStatus = parseTradeStatus(request);
+		Product product = productRepository.findById(productId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+		if (product.isDeleted()) {
+			throw new BusinessException(ErrorCode.DELETED_PRODUCT);
+		}
+		if (!product.getMember().getId().equals(memberId)) {
+			throw new BusinessException(ErrorCode.PRODUCT_OWNER_ONLY);
+		}
+		if (product.isCompleted() && requestedStatus != TradeStatus.COMPLETED) {
+			throw new BusinessException(ErrorCode.CANNOT_CHANGE_COMPLETED_PRODUCT);
+		}
+
+		if (product.getTradeStatus() != requestedStatus) {
+			product.changeTradeStatus(requestedStatus);
+		}
+		return ProductResponse.from(product);
+	}
+
 	public void validateAccessibleProduct(Long productId) {
 		if (!productRepository.existsByIdAndDeletedAtIsNullAndHiddenFalse(productId)) {
 			throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
@@ -148,6 +171,17 @@ public class ProductService {
 		}
 		if (price == null || price < 0) {
 			throw new BusinessException(ErrorCode.INVALID_PRODUCT_PRICE);
+		}
+	}
+
+	private TradeStatus parseTradeStatus(ProductStatusUpdateRequest request) {
+		if (request == null || !StringUtils.hasText(request.getTradeStatus())) {
+			throw new BusinessException(ErrorCode.INVALID_TRADE_STATUS);
+		}
+		try {
+			return TradeStatus.valueOf(request.getTradeStatus());
+		} catch (IllegalArgumentException e) {
+			throw new BusinessException(ErrorCode.INVALID_TRADE_STATUS);
 		}
 	}
 }
