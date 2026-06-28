@@ -19,6 +19,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -52,6 +53,7 @@ class FavoriteControllerTest {
     FavoriteRepository favoriteRepository;
 
     private Long productId;
+    private Long otherProductId;
     private Long categoryId;
     private String token;
 
@@ -63,9 +65,12 @@ class FavoriteControllerTest {
         Category category = categoryRepository.save(new Category("관심테스트전용카테고리"));
         Product product = productRepository.save(
                 Product.create(seller, category, "맥북 프로", "상태 좋음", 1_500_000, "서울 강남구"));
+        Product otherProduct = productRepository.save(
+                Product.create(seller, category, "아이패드", "상태 좋음", 700_000, "서울 강남구"));
 
         categoryId = category.getId();
         productId = product.getId();
+        otherProductId = otherProduct.getId();
         token = "Bearer " + jwtTokenProvider.createAccessToken(buyer.getId(), "ROLE_USER");
     }
 
@@ -116,6 +121,41 @@ class FavoriteControllerTest {
                         .header("Authorization", token))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("FAVORITE_ALREADY_EXISTS"));
+    }
+
+    @Test
+    @DisplayName("내 관심 상품 목록을 조회하면 200과 최근 등록순 목록을 반환한다")
+    void getMyFavorites_success() throws Exception {
+        mockMvc.perform(post("/api/products/{productId}/favorites", productId)
+                .header("Authorization", token));
+        mockMvc.perform(post("/api/products/{productId}/favorites", otherProductId)
+                .header("Authorization", token));
+
+        mockMvc.perform(get("/api/members/me/favorites")
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].productId").value(otherProductId.intValue()))
+                .andExpect(jsonPath("$.data[1].productId").value(productId.intValue()));
+    }
+
+    @Test
+    @DisplayName("관심 상품이 없으면 200과 빈 배열을 반환한다")
+    void getMyFavorites_empty_success() throws Exception {
+        mockMvc.perform(get("/api/members/me/favorites")
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("토큰 없이 내 관심 목록을 조회하면 401과 UNAUTHORIZED를 반환한다")
+    void getMyFavorites_withoutToken_returns401() throws Exception {
+        mockMvc.perform(get("/api/members/me/favorites"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
     }
 
     @Test
