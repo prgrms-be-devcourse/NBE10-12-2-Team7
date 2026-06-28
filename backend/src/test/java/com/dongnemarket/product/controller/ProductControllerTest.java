@@ -221,10 +221,80 @@ class ProductControllerTest {
 	}
 
 	@Test
+	@DisplayName("인증된 사용자는 내 상품 목록을 최신 등록순으로 조회하고 숨김 상품도 확인할 수 있다")
+	void getsMyProductsWithAuthentication() throws Exception {
+		Member member = memberRepository.save(Member.createUser("my-products@example.com", "encodedPassword", "판매자"));
+		Member otherMember = memberRepository.save(Member.createUser("other-products@example.com", "encodedPassword", "다른판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리5"));
+		Product oldProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"오래된 내 상품",
+				"오래된 내 상품 설명",
+				10000,
+				"서울 강남구"
+		));
+		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", 20000, "서울 서초구");
+		hiddenProduct.hide();
+		Product savedHiddenProduct = productRepository.save(hiddenProduct);
+		productRepository.save(Product.create(
+				otherMember,
+				category,
+				"다른 회원 상품",
+				"다른 회원 상품 설명",
+				30000,
+				"서울 송파구"
+		));
+		Product deletedProduct = Product.create(member, category, "삭제 내 상품", "삭제 내 상품 설명", 40000, "서울 마포구");
+		deletedProduct.softDelete();
+		productRepository.saveAndFlush(deletedProduct);
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+
+		mockMvc.perform(get("/api/members/me/products")
+						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200))
+				.andExpect(jsonPath("$.data.length()").value(2))
+				.andExpect(jsonPath("$.data[0].productId").value(savedHiddenProduct.getId()))
+				.andExpect(jsonPath("$.data[0].memberId").value(member.getId()))
+				.andExpect(jsonPath("$.data[0].categoryId").value(category.getId()))
+				.andExpect(jsonPath("$.data[0].title").value("숨김 내 상품"))
+				.andExpect(jsonPath("$.data[0].price").value(20000))
+				.andExpect(jsonPath("$.data[0].tradeStatus").value("ON_SALE"))
+				.andExpect(jsonPath("$.data[0].region").value("서울 서초구"))
+				.andExpect(jsonPath("$.data[0].viewCount").value(0))
+				.andExpect(jsonPath("$.data[0].hidden").value(true))
+				.andExpect(jsonPath("$.data[1].productId").value(oldProduct.getId()))
+				.andExpect(jsonPath("$.data[1].title").value("오래된 내 상품"))
+				.andExpect(jsonPath("$.data[1].hidden").value(false));
+	}
+
+	@Test
+	@DisplayName("내 상품이 없으면 빈 목록을 반환한다")
+	void getsEmptyMyProductsWithAuthentication() throws Exception {
+		Member member = memberRepository.save(Member.createUser("empty-products@example.com", "encodedPassword", "판매자"));
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+
+		mockMvc.perform(get("/api/members/me/products")
+						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200))
+				.andExpect(jsonPath("$.data.length()").value(0));
+	}
+
+	@Test
+	@DisplayName("인증 없이 내 상품 목록 조회 요청 시 401을 반환한다")
+	void returnsUnauthorizedWhenGettingMyProductsWithoutAuthentication() throws Exception {
+		mockMvc.perform(get("/api/members/me/products"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
+	}
+
+	@Test
 	@DisplayName("상품 상세는 인증 없이 조회할 수 있고 조회수가 1 증가한다")
 	void getsProductDetailWithoutAuthentication() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리5"));
+		Category category = categoryRepository.save(new Category("테스트카테고리6"));
 		Product product = productRepository.saveAndFlush(Product.create(
 				member,
 				category,
@@ -261,7 +331,7 @@ class ProductControllerTest {
 	@DisplayName("삭제된 상품 상세 조회 시 DELETED_PRODUCT를 반환한다")
 	void returnsDeletedProductWhenProductIsDeleted() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리6"));
+		Category category = categoryRepository.save(new Category("테스트카테고리7"));
 		Product product = Product.create(member, category, "삭제 상품", "삭제 상품 설명", 40000, "서울 마포구");
 		product.softDelete();
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -275,7 +345,7 @@ class ProductControllerTest {
 	@DisplayName("숨김 상품 상세 조회 시 HIDDEN_PRODUCT를 반환한다")
 	void returnsHiddenProductWhenProductIsHidden() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리7"));
+		Category category = categoryRepository.save(new Category("테스트카테고리8"));
 		Product product = Product.create(member, category, "숨김 상품", "숨김 상품 설명", 30000, "서울 송파구");
 		product.hide();
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -289,8 +359,8 @@ class ProductControllerTest {
 	@DisplayName("작성자는 상품 정보를 수정할 수 있다")
 	void updatesProductByOwner() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
-		Category oldCategory = categoryRepository.save(new Category("테스트카테고리8"));
-		Category newCategory = categoryRepository.save(new Category("테스트카테고리9"));
+		Category oldCategory = categoryRepository.save(new Category("테스트카테고리9"));
+		Category newCategory = categoryRepository.save(new Category("테스트카테고리10"));
 		Product product = productRepository.saveAndFlush(Product.create(
 				member,
 				oldCategory,
@@ -349,7 +419,7 @@ class ProductControllerTest {
 	void returnsProductOwnerOnlyWhenUpdatingByNonOwner() throws Exception {
 		Member owner = memberRepository.save(Member.createUser("owner@example.com", "encodedPassword", "작성자"));
 		Member other = memberRepository.save(Member.createUser("other@example.com", "encodedPassword", "다른사용자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리10"));
+		Category category = categoryRepository.save(new Category("테스트카테고리11"));
 		Product product = productRepository.saveAndFlush(Product.create(
 				owner,
 				category,
@@ -381,7 +451,7 @@ class ProductControllerTest {
 	@DisplayName("거래완료 상품 수정 시 CANNOT_UPDATE_COMPLETED_PRODUCT를 반환한다")
 	void returnsCannotUpdateCompletedProductWhenUpdatingCompletedProduct() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리11"));
+		Category category = categoryRepository.save(new Category("테스트카테고리12"));
 		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
 		product.complete();
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -408,7 +478,7 @@ class ProductControllerTest {
 	@DisplayName("작성자는 상품 거래 상태를 변경할 수 있다")
 	void updatesProductStatusByOwner() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller-status@example.com", "encodedPassword", "판매자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리12"));
+		Category category = categoryRepository.save(new Category("테스트카테고리13"));
 		Product product = productRepository.saveAndFlush(Product.create(
 				member,
 				category,
@@ -438,7 +508,7 @@ class ProductControllerTest {
 	@DisplayName("숨김 상품도 작성자라면 상품 거래 상태를 변경할 수 있다")
 	void updatesHiddenProductStatusByOwner() throws Exception {
 		Member member = memberRepository.save(Member.createUser("hidden-status@example.com", "encodedPassword", "판매자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리13"));
+		Category category = categoryRepository.save(new Category("테스트카테고리14"));
 		Product product = Product.create(member, category, "숨김 상품", "숨김 상품 설명", 30000, "서울 송파구");
 		product.hide();
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -462,7 +532,7 @@ class ProductControllerTest {
 	@DisplayName("거래완료 상품에 거래완료 상태를 다시 요청하면 현재 상태를 그대로 반환한다")
 	void keepsCompletedProductStatusWhenRequestingCompletedAgain() throws Exception {
 		Member member = memberRepository.save(Member.createUser("same-completed-status@example.com", "encodedPassword", "판매자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리14"));
+		Category category = categoryRepository.save(new Category("테스트카테고리15"));
 		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
 		product.complete();
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -502,7 +572,7 @@ class ProductControllerTest {
 	void returnsProductOwnerOnlyWhenUpdatingStatusByNonOwner() throws Exception {
 		Member owner = memberRepository.save(Member.createUser("owner-status@example.com", "encodedPassword", "작성자"));
 		Member other = memberRepository.save(Member.createUser("other-status@example.com", "encodedPassword", "다른사용자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리15"));
+		Category category = categoryRepository.save(new Category("테스트카테고리16"));
 		Product product = productRepository.saveAndFlush(Product.create(
 				owner,
 				category,
@@ -530,7 +600,7 @@ class ProductControllerTest {
 	@DisplayName("거래완료 상품을 다른 거래 상태로 변경하면 CANNOT_CHANGE_COMPLETED_PRODUCT를 반환한다")
 	void returnsCannotChangeCompletedProductWhenUpdatingCompletedStatus() throws Exception {
 		Member member = memberRepository.save(Member.createUser("completed-status@example.com", "encodedPassword", "판매자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리16"));
+		Category category = categoryRepository.save(new Category("테스트카테고리17"));
 		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
 		product.complete();
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -553,7 +623,7 @@ class ProductControllerTest {
 	@DisplayName("삭제된 상품 거래 상태 변경 시 DELETED_PRODUCT를 반환한다")
 	void returnsDeletedProductWhenUpdatingStatusOfDeletedProduct() throws Exception {
 		Member member = memberRepository.save(Member.createUser("deleted-status@example.com", "encodedPassword", "판매자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리17"));
+		Category category = categoryRepository.save(new Category("테스트카테고리18"));
 		Product product = Product.create(member, category, "삭제 상품", "삭제 상품 설명", 40000, "서울 마포구");
 		product.softDelete();
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -651,7 +721,7 @@ class ProductControllerTest {
 	@DisplayName("작성자는 상품을 삭제할 수 있다")
 	void deletesProductByOwner() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller-delete@example.com", "encodedPassword", "판매자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리18"));
+		Category category = categoryRepository.save(new Category("테스트카테고리19"));
 		Product product = productRepository.saveAndFlush(Product.create(
 				member,
 				category,
@@ -685,7 +755,7 @@ class ProductControllerTest {
 	void returnsProductOwnerOnlyWhenDeletingByNonOwner() throws Exception {
 		Member owner = memberRepository.save(Member.createUser("owner-delete@example.com", "encodedPassword", "작성자"));
 		Member other = memberRepository.save(Member.createUser("other-delete@example.com", "encodedPassword", "다른사용자"));
-		Category category = categoryRepository.save(new Category("테스트카테고리19"));
+		Category category = categoryRepository.save(new Category("테스트카테고리20"));
 		Product product = productRepository.saveAndFlush(Product.create(
 				owner,
 				category,

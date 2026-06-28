@@ -74,6 +74,13 @@ public class ProductService {
 				.toList();
 	}
 
+	public List<ProductSummaryResponse> getMyProducts(Long memberId) {
+		return productRepository.findAllByMemberIdAndDeletedAtIsNullOrderByIdDesc(memberId)
+				.stream()
+				.map(ProductSummaryResponse::from)
+				.toList();
+	}
+
 	@Transactional
 	public ProductResponse getProduct(Long productId) {
 		Product product = productRepository.findById(productId)
