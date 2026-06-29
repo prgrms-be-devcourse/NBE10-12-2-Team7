@@ -8,6 +8,7 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.dto.ProductCreateRequest;
 import com.dongnemarket.product.dto.ProductResponse;
+import com.dongnemarket.product.dto.ProductSearchRequest;
 import com.dongnemarket.product.dto.ProductStatusUpdateRequest;
 import com.dongnemarket.product.dto.ProductSummaryResponse;
 import com.dongnemarket.product.dto.ProductUpdateRequest;
@@ -16,10 +17,13 @@ import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.ProductRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -204,6 +208,86 @@ class ProductServiceTest {
 		List<ProductSummaryResponse> responses = productService.getMyProducts(1L);
 
 		assertThat(responses).isEmpty();
+	}
+
+	@Test
+	@DisplayName("상품 검색 조건이 유효하면 요약 응답 목록을 반환한다")
+	void searchesProducts() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product product = Product.create(member, category, "맥북 프로", "상태 좋은 맥북입니다.", 1200000, "서울 강남구");
+		ProductSearchRequest request = new ProductSearchRequest("맥북", 1L, 1000000, 1500000, "ON_SALE");
+		given(productRepository.findAll(anyProductSpecification(), any(org.springframework.data.domain.Sort.class)))
+				.willReturn(List.of(product));
+
+		List<ProductSummaryResponse> responses = productService.searchProducts(request);
+
+		assertThat(responses).hasSize(1);
+		assertThat(responses.get(0).getTitle()).isEqualTo("맥북 프로");
+		ArgumentCaptor<Sort> sortCaptor = ArgumentCaptor.forClass(Sort.class);
+		verify(productRepository).findAll(anyProductSpecification(), sortCaptor.capture());
+		assertThat(sortCaptor.getValue().getOrderFor("id")).isNotNull();
+		assertThat(sortCaptor.getValue().getOrderFor("id").getDirection()).isEqualTo(Sort.Direction.DESC);
+	}
+
+	@Test
+	@DisplayName("검색 최소 가격이 음수이면 INVALID_SEARCH_CONDITION 예외가 발생한다")
+	void throwsInvalidSearchConditionWhenMinPriceIsNegative() {
+		ProductSearchRequest request = new ProductSearchRequest(null, null, -1, null, null);
+
+		assertThatThrownBy(() -> productService.searchProducts(request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_SEARCH_CONDITION);
+
+		verify(productRepository, never()).findAll(anyProductSpecification(), any(org.springframework.data.domain.Sort.class));
+	}
+
+	@Test
+	@DisplayName("검색 최대 가격이 최소 가격보다 작으면 INVALID_SEARCH_CONDITION 예외가 발생한다")
+	void throwsInvalidSearchConditionWhenMaxPriceIsLessThanMinPrice() {
+		ProductSearchRequest request = new ProductSearchRequest(null, null, 20000, 10000, null);
+
+		assertThatThrownBy(() -> productService.searchProducts(request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_SEARCH_CONDITION);
+
+		verify(productRepository, never()).findAll(anyProductSpecification(), any(org.springframework.data.domain.Sort.class));
+	}
+
+	@Test
+	@DisplayName("검색 최대 가격이 음수이면 INVALID_SEARCH_CONDITION 예외가 발생한다")
+	void throwsInvalidSearchConditionWhenMaxPriceIsNegative() {
+		ProductSearchRequest request = new ProductSearchRequest(null, null, null, -1, null);
+
+		assertThatThrownBy(() -> productService.searchProducts(request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_SEARCH_CONDITION);
+
+		verify(productRepository, never()).findAll(anyProductSpecification(), any(org.springframework.data.domain.Sort.class));
+	}
+
+	@Test
+	@DisplayName("검색 거래 상태가 유효하지 않으면 INVALID_TRADE_STATUS 예외가 발생한다")
+	void throwsInvalidTradeStatusWhenSearchingWithInvalidTradeStatus() {
+		ProductSearchRequest request = new ProductSearchRequest(null, null, null, null, "INVALID");
+
+		assertThatThrownBy(() -> productService.searchProducts(request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_TRADE_STATUS);
+
+		verify(productRepository, never()).findAll(anyProductSpecification(), any(org.springframework.data.domain.Sort.class));
+	}
+
+	@Test
+	@DisplayName("검색 거래 상태가 공백이면 INVALID_TRADE_STATUS 예외가 발생한다")
+	void throwsInvalidTradeStatusWhenSearchingWithBlankTradeStatus() {
+		ProductSearchRequest request = new ProductSearchRequest(null, null, null, null, " ");
+
+		assertThatThrownBy(() -> productService.searchProducts(request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_TRADE_STATUS);
+
+		verify(productRepository, never()).findAll(anyProductSpecification(), any(org.springframework.data.domain.Sort.class));
 	}
 
 	@Test
@@ -667,5 +751,9 @@ class ProductServiceTest {
 		Member member = Member.createUser(email, "encodedPassword", nickname);
 		ReflectionTestUtils.setField(member, "id", id);
 		return member;
+	}
+
+	private Specification<Product> anyProductSpecification() {
+		return org.mockito.ArgumentMatchers.any();
 	}
 }

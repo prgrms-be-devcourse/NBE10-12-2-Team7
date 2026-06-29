@@ -221,6 +221,95 @@ class ProductControllerTest {
 	}
 
 	@Test
+	@DisplayName("상품 검색은 인증 없이 조건에 맞는 상품을 최신 등록순으로 조회한다")
+	void searchesProductsWithoutAuthentication() throws Exception {
+		Member member = memberRepository.save(Member.createUser("search-controller@example.com", "encodedPassword", "판매자"));
+		Category targetCategory = categoryRepository.save(new Category("검색카테고리1"));
+		Category otherCategory = categoryRepository.save(new Category("검색카테고리2"));
+		Product oldProduct = Product.create(
+				member,
+				targetCategory,
+				"맥북 에어",
+				"가벼운 맥북입니다.",
+				1000000,
+				"서울 강남구"
+		);
+		oldProduct.changeTradeStatus(com.dongnemarket.product.entity.TradeStatus.RESERVED);
+		Product savedOldProduct = productRepository.save(oldProduct);
+		Product newProduct = Product.create(
+				member,
+				targetCategory,
+				"맥북 프로",
+				"성능 좋은 맥북입니다.",
+				1500000,
+				"서울 서초구"
+		);
+		newProduct.changeTradeStatus(com.dongnemarket.product.entity.TradeStatus.RESERVED);
+		Product savedNewProduct = productRepository.save(newProduct);
+		productRepository.save(Product.create(member, otherCategory, "맥북 관련 책", "맥북 설명서입니다.", 20000, "서울 송파구"));
+		Product hiddenProduct = Product.create(member, targetCategory, "숨김 맥북", "숨김 상품입니다.", 1200000, "서울 마포구");
+		hiddenProduct.hide();
+		productRepository.save(hiddenProduct);
+		Product deletedProduct = Product.create(member, targetCategory, "삭제 맥북", "삭제 상품입니다.", 1300000, "서울 용산구");
+		deletedProduct.softDelete();
+		productRepository.saveAndFlush(deletedProduct);
+
+		mockMvc.perform(get("/api/products/search")
+						.param("keyword", "맥북")
+						.param("categoryId", targetCategory.getId().toString())
+						.param("minPrice", "900000")
+						.param("maxPrice", "1600000")
+						.param("tradeStatus", "RESERVED"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200))
+				.andExpect(jsonPath("$.data.length()").value(2))
+				.andExpect(jsonPath("$.data[0].productId").value(savedNewProduct.getId()))
+				.andExpect(jsonPath("$.data[0].title").value("맥북 프로"))
+				.andExpect(jsonPath("$.data[0].tradeStatus").value("RESERVED"))
+				.andExpect(jsonPath("$.data[0].hidden").value(false))
+				.andExpect(jsonPath("$.data[1].productId").value(savedOldProduct.getId()))
+				.andExpect(jsonPath("$.data[1].title").value("맥북 에어"));
+	}
+
+	@Test
+	@DisplayName("상품 검색 결과가 없으면 빈 목록을 반환한다")
+	void returnsEmptyListWhenSearchingProductsWithoutResult() throws Exception {
+		mockMvc.perform(get("/api/products/search")
+						.param("keyword", "없는상품"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200))
+				.andExpect(jsonPath("$.data.length()").value(0));
+	}
+
+	@Test
+	@DisplayName("상품 검색 가격 조건이 잘못되면 INVALID_SEARCH_CONDITION을 반환한다")
+	void returnsInvalidSearchConditionWhenSearchingWithInvalidPriceRange() throws Exception {
+		mockMvc.perform(get("/api/products/search")
+						.param("minPrice", "20000")
+						.param("maxPrice", "10000"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_SEARCH_CONDITION"));
+	}
+
+	@Test
+	@DisplayName("상품 검색 거래 상태가 잘못되면 INVALID_TRADE_STATUS를 반환한다")
+	void returnsInvalidTradeStatusWhenSearchingWithInvalidTradeStatus() throws Exception {
+		mockMvc.perform(get("/api/products/search")
+						.param("tradeStatus", "INVALID"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_TRADE_STATUS"));
+	}
+
+	@Test
+	@DisplayName("상품 검색 거래 상태가 공백이면 INVALID_TRADE_STATUS를 반환한다")
+	void returnsInvalidTradeStatusWhenSearchingWithBlankTradeStatus() throws Exception {
+		mockMvc.perform(get("/api/products/search")
+						.param("tradeStatus", " "))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_TRADE_STATUS"));
+	}
+
+	@Test
 	@DisplayName("인증된 사용자는 내 상품 목록을 최신 등록순으로 조회하고 숨김 상품도 확인할 수 있다")
 	void getsMyProductsWithAuthentication() throws Exception {
 		Member member = memberRepository.save(Member.createUser("my-products@example.com", "encodedPassword", "판매자"));
