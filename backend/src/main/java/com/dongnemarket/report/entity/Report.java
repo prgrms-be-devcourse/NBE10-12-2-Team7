@@ -58,6 +58,11 @@ public class Report extends BaseTimeEntity {
         return new Report(reporterId, ReportType.MEMBER, null, targetMemberId, reason, content);
     }
 
+    /** 관리자에 의한 신고 상태 변경 */
+    public void changeStatus(ReportStatus status) {
+        this.status = status;
+    }
+
     public Long getId() { return id; }
     public Long getReporterId() { return reporterId; }
     public Long getTargetMemberId() { return targetMemberId; }
