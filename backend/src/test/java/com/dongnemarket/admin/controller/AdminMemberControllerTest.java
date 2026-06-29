@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -144,5 +145,38 @@ class AdminMemberControllerTest {
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("MEMBER_NOT_FOUND"));
+    }
+
+    // ===== PATCH /api/admin/members/{memberId}/status =====
+
+    @Test
+    @DisplayName("관리자가 회원 상태를 SUSPENDED로 변경하면 200과 변경된 상태를 반환한다")
+    void changeMemberStatus_asAdmin_success() throws Exception {
+        String adminToken = getAdminToken("admin4@example.com", "password123", "admin4");
+        signup("target2@example.com", "password123", "target2");
+        Long targetId = memberIdOf("target2@example.com");
+
+        mockMvc.perform(patch("/api/admin/members/{memberId}/status", targetId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"SUSPENDED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.data.status").value("SUSPENDED"));
+    }
+
+    @Test
+    @DisplayName("잘못된 상태 값으로 변경하면 400과 INVALID_MEMBER_STATUS를 반환한다")
+    void changeMemberStatus_invalidStatus_returns400() throws Exception {
+        String adminToken = getAdminToken("admin5@example.com", "password123", "admin5");
+        signup("target3@example.com", "password123", "target3");
+        Long targetId = memberIdOf("target3@example.com");
+
+        mockMvc.perform(patch("/api/admin/members/{memberId}/status", targetId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"INVALID\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("INVALID_MEMBER_STATUS"));
     }
 }

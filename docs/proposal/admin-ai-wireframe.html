@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>동네마켓 Admin · AI 어시스턴트 (ChatGPT 스타일)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.17.0/dist/tabler-icons.min.css">
+<style>
+  :root{
+    --bg:#f4f6f9; --surface:#ffffff; --side:#f7f8fa; --border:#e6e8ec;
+    --text:#1f2733; --text-2:#5a6573; --text-3:#9aa3b0; --accent:#1f4e79; --accent-bg:#eaf1fb;
+    --danger:#c0392b; --danger-bg:#fceceb; --warn:#9a6700; --warn-bg:#fbf1da; --bubble:#f1f3f6;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--text);
+    font-family:"Malgun Gothic","맑은 고딕",-apple-system,system-ui,sans-serif; font-size:14px;}
+  .wrap{max-width:1040px; margin:24px auto; padding:0 16px;}
+  .note{font-size:12px; color:var(--text-3); margin:0 0 12px;}
+  .app{display:flex; height:620px; background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.04);}
+
+  aside{width:230px; flex:none; background:var(--side); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:14px 11px;}
+  .newchat{display:flex; align-items:center; gap:9px; width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--surface); cursor:pointer; font-family:inherit; font-size:13px; color:var(--text); margin-bottom:16px;}
+  .newchat:hover{background:#eef1f5;}
+  .sec-lab{font-size:11px; color:var(--text-3); padding:0 8px 6px;}
+  nav{display:flex; flex-direction:column; gap:2px; font-size:13px;}
+  nav a{display:block; padding:9px 10px; border-radius:8px; color:var(--text-2); text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  nav a:hover{background:#eef1f5;}
+  nav a.on{background:var(--surface); color:var(--text); font-weight:500;}
+  .me{margin-top:auto; display:flex; align-items:center; gap:9px; padding:9px 6px; font-size:13px; color:var(--text-2); border-top:1px solid var(--border);}
+  .me .av{width:26px; height:26px; border-radius:50%; background:var(--accent-bg); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600;}
+
+  main{flex:1; min-width:0; display:flex; flex-direction:column;}
+  .bar{flex:none; display:flex; align-items:center; gap:7px; padding:13px 20px; border-bottom:1px solid var(--border); font-size:15px; font-weight:600;}
+  .bar .meta{font-size:11px; color:var(--text-3); font-weight:400; margin-left:auto;}
+  .thread{flex:1; overflow-y:auto; padding:22px 22px 10px;}
+  .col{max-width:680px; margin:0 auto;}
+
+  .user{display:flex; justify-content:flex-end; margin-bottom:22px;}
+  .user .b{max-width:74%; background:var(--bubble); border-radius:18px; padding:10px 15px; font-size:14px; line-height:1.6;}
+
+  .ai{display:flex; gap:12px; margin-bottom:26px;}
+  .ai .icon{width:28px; height:28px; flex:none; border-radius:50%; background:var(--accent-bg); display:flex; align-items:center; justify-content:center;}
+  .ai .icon i{font-size:16px; color:var(--accent);}
+  .ai .body{min-width:0; font-size:14px; line-height:1.75;}
+  .tbl{border:1px solid var(--border); border-radius:12px; margin:10px 0; overflow:hidden;}
+  .tbl .r{display:flex; justify-content:space-between; padding:9px 13px; font-size:13px;}
+  .tbl .r:first-child{background:var(--side); border-bottom:1px solid var(--border);}
+  .tool{font-size:11px; color:var(--text-3);}
+  .badge{font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px;}
+  .badge.high{color:var(--danger); background:var(--danger-bg);}
+  .acts{display:flex; gap:8px; align-items:center; margin-top:12px;}
+  .acts button{padding:6px 14px; font-size:13px; border:1px solid var(--border); background:var(--surface); border-radius:8px; cursor:pointer; font-family:inherit;}
+  .acts button.danger{color:var(--danger); border-color:#e8b4ae;}
+  .acts .hint{font-size:11px; color:var(--text-3);}
+
+  .compose{flex:none; padding:8px 22px 16px;}
+  .box{max-width:680px; margin:0 auto; display:flex; align-items:center; gap:10px; border:1px solid #d3d8e0; border-radius:26px; padding:9px 9px 9px 18px; background:var(--surface);}
+  .box .ph{flex:1; font-size:14px; color:var(--text-3);}
+  .box .clip{font-size:19px; color:var(--text-3);}
+  .send{width:34px; height:34px; flex:none; border:none; border-radius:50%; background:var(--text); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer;}
+  .send i{font-size:18px;}
+  .disc{max-width:680px; margin:8px auto 0; text-align:center; font-size:11px; color:var(--text-3);}
+
+  @media(max-width:760px){ aside{display:none;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="note">동네마켓 관리자 페이지 — Spring AI(Ollama) “AI 어시스턴트” 화면 와이어프레임 · ChatGPT 스타일 대화형 UI · 모든 AI 출력은 제안이며 최종 처분은 관리자가 결정(Human-in-the-loop)</p>
+
+  <div class="app">
+    <aside>
+      <button class="newchat"><i class="ti ti-pencil-plus"></i> 새 대화</button>
+      <div class="sec-lab">최근 대화</div>
+      <nav>
+        <a href="#" class="on">신고 3건 이상 회원</a>
+        <a href="#">사기 의심 상품 검토</a>
+        <a href="#">오늘 운영 요약 브리핑</a>
+        <a href="#">신규 가입 이상 활동</a>
+      </nav>
+      <div class="me"><span class="av">관</span> 관리자 계정</div>
+    </aside>
+
+    <main>
+      <div class="bar">동네마켓 AI <i class="ti ti-chevron-down" style="font-size:15px; color:var(--text-3);"></i><span class="meta">Spring AI · Ollama</span></div>
+
+      <div class="thread">
+        <div class="col">
+
+          <div class="user"><div class="b">최근 7일간 신고 3건 이상인 회원 보여줘</div></div>
+
+          <div class="ai">
+            <div class="icon"><i class="ti ti-sparkles"></i></div>
+            <div class="body">
+              조건에 맞는 회원 <b>2명</b>을 찾았습니다.
+              <div class="tbl">
+                <div class="r"><span>user_482 · 신고 4건</span><span style="color:var(--danger)">검토 권장</span></div>
+                <div class="r"><span>user_915 · 신고 3건</span><span style="color:var(--warn)">관찰</span></div>
+              </div>
+              <div class="tool"><i class="ti ti-tool" style="vertical-align:-1px;"></i> Tool Calling으로 ReportRepository 조회</div>
+            </div>
+          </div>
+
+          <div class="user"><div class="b">상품 #2041 신고 분석해줘</div></div>
+
+          <div class="ai">
+            <div class="icon"><i class="ti ti-sparkles"></i></div>
+            <div class="body">
+              <div style="display:flex; align-items:center; gap:9px; margin-bottom:7px;">
+                <span class="badge high">위험도 HIGH</span>
+                <span style="font-size:12px; color:var(--text-3);">신고 5건 · 사기 의심</span>
+              </div>
+              시세보다 현저히 낮은 가격과 외부 송금 유도 문구가 확인됩니다. <b>즉시 숨김 처리 후 판매자 확인</b>을 추천합니다.
+              <div class="acts">
+                <button class="danger">숨김 처리</button>
+                <button>반려</button>
+                <span class="hint">최종 결정은 관리자</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="compose">
+        <div class="box">
+          <i class="ti ti-paperclip clip"></i>
+          <span class="ph">운영 관련 질문을 입력하세요 (예: 오늘 미처리 신고 요약해줘)</span>
+          <button class="send" aria-label="전송"><i class="ti ti-arrow-up"></i></button>
+        </div>
+        <div class="disc">AI는 제안만 제공합니다. 최종 처분은 관리자가 결정합니다.</div>
+      </div>
+
+    </main>
+  </div>
+</div>
+</body>
+</html>

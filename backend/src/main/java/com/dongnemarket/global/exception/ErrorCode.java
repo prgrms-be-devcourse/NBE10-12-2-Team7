@@ -59,7 +59,9 @@ public enum ErrorCode {
 	DUPLICATE_REPORT(409, "REPORT_005", "이미 신고한 대상입니다."),
 
 	// ===== ADMIN ERROR (팀장) =====
-	ADMIN_ONLY(403, "ADMIN_001", "관리자만 접근할 수 있습니다.");
+	ADMIN_ONLY(403, "ADMIN_001", "관리자만 접근할 수 있습니다."),
+	INVALID_MEMBER_STATUS(400, "ADMIN_002", "잘못된 회원 상태 값입니다."),
+	INVALID_REPORT_STATUS(400, "ADMIN_003", "잘못된 신고 상태 값입니다.");
 
 	private final int status;
 	private final String code;
