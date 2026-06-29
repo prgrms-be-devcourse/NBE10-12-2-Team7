@@ -211,6 +211,16 @@ class ProductServiceTest {
 	}
 
 	@Test
+	@DisplayName("인증된 사용자 ID가 없으면 내 상품 목록 조회 시 UNAUTHORIZED 예외가 발생한다")
+	void throwsUnauthorizedWhenGettingMyProductsWithoutMemberId() {
+		assertThatThrownBy(() -> productService.getMyProducts(null))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
+
+		verify(productRepository, never()).findAllByMemberIdAndDeletedAtIsNullOrderByIdDesc(any());
+	}
+
+	@Test
 	@DisplayName("상품 검색 조건이 유효하면 요약 응답 목록을 반환한다")
 	void searchesProducts() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");

@@ -17,7 +17,7 @@
   - PATCH /api/products/{productId}
   - DELETE /api/products/{productId}
   - PATCH /api/products/{productId}/status
-  - GET /api/members/me/products
+  - GET /api/products/me
   - GET /api/categories
   - GET /api/categories/{categoryId}/products
 - 관련 테이블: products, categories

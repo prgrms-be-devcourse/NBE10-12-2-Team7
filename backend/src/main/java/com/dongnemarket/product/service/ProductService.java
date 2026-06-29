@@ -78,6 +78,7 @@ public class ProductService {
 	}
 
 	public List<ProductSummaryResponse> getMyProducts(Long memberId) {
+		validateAuthenticatedMember(memberId);
 		return productRepository.findAllByMemberIdAndDeletedAtIsNullOrderByIdDesc(memberId)
 				.stream()
 				.map(ProductSummaryResponse::from)
@@ -184,6 +185,12 @@ public class ProductService {
 	public void validateAccessibleProduct(Long productId) {
 		if (!productRepository.existsByIdAndDeletedAtIsNullAndHiddenFalse(productId)) {
 			throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
+		}
+	}
+
+	private void validateAuthenticatedMember(Long memberId) {
+		if (memberId == null) {
+			throw new BusinessException(ErrorCode.UNAUTHORIZED);
 		}
 	}
 
