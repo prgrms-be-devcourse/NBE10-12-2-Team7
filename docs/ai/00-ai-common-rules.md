@@ -48,6 +48,7 @@
 이 공통 규칙을 모두 읽었다면, **코드 작업을 시작하기 전에 사용자에게 가장 먼저 다음을 질문한다.**
 
 > "이 프로젝트에서 어떤 역할을 맡으셨나요? 아래에서 골라 주세요."
+>
 > 1. 팀장 / 공통구조 · Admin
 > 2. Auth · Member
 > 3. Product · Category · Trade · Search
@@ -56,13 +57,13 @@
 
 사용자가 역할을 선택하면, 아래 매핑에 따라 **해당 문서를 읽고 그 문서의 지시에 따라 즉시 작업을 시작한다.**
 
-| 선택 | 역할 | 읽을 문서 |
-| --- | --- | --- |
-| 1 | 팀장 / 공통구조 · Admin | 05-admin-common-agent.md |
-| 2 | Auth · Member | 01-auth-member-agent.md |
-| 3 | Product · Category · Trade · Search | 02-product-category-agent.md |
-| 4 | Favorite · Comment | 03-favorite-comment-agent.md |
-| 5 | Report | 04-report-agent.md |
+| 선택 | 역할                                | 읽을 문서                    |
+| ---- | ----------------------------------- | ---------------------------- |
+| 1    | 팀장 / 공통구조 · Admin             | 05-admin-common-agent.md     |
+| 2    | Auth · Member                       | 01-auth-member-agent.md      |
+| 3    | Product · Category · Trade · Search | 02-product-category-agent.md |
+| 4    | Favorite · Comment                  | 03-favorite-comment-agent.md |
+| 5    | Report                              | 04-report-agent.md           |
 
 통합/머지는 팀장이 09:00~17:00 동안 PR이 올라올 때마다 별도로 보유한 통합 도구로 상시 검수·통합한다(팀원 배포 폴더에는 포함되지 않는다).
 
@@ -83,6 +84,7 @@ global  auth  member  product  category  favorite  comment  report  admin  trade
 ```
 
 각 도메인 기본 구조:
+
 ```
 domain
 ├── controller
@@ -93,6 +95,7 @@ domain
 ```
 
 global 공통 구조(팀장 관리):
+
 ```
 global
 ├── common
@@ -130,6 +133,7 @@ global
 도메인별 Prefix: `COMMON / AUTH / MEMBER / PRODUCT / CATEGORY / FAVORITE / COMMENT / REPORT / TRADE / ADMIN / SEARCH`
 
 팀장이 초기에 만들어두는 ErrorCode.java 골격 (도메인별 주석 영역):
+
 ```java
 public enum ErrorCode {
 
@@ -203,12 +207,20 @@ public enum ErrorCode {
 ## 5. 공통 응답 규칙
 
 성공:
+
 ```json
 { "status": 200, "message": "요청이 성공적으로 처리되었습니다.", "data": {} }
 ```
+
 에러:
+
 ```json
-{ "status": 404, "error": "PRODUCT_NOT_FOUND", "message": "상품을 찾을 수 없습니다.", "timestamp": "2026-06-17T12:00:00" }
+{
+  "status": 404,
+  "error": "PRODUCT_NOT_FOUND",
+  "message": "상품을 찾을 수 없습니다.",
+  "timestamp": "2026-06-17T12:00:00"
+}
 ```
 
 ---
@@ -235,6 +247,7 @@ public enum ErrorCode {
 ## 8. 도메인별 규칙 (ERD 기준 — 정본)
 
 ### Auth / Member
+
 ```
 이메일은 중복 가입할 수 없다 (members.email UNIQUE).
 닉네임은 중복될 수 없다 (members.nickname UNIQUE).
@@ -245,6 +258,7 @@ Role: ROLE_USER, ROLE_ADMIN  /  MemberStatus: ACTIVE, SUSPENDED, DELETED
 ```
 
 ### Product / Category / Trade / Search
+
 ```
 상품 등록은 로그인 사용자만. 수정/삭제/거래상태 변경은 작성자 본인만.
 삭제(deleted_at)·숨김(hidden) 상품은 일반 목록에서 제외.
@@ -254,6 +268,7 @@ TradeStatus: ON_SALE, RESERVED, COMPLETED  (COMPLETED는 되돌릴 수 없다)
 ```
 
 ### Favorite / Comment
+
 ```
 관심 등록은 로그인 사용자만. favorites(member_id, product_id) UNIQUE.
 중복 관심 등록 409, 없는 관심 취소 404.
@@ -262,6 +277,7 @@ TradeStatus: ON_SALE, RESERVED, COMPLETED  (COMPLETED는 되돌릴 수 없다)
 ```
 
 ### Report
+
 ```
 로그인 사용자만 신고. 상품 신고=target_product_id, 사용자 신고=target_member_id (둘 중 하나만).
 신고 생성 시 기본 상태 RECEIVED. 본인 상품/본인 계정은 신고 불가.
@@ -271,6 +287,7 @@ ReportStatus: RECEIVED, REVIEWING, COMPLETED, REJECTED  (상태 변경은 admin 
 ```
 
 ### Admin (팀장)
+
 ```
 /api/admin/** 경로, ROLE_ADMIN만 접근. 관리자 계정은 초기 데이터로 생성.
 관리자는 작성자가 아니어도 상품 숨김(hidden), 댓글 소프트 삭제 가능.
@@ -285,7 +302,7 @@ ReportStatus: RECEIVED, REVIEWING, COMPLETED, REJECTED  (상태 변경은 admin 
 # Auth        POST /api/auth/signup, POST /api/auth/login
 # Member      GET|PATCH|DELETE /api/members/me
 # Product     POST|GET /api/products, GET|PATCH|DELETE /api/products/{productId},
-#             PATCH /api/products/{productId}/status, GET /api/members/me/products
+#             PATCH /api/products/{productId}/status, GET /api/products/me
 # Category    GET /api/categories, GET /api/categories/{categoryId}/products
 # Favorite    POST|DELETE /api/products/{productId}/favorites, GET /api/members/me/favorites
 # Comment     POST|GET /api/products/{productId}/comments, PATCH|DELETE /api/comments/{commentId}
@@ -306,11 +323,13 @@ ReportStatus: RECEIVED, REVIEWING, COMPLETED, REJECTED  (상태 변경은 admin 
 ## 10. 기능 완료 기준
 
 5단계 흐름(① ErrorCode → ② 구현 → ③ 테스트 → ④ Postman → ⑤ PR)을 모두 마치고, 아래가 갖춰지면 완료로 본다.
+
 ```
 Entity / Request DTO / Response DTO / Repository / Service / Controller
 Validation / ApiResponse / BusinessException / Swagger 문서
 단위 테스트(성공1+실패2) / Postman 시나리오 문서 / PR 체크리스트
 ```
+
 > 참고: Swagger 문서화는 완료 기준에 포함된다(헤드라인 5단계의 "② 기능 구현" 단계에서 함께 작성).
 
 ---
@@ -321,10 +340,12 @@ Validation / ApiResponse / BusinessException / Swagger 문서
 ## 작업 내용 / 담당 도메인 / 변경 파일
 
 ## AI 사용 여부
+
 - [ ] AI 에이전트를 사용했고, 생성 코드를 직접 검토했다.
 - [ ] 담당 패키지 외 파일을 수정하지 않았다.
 
 ## 5단계 흐름
+
 - [ ] ① ErrorCode 작성(예외 분석 포함)
 - [ ] ② 기능 구현
 - [ ] ③ 단위 테스트 작성
@@ -333,6 +354,7 @@ Validation / ApiResponse / BusinessException / Swagger 문서
 - [ ] 이 PR은 하나의 작은 작업 단위만 담았다 (여러 기능 섞지 않음)
 
 ## 검증
+
 - [ ] 빌드 성공 / 서버 정상 기동 / 공통 응답 형식 준수
 ```
 

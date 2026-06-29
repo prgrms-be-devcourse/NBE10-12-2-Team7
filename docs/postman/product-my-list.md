@@ -5,7 +5,7 @@
 ## API
 
 - Method: `GET`
-- URL: `/api/members/me/products`
+- URL: `/api/products/me`
 - Auth: `Authorization: Bearer {accessToken}`
 - Response: `ApiResponse<List<ProductSummaryResponse>>`
 
@@ -22,7 +22,7 @@
 ### Request
 
 ```http
-GET /api/members/me/products
+GET /api/products/me
 Authorization: Bearer {accessToken}
 ```
 
@@ -64,7 +64,7 @@ Authorization: Bearer {accessToken}
 ### Request
 
 ```http
-GET /api/members/me/products
+GET /api/products/me
 Authorization: Bearer {accessToken}
 ```
 
@@ -83,7 +83,7 @@ Authorization: Bearer {accessToken}
 ### Request
 
 ```http
-GET /api/members/me/products
+GET /api/products/me
 ```
 
 ### Expected Response

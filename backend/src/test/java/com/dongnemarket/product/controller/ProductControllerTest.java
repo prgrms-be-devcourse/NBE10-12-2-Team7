@@ -339,7 +339,7 @@ class ProductControllerTest {
 		productRepository.saveAndFlush(deletedProduct);
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
 
-		mockMvc.perform(get("/api/members/me/products")
+		mockMvc.perform(get("/api/products/me")
 						.header("Authorization", "Bearer " + token))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value(200))
@@ -364,7 +364,7 @@ class ProductControllerTest {
 		Member member = memberRepository.save(Member.createUser("empty-products@example.com", "encodedPassword", "판매자"));
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
 
-		mockMvc.perform(get("/api/members/me/products")
+		mockMvc.perform(get("/api/products/me")
 						.header("Authorization", "Bearer " + token))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value(200))
@@ -374,7 +374,7 @@ class ProductControllerTest {
 	@Test
 	@DisplayName("인증 없이 내 상품 목록 조회 요청 시 401을 반환한다")
 	void returnsUnauthorizedWhenGettingMyProductsWithoutAuthentication() throws Exception {
-		mockMvc.perform(get("/api/members/me/products"))
+		mockMvc.perform(get("/api/products/me"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
 	}
