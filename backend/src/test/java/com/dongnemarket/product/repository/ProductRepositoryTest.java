@@ -168,4 +168,38 @@ class ProductRepositoryTest {
 
 		assertThat(products).containsExactly(newProduct, oldProduct);
 	}
+
+	@Test
+	@DisplayName("내 상품 목록은 최신 등록순으로 조회하고 숨김 상품은 포함하며 삭제 상품은 제외한다")
+	void findsMyProductsInLatestOrderIncludingHiddenProducts() {
+		Member member = memberRepository.save(Member.createUser("my-seller@example.com", "encodedPassword", "판매자"));
+		Member otherMember = memberRepository.save(Member.createUser("other-seller@example.com", "encodedPassword", "다른판매자"));
+		Category category = categoryRepository.save(new Category("스포츠/레저"));
+		Product oldProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"오래된 내 상품",
+				"오래된 내 상품 설명",
+				10000,
+				"서울 강남구"
+		));
+		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", 20000, "서울 서초구");
+		hiddenProduct.hide();
+		Product savedHiddenProduct = productRepository.save(hiddenProduct);
+		productRepository.save(Product.create(
+				otherMember,
+				category,
+				"다른 회원 상품",
+				"다른 회원 상품 설명",
+				30000,
+				"서울 송파구"
+		));
+		Product deletedProduct = Product.create(member, category, "삭제 내 상품", "삭제 내 상품 설명", 40000, "서울 마포구");
+		deletedProduct.softDelete();
+		productRepository.saveAndFlush(deletedProduct);
+
+		List<Product> products = productRepository.findAllByMemberIdAndDeletedAtIsNullOrderByIdDesc(member.getId());
+
+		assertThat(products).containsExactly(savedHiddenProduct, oldProduct);
+	}
 }

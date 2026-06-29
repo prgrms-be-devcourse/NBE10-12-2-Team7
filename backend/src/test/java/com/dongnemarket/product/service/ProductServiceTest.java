@@ -176,6 +176,37 @@ class ProductServiceTest {
 	}
 
 	@Test
+	@DisplayName("내 상품 목록을 최신 등록순 요약 응답으로 조회하고 숨김 상품도 포함한다")
+	void getsMyProductsInLatestOrderIncludingHiddenProducts() {
+		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
+		Category category = new Category("디지털기기");
+		Product oldProduct = Product.create(member, category, "오래된 내 상품", "오래된 내 상품 설명", 10000, "서울 강남구");
+		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", 20000, "서울 서초구");
+		hiddenProduct.hide();
+		given(productRepository.findAllByMemberIdAndDeletedAtIsNullOrderByIdDesc(1L))
+				.willReturn(List.of(hiddenProduct, oldProduct));
+
+		List<ProductSummaryResponse> responses = productService.getMyProducts(1L);
+
+		assertThat(responses).hasSize(2);
+		assertThat(responses.get(0).getTitle()).isEqualTo("숨김 내 상품");
+		assertThat(responses.get(0).isHidden()).isTrue();
+		assertThat(responses.get(1).getTitle()).isEqualTo("오래된 내 상품");
+		assertThat(responses.get(1).isHidden()).isFalse();
+	}
+
+	@Test
+	@DisplayName("내 상품이 없으면 빈 목록을 반환한다")
+	void returnsEmptyListWhenMyProductsDoNotExist() {
+		given(productRepository.findAllByMemberIdAndDeletedAtIsNullOrderByIdDesc(1L))
+				.willReturn(List.of());
+
+		List<ProductSummaryResponse> responses = productService.getMyProducts(1L);
+
+		assertThat(responses).isEmpty();
+	}
+
+	@Test
 	@DisplayName("상품 상세 조회에 성공하면 조회수가 1 증가한다")
 	void getsProductAndIncreasesViewCount() {
 		Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
