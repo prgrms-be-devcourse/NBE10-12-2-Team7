@@ -10,6 +10,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @Transactional(readOnly = true)
 public class FavoriteService {
@@ -35,6 +37,13 @@ public class FavoriteService {
             // 중복 체크 통과 후 save() 사이의 race condition으로 UNIQUE 제약을 위반한 경우
             throw new BusinessException(ErrorCode.FAVORITE_ALREADY_EXISTS);
         }
+    }
+
+    /** 내 관심 상품 목록 조회. 로그인 사용자가 등록한 관심 상품을 최근 등록순으로 조회한다. */
+    public List<FavoriteResponse> getMyFavorites(Long memberId) {
+        return favoriteRepository.findAllByMemberIdOrderByCreatedAtDescIdDesc(memberId).stream()
+                .map(FavoriteResponse::from)
+                .toList();
     }
 
     /** 관심 상품 취소. 로그인 사용자가 자신이 등록한 관심 상품을 제거한다. */

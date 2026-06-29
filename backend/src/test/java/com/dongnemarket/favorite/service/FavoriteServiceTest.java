@@ -14,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -86,6 +87,32 @@ class FavoriteServiceTest {
         assertThatThrownBy(() -> favoriteService.add(MEMBER_ID, PRODUCT_ID))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.FAVORITE_ALREADY_EXISTS);
+    }
+
+    @Test
+    @DisplayName("내 관심 상품 목록을 최근 등록순으로 반환한다")
+    void getMyFavorites_success() {
+        given(favoriteRepository.findAllByMemberIdOrderByCreatedAtDescIdDesc(MEMBER_ID))
+                .willReturn(List.of(
+                        Favorite.of(MEMBER_ID, 200L),
+                        Favorite.of(MEMBER_ID, 100L)));
+
+        List<FavoriteResponse> responses = favoriteService.getMyFavorites(MEMBER_ID);
+
+        assertThat(responses).hasSize(2);
+        assertThat(responses).extracting(FavoriteResponse::getProductId)
+                .containsExactly(200L, 100L);
+    }
+
+    @Test
+    @DisplayName("관심 상품이 없으면 빈 목록을 반환한다")
+    void getMyFavorites_empty() {
+        given(favoriteRepository.findAllByMemberIdOrderByCreatedAtDescIdDesc(MEMBER_ID))
+                .willReturn(List.of());
+
+        List<FavoriteResponse> responses = favoriteService.getMyFavorites(MEMBER_ID);
+
+        assertThat(responses).isEmpty();
     }
 
     @Test
