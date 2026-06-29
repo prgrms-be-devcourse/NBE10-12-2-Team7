@@ -1,10 +1,12 @@
 package com.dongnemarket.admin.service;
 
 import com.dongnemarket.admin.dto.AdminMemberResponse;
+import com.dongnemarket.admin.dto.AdminMemberStatusUpdateRequest;
 import com.dongnemarket.admin.repository.AdminMemberRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.member.entity.MemberStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -73,5 +75,51 @@ class AdminMemberServiceTest {
         assertThatThrownBy(() -> adminMemberService.getMember(999L))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("회원 상태를 SUSPENDED로 변경하면 상태가 바뀐다")
+    void changeMemberStatus_success() {
+        Member member = Member.createUser("u@example.com", "encoded", "user");
+        given(adminMemberRepository.findById(1L)).willReturn(Optional.of(member));
+
+        AdminMemberResponse response =
+                adminMemberService.changeMemberStatus(1L, new AdminMemberStatusUpdateRequest("SUSPENDED"));
+
+        assertThat(response.getStatus()).isEqualTo(MemberStatus.SUSPENDED);
+        assertThat(member.getStatus()).isEqualTo(MemberStatus.SUSPENDED);
+    }
+
+    @Test
+    @DisplayName("회원 상태를 DELETED로 변경하면 deletedAt이 기록된다")
+    void changeMemberStatus_toDeleted_setsDeletedAt() {
+        Member member = Member.createUser("u@example.com", "encoded", "user");
+        given(adminMemberRepository.findById(1L)).willReturn(Optional.of(member));
+
+        adminMemberService.changeMemberStatus(1L, new AdminMemberStatusUpdateRequest("DELETED"));
+
+        assertThat(member.getStatus()).isEqualTo(MemberStatus.DELETED);
+        assertThat(member.getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 회원의 상태 변경 시 MEMBER_NOT_FOUND 예외가 발생한다")
+    void changeMemberStatus_notFound_throwsException() {
+        given(adminMemberRepository.findById(999L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> adminMemberService.changeMemberStatus(999L, new AdminMemberStatusUpdateRequest("SUSPENDED")))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("잘못된 상태 값으로 변경 시 INVALID_MEMBER_STATUS 예외가 발생한다")
+    void changeMemberStatus_invalidStatus_throwsException() {
+        Member member = Member.createUser("u@example.com", "encoded", "user");
+        given(adminMemberRepository.findById(1L)).willReturn(Optional.of(member));
+
+        assertThatThrownBy(() -> adminMemberService.changeMemberStatus(1L, new AdminMemberStatusUpdateRequest("INVALID")))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_MEMBER_STATUS);
     }
 }

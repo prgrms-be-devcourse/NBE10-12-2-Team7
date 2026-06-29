@@ -12,10 +12,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -105,5 +107,34 @@ class AdminReportControllerTest {
         mockMvc.perform(get("/api/admin/reports"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
+    }
+
+    // ===== PATCH /api/admin/reports/{reportId}/status =====
+
+    @Test
+    @DisplayName("관리자가 신고 상태를 COMPLETED로 변경하면 200과 변경된 상태를 반환한다")
+    void changeReportStatus_asAdmin_success() throws Exception {
+        Report report = reportRepository.save(Report.ofProduct(1L, 10L, ReportReason.FAKE_ITEM, "가짜 상품"));
+
+        mockMvc.perform(patch("/api/admin/reports/{reportId}/status", report.getId())
+                        .header("Authorization", "Bearer " + adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"COMPLETED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.data.status").value("COMPLETED"));
+    }
+
+    @Test
+    @DisplayName("잘못된 상태 값으로 변경하면 400과 INVALID_REPORT_STATUS를 반환한다")
+    void changeReportStatus_invalidStatus_returns400() throws Exception {
+        Report report = reportRepository.save(Report.ofProduct(1L, 10L, ReportReason.FAKE_ITEM, "가짜 상품"));
+
+        mockMvc.perform(patch("/api/admin/reports/{reportId}/status", report.getId())
+                        .header("Authorization", "Bearer " + adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"INVALID\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("INVALID_REPORT_STATUS"));
     }
 }
