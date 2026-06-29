@@ -3,6 +3,7 @@ package com.dongnemarket.product.controller;
 import com.dongnemarket.global.response.ApiResponse;
 import com.dongnemarket.product.dto.ProductCreateRequest;
 import com.dongnemarket.product.dto.ProductResponse;
+import com.dongnemarket.product.dto.ProductSearchRequest;
 import com.dongnemarket.product.dto.ProductStatusUpdateRequest;
 import com.dongnemarket.product.dto.ProductSummaryResponse;
 import com.dongnemarket.product.dto.ProductUpdateRequest;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -48,6 +50,18 @@ public class ProductController {
 	@GetMapping
 	public ApiResponse<List<ProductSummaryResponse>> getProducts() {
 		return ApiResponse.success(productService.getProducts());
+	}
+
+	@Operation(summary = "상품 검색", description = "상품을 키워드, 카테고리, 가격 범위, 거래 상태로 검색합니다.")
+	@GetMapping("/search")
+	public ApiResponse<List<ProductSummaryResponse>> searchProducts(
+			@RequestParam(required = false) String keyword,
+			@RequestParam(required = false) Long categoryId,
+			@RequestParam(required = false) Integer minPrice,
+			@RequestParam(required = false) Integer maxPrice,
+			@RequestParam(required = false) String tradeStatus) {
+		ProductSearchRequest request = new ProductSearchRequest(keyword, categoryId, minPrice, maxPrice, tradeStatus);
+		return ApiResponse.success(productService.searchProducts(request));
 	}
 
 	@Operation(summary = "상품 상세 조회", description = "상품 상세 정보를 조회하고 조회수를 1 증가시킵니다.")

@@ -7,8 +7,10 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
+import com.dongnemarket.product.repository.spec.ProductSpecification;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Sort;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -201,5 +203,81 @@ class ProductRepositoryTest {
 		List<Product> products = productRepository.findAllByMemberIdAndDeletedAtIsNullOrderByIdDesc(member.getId());
 
 		assertThat(products).containsExactly(savedHiddenProduct, oldProduct);
+	}
+
+	@Test
+	@DisplayName("상품 검색은 키워드로 제목과 설명을 검색하고 숨김·삭제 상품은 제외한다")
+	void searchesProductsByKeywordExcludingHiddenAndDeletedProducts() {
+		Member member = memberRepository.save(Member.createUser("search-seller@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("디지털기기"));
+		Product titleMatchedProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"맥북 프로",
+				"상태 좋은 노트북입니다.",
+				1200000,
+				"서울 강남구"
+		));
+		Product descriptionMatchedProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"노트북 거치대",
+				"맥북과 함께 쓰기 좋습니다.",
+				30000,
+				"서울 서초구"
+		));
+		Product hiddenProduct = Product.create(member, category, "숨김 맥북", "숨김 상품입니다.", 900000, "서울 송파구");
+		hiddenProduct.hide();
+		productRepository.save(hiddenProduct);
+		Product deletedProduct = Product.create(member, category, "삭제 맥북", "삭제 상품입니다.", 800000, "서울 마포구");
+		deletedProduct.softDelete();
+		productRepository.saveAndFlush(deletedProduct);
+
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.search("맥북", null, null, null, null),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+
+		assertThat(products).containsExactly(descriptionMatchedProduct, titleMatchedProduct);
+	}
+
+	@Test
+	@DisplayName("상품 검색은 카테고리, 가격 범위, 거래 상태를 함께 필터링한다")
+	void searchesProductsByCategoryPriceRangeAndTradeStatus() {
+		Member member = memberRepository.save(Member.createUser("filter-seller@example.com", "encodedPassword", "판매자"));
+		Category targetCategory = categoryRepository.save(new Category("생활가전"));
+		Category otherCategory = categoryRepository.save(new Category("도서"));
+		Product targetProduct = Product.create(
+				member,
+				targetCategory,
+				"예약 중인 청소기",
+				"상태 좋은 청소기입니다.",
+				150000,
+				"서울 강남구"
+		);
+		targetProduct.changeTradeStatus(TradeStatus.RESERVED);
+		Product savedTargetProduct = productRepository.save(targetProduct);
+		Product wrongStatusProduct = productRepository.save(Product.create(
+				member,
+				targetCategory,
+				"판매 중인 청소기",
+				"상태 좋은 청소기입니다.",
+				160000,
+				"서울 서초구"
+		));
+		Product wrongCategoryProduct = Product.create(member, otherCategory, "예약 중인 책", "청소기 설명이 있는 책입니다.", 150000, "서울 송파구");
+		wrongCategoryProduct.changeTradeStatus(TradeStatus.RESERVED);
+		productRepository.save(wrongCategoryProduct);
+		Product wrongPriceProduct = Product.create(member, targetCategory, "비싼 청소기", "비싼 청소기입니다.", 500000, "서울 마포구");
+		wrongPriceProduct.changeTradeStatus(TradeStatus.RESERVED);
+		productRepository.saveAndFlush(wrongPriceProduct);
+
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.search("청소기", targetCategory.getId(), 100000, 200000, TradeStatus.RESERVED),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+
+		assertThat(products).containsExactly(savedTargetProduct);
+		assertThat(products).doesNotContain(wrongStatusProduct, wrongCategoryProduct, wrongPriceProduct);
 	}
 }

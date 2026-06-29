@@ -8,12 +8,15 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.dto.ProductCreateRequest;
 import com.dongnemarket.product.dto.ProductResponse;
+import com.dongnemarket.product.dto.ProductSearchRequest;
 import com.dongnemarket.product.dto.ProductStatusUpdateRequest;
 import com.dongnemarket.product.dto.ProductSummaryResponse;
 import com.dongnemarket.product.dto.ProductUpdateRequest;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.product.repository.spec.ProductSpecification;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -76,6 +79,26 @@ public class ProductService {
 
 	public List<ProductSummaryResponse> getMyProducts(Long memberId) {
 		return productRepository.findAllByMemberIdAndDeletedAtIsNullOrderByIdDesc(memberId)
+				.stream()
+				.map(ProductSummaryResponse::from)
+				.toList();
+	}
+
+	public List<ProductSummaryResponse> searchProducts(ProductSearchRequest request) {
+		ProductSearchRequest searchRequest = normalizeSearchRequest(request);
+		validateSearchPrice(searchRequest.getMinPrice(), searchRequest.getMaxPrice());
+		TradeStatus tradeStatus = parseSearchTradeStatus(searchRequest.getTradeStatus());
+
+		return productRepository.findAll(
+						ProductSpecification.search(
+								searchRequest.getKeyword(),
+								searchRequest.getCategoryId(),
+								searchRequest.getMinPrice(),
+								searchRequest.getMaxPrice(),
+								tradeStatus
+						),
+						Sort.by(Sort.Direction.DESC, "id")
+				)
 				.stream()
 				.map(ProductSummaryResponse::from)
 				.toList();
@@ -187,6 +210,36 @@ public class ProductService {
 		}
 		try {
 			return TradeStatus.valueOf(request.getTradeStatus());
+		} catch (IllegalArgumentException e) {
+			throw new BusinessException(ErrorCode.INVALID_TRADE_STATUS);
+		}
+	}
+
+	private ProductSearchRequest normalizeSearchRequest(ProductSearchRequest request) {
+		if (request == null) {
+			return new ProductSearchRequest(null, null, null, null, null);
+		}
+		return request;
+	}
+
+	private void validateSearchPrice(Integer minPrice, Integer maxPrice) {
+		if ((minPrice != null && minPrice < 0) || (maxPrice != null && maxPrice < 0)) {
+			throw new BusinessException(ErrorCode.INVALID_SEARCH_CONDITION);
+		}
+		if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
+			throw new BusinessException(ErrorCode.INVALID_SEARCH_CONDITION);
+		}
+	}
+
+	private TradeStatus parseSearchTradeStatus(String tradeStatus) {
+		if (tradeStatus == null) {
+			return null;
+		}
+		if (!StringUtils.hasText(tradeStatus)) {
+			throw new BusinessException(ErrorCode.INVALID_TRADE_STATUS);
+		}
+		try {
+			return TradeStatus.valueOf(tradeStatus);
 		} catch (IllegalArgumentException e) {
 			throw new BusinessException(ErrorCode.INVALID_TRADE_STATUS);
 		}
