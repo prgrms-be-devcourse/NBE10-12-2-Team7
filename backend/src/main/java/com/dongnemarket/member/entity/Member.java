@@ -56,6 +56,11 @@ public class Member extends BaseTimeEntity {
 		return new Member(email, password, nickname, Role.ROLE_USER, MemberStatus.ACTIVE);
 	}
 
+	/** 관리자 계정 시드용 (ROLE_ADMIN, ACTIVE) */
+	public static Member createAdmin(String email, String password, String nickname) {
+		return new Member(email, password, nickname, Role.ROLE_ADMIN, MemberStatus.ACTIVE);
+	}
+
 	public void update(String nickname) {
 		this.nickname = nickname;
 	}
@@ -63,6 +68,12 @@ public class Member extends BaseTimeEntity {
 	public void softDelete() {
 		this.status = MemberStatus.DELETED;
 		this.deletedAt = LocalDateTime.now();
+	}
+
+	/** 관리자에 의한 회원 상태 변경 */
+	public void changeStatus(MemberStatus status) {
+		this.status = status;
+		this.deletedAt = (status == MemberStatus.DELETED) ? LocalDateTime.now() : null;
 	}
 
 	public Long getId() {
