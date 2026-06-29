@@ -88,12 +88,12 @@ class MemberControllerTest {
 	}
 
 	@Test
-	@DisplayName("유효하지 않은 토큰으로 GET /api/members/me 요청하면 401을 반환한다")
+	@DisplayName("유효하지 않은 토큰으로 GET /api/members/me 요청하면 401과 INVALID_TOKEN을 반환한다")
 	void getMyInfo_invalidToken_returns401() throws Exception {
 		mockMvc.perform(get("/api/members/me")
 						.header("Authorization", "Bearer invalid.jwt.token"))
 				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
+				.andExpect(jsonPath("$.error").value("INVALID_TOKEN"));
 	}
 
 	// ===== PATCH /api/members/me =====
