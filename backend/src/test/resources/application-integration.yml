@@ -1,0 +1,16 @@
+# 통합테스트 전용: Testcontainers MySQL 8 (@ServiceConnection 이 datasource 자동 주입)
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    org.hibernate.SQL: debug
