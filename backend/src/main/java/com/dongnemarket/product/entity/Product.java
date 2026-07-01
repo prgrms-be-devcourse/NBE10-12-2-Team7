@@ -41,7 +41,7 @@ public class Product extends BaseTimeEntity {
 	private String description;
 
 	@Column(nullable = false)
-	private Integer price;   // 부동소수점 오류로 인해 가격관련된 부분BigDecimal 권장
+	private BigDecimal price;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
@@ -61,9 +61,9 @@ public class Product extends BaseTimeEntity {
 
 	protected Product() {
 	}
-    //  리플렉션에 대해서 고려
+
 	private Product(Member member, Category category, String title, String description,
-					Integer price, String region) {
+					BigDecimal price, String region) {
 		this.member = member;
 		this.category = category;
 		this.title = title;
@@ -76,7 +76,7 @@ public class Product extends BaseTimeEntity {
 	}
 
 	public static Product create(Member member, Category category, String title, String description,
-								 Integer price, String region) {
+								 BigDecimal price, String region) {
 		return new Product(member, category, title, description, price, region);
 	}
 
@@ -92,7 +92,7 @@ public class Product extends BaseTimeEntity {
 		this.viewCount++;
 	}
 
-	public void update(Category category, String title, String description, Integer price, String region) {
+	public void update(Category category, String title, String description, BigDecimal price, String region) {
 		this.category = category;
 		this.title = title;
 		this.description = description;
@@ -136,7 +136,7 @@ public class Product extends BaseTimeEntity {
 		return description;
 	}
 
-	public Integer getPrice() {
+	public BigDecimal getPrice() {
 		return price;
 	}
 
@@ -159,4 +159,5 @@ public class Product extends BaseTimeEntity {
 	public LocalDateTime getDeletedAt() {
 		return deletedAt;
 	}
+
 }

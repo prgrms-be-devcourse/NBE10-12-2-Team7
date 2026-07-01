@@ -77,13 +77,49 @@
 }
 ```
 
+---
+
+## 4) 실패 — 숨김(hidden) 처리된 상품
+
+관리자가 숨김 처리한 상품에 `GET /api/products/{productId}/comments` 를 요청한다.
+
+**Response** `404 Not Found`
+```json
+{
+  "status": 404,
+  "error": "PRODUCT_NOT_FOUND",
+  "message": "상품을 찾을 수 없습니다.",
+  "timestamp": "2026-06-27T09:00:00"
+}
+```
+
+---
+
+## 5) 실패 — 삭제(soft delete)된 상품
+
+작성자가 삭제(`deleted_at`)한 상품에 `GET /api/products/{productId}/comments` 를 요청한다.
+
+**Response** `404 Not Found`
+```json
+{
+  "status": 404,
+  "error": "PRODUCT_NOT_FOUND",
+  "message": "상품을 찾을 수 없습니다.",
+  "timestamp": "2026-06-27T09:00:00"
+}
+```
+
 ## 검증 체크리스트
 
 - [x] 비로그인 사용자도 200 + 목록 반환 (작성순)
 - [x] 삭제된 댓글은 목록에서 제외
 - [x] 댓글이 없으면 200 + 빈 배열 `[]`
 - [x] 존재하지 않는 상품 조회 시 404 + `PRODUCT_NOT_FOUND`
+- [x] 숨김 상품 조회 시 404 + `PRODUCT_NOT_FOUND`
+- [x] 삭제 상품 조회 시 404 + `PRODUCT_NOT_FOUND`
 
 ## 비고
 
+- 목록 조회에도 `productService.validateAccessibleProduct(productId)` 검증이 적용되어, **숨김·삭제 상품의 댓글 목록은 404** 로 응답한다(이슈 #80, 결정 D1). 비로그인 조회는 여전히 허용되지만 대상 상품이 접근 가능해야 한다.
+- 숨김·삭제 케이스는 `CommentControllerTest`의 `getComments_hiddenProduct_returns404` / `getComments_deletedProduct_returns404`로 자동 검증한다.
 - 작성자 닉네임 등 응답 확장은 MVP 범위 밖이며, 팀 회의 후 별도 PR로 진행한다.

@@ -1,5 +1,7 @@
 package com.dongnemarket.product.repository;
 
+import java.math.BigDecimal;
+
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
 import com.dongnemarket.global.config.JpaAuditingConfig;
@@ -47,7 +49,7 @@ class ProductRepositoryTest {
 				category,
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
-				800000,
+				BigDecimal.valueOf(800000),
 				"서울 강남구"
 		);
 
@@ -58,7 +60,7 @@ class ProductRepositoryTest {
 		assertThat(savedProduct.getCategory().getId()).isEqualTo(category.getId());
 		assertThat(savedProduct.getTitle()).isEqualTo("아이폰 15");
 		assertThat(savedProduct.getDescription()).isEqualTo("상태 좋은 아이폰입니다.");
-		assertThat(savedProduct.getPrice()).isEqualTo(800000);
+		assertThat(savedProduct.getPrice()).isEqualByComparingTo("800000");
 		assertThat(savedProduct.getTradeStatus()).isEqualTo(TradeStatus.ON_SALE);
 		assertThat(savedProduct.getRegion()).isEqualTo("서울 강남구");
 		assertThat(savedProduct.getViewCount()).isZero();
@@ -78,7 +80,7 @@ class ProductRepositoryTest {
 				category,
 				"공기청정기",
 				"상태 좋은 공기청정기입니다.",
-				120000,
+				BigDecimal.valueOf(120000),
 				"서울 강남구"
 		));
 
@@ -97,7 +99,7 @@ class ProductRepositoryTest {
 				category,
 				"의자",
 				"사용감 있는 의자입니다.",
-				30000,
+				BigDecimal.valueOf(30000),
 				"서울 서초구"
 		);
 		product.softDelete();
@@ -118,7 +120,7 @@ class ProductRepositoryTest {
 				category,
 				"자바 책",
 				"깨끗한 자바 책입니다.",
-				15000,
+				BigDecimal.valueOf(15000),
 				"서울 송파구"
 		);
 		product.hide();
@@ -140,7 +142,7 @@ class ProductRepositoryTest {
 				targetCategory,
 				"오래된 생활가전",
 				"오래된 생활가전 설명",
-				10000,
+				BigDecimal.valueOf(10000),
 				"서울 강남구"
 		));
 		Product newProduct = productRepository.save(Product.create(
@@ -148,7 +150,7 @@ class ProductRepositoryTest {
 				targetCategory,
 				"최신 생활가전",
 				"최신 생활가전 설명",
-				20000,
+				BigDecimal.valueOf(20000),
 				"서울 서초구"
 		));
 		productRepository.save(Product.create(
@@ -156,13 +158,13 @@ class ProductRepositoryTest {
 				otherCategory,
 				"다른 카테고리 상품",
 				"다른 카테고리 상품 설명",
-				30000,
+				BigDecimal.valueOf(30000),
 				"서울 송파구"
 		));
-		Product hiddenProduct = Product.create(member, targetCategory, "숨김 상품", "숨김 상품 설명", 40000, "서울 마포구");
+		Product hiddenProduct = Product.create(member, targetCategory, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
 		hiddenProduct.hide();
 		productRepository.save(hiddenProduct);
-		Product deletedProduct = Product.create(member, targetCategory, "삭제 상품", "삭제 상품 설명", 50000, "서울 용산구");
+		Product deletedProduct = Product.create(member, targetCategory, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(50000), "서울 용산구");
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
@@ -182,10 +184,10 @@ class ProductRepositoryTest {
 				category,
 				"오래된 내 상품",
 				"오래된 내 상품 설명",
-				10000,
+				BigDecimal.valueOf(10000),
 				"서울 강남구"
 		));
-		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", 20000, "서울 서초구");
+		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", BigDecimal.valueOf(20000), "서울 서초구");
 		hiddenProduct.hide();
 		Product savedHiddenProduct = productRepository.save(hiddenProduct);
 		productRepository.save(Product.create(
@@ -193,10 +195,10 @@ class ProductRepositoryTest {
 				category,
 				"다른 회원 상품",
 				"다른 회원 상품 설명",
-				30000,
+				BigDecimal.valueOf(30000),
 				"서울 송파구"
 		));
-		Product deletedProduct = Product.create(member, category, "삭제 내 상품", "삭제 내 상품 설명", 40000, "서울 마포구");
+		Product deletedProduct = Product.create(member, category, "삭제 내 상품", "삭제 내 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
@@ -215,7 +217,7 @@ class ProductRepositoryTest {
 				category,
 				"맥북 프로",
 				"상태 좋은 노트북입니다.",
-				1200000,
+				BigDecimal.valueOf(1200000),
 				"서울 강남구"
 		));
 		Product descriptionMatchedProduct = productRepository.save(Product.create(
@@ -223,18 +225,18 @@ class ProductRepositoryTest {
 				category,
 				"노트북 거치대",
 				"맥북과 함께 쓰기 좋습니다.",
-				30000,
+				BigDecimal.valueOf(30000),
 				"서울 서초구"
 		));
-		Product hiddenProduct = Product.create(member, category, "숨김 맥북", "숨김 상품입니다.", 900000, "서울 송파구");
+		Product hiddenProduct = Product.create(member, category, "숨김 맥북", "숨김 상품입니다.", BigDecimal.valueOf(900000), "서울 송파구");
 		hiddenProduct.hide();
 		productRepository.save(hiddenProduct);
-		Product deletedProduct = Product.create(member, category, "삭제 맥북", "삭제 상품입니다.", 800000, "서울 마포구");
+		Product deletedProduct = Product.create(member, category, "삭제 맥북", "삭제 상품입니다.", BigDecimal.valueOf(800000), "서울 마포구");
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
 		List<Product> products = productRepository.findAll(
-				ProductSpecification.search("맥북", null, null, null, null),
+				ProductSpecification.search("맥북", null, (BigDecimal) null, null, null),
 				Sort.by(Sort.Direction.DESC, "id")
 		);
 
@@ -252,7 +254,7 @@ class ProductRepositoryTest {
 				targetCategory,
 				"예약 중인 청소기",
 				"상태 좋은 청소기입니다.",
-				150000,
+				BigDecimal.valueOf(150000),
 				"서울 강남구"
 		);
 		targetProduct.changeTradeStatus(TradeStatus.RESERVED);
@@ -262,18 +264,24 @@ class ProductRepositoryTest {
 				targetCategory,
 				"판매 중인 청소기",
 				"상태 좋은 청소기입니다.",
-				160000,
+				BigDecimal.valueOf(160000),
 				"서울 서초구"
 		));
-		Product wrongCategoryProduct = Product.create(member, otherCategory, "예약 중인 책", "청소기 설명이 있는 책입니다.", 150000, "서울 송파구");
+		Product wrongCategoryProduct = Product.create(member, otherCategory, "예약 중인 책", "청소기 설명이 있는 책입니다.", BigDecimal.valueOf(150000), "서울 송파구");
 		wrongCategoryProduct.changeTradeStatus(TradeStatus.RESERVED);
 		productRepository.save(wrongCategoryProduct);
-		Product wrongPriceProduct = Product.create(member, targetCategory, "비싼 청소기", "비싼 청소기입니다.", 500000, "서울 마포구");
+		Product wrongPriceProduct = Product.create(member, targetCategory, "비싼 청소기", "비싼 청소기입니다.", BigDecimal.valueOf(500000), "서울 마포구");
 		wrongPriceProduct.changeTradeStatus(TradeStatus.RESERVED);
 		productRepository.saveAndFlush(wrongPriceProduct);
 
 		List<Product> products = productRepository.findAll(
-				ProductSpecification.search("청소기", targetCategory.getId(), 100000, 200000, TradeStatus.RESERVED),
+				ProductSpecification.search(
+						"청소기",
+						targetCategory.getId(),
+						BigDecimal.valueOf(100000),
+						BigDecimal.valueOf(200000),
+						TradeStatus.RESERVED
+				),
 				Sort.by(Sort.Direction.DESC, "id")
 		);
 

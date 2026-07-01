@@ -5,13 +5,15 @@ import com.dongnemarket.product.entity.TradeStatus;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+
 public class ProductSpecification {
 
 	private ProductSpecification() {
 	}
 
-	public static Specification<Product> search(String keyword, Long categoryId, Integer minPrice,
-												Integer maxPrice, TradeStatus tradeStatus) {
+	public static Specification<Product> search(String keyword, Long categoryId, BigDecimal minPrice,
+												BigDecimal maxPrice, TradeStatus tradeStatus) {
 		return notDeleted()
 				.and(notHidden())
 				.and(keywordContains(keyword))
@@ -51,7 +53,7 @@ public class ProductSpecification {
 		};
 	}
 
-	private static Specification<Product> priceGreaterThanOrEqualTo(Integer minPrice) {
+	private static Specification<Product> priceGreaterThanOrEqualTo(BigDecimal minPrice) {
 		return (root, query, criteriaBuilder) -> {
 			if (minPrice == null) {
 				return null;
@@ -60,7 +62,7 @@ public class ProductSpecification {
 		};
 	}
 
-	private static Specification<Product> priceLessThanOrEqualTo(Integer maxPrice) {
+	private static Specification<Product> priceLessThanOrEqualTo(BigDecimal maxPrice) {
 		return (root, query, criteriaBuilder) -> {
 			if (maxPrice == null) {
 				return null;
@@ -77,4 +79,5 @@ public class ProductSpecification {
 			return criteriaBuilder.equal(root.get("tradeStatus"), tradeStatus);
 		};
 	}
+
 }

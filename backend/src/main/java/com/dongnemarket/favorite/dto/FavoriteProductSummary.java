@@ -1,0 +1,41 @@
+package com.dongnemarket.favorite.dto;
+
+import com.dongnemarket.product.entity.Product;
+import com.dongnemarket.product.entity.TradeStatus;
+
+import java.math.BigDecimal;
+
+/** 관심 목록에 동봉되는 상품 요약(이름·가격·판매장소·판매상태). 필요한 필드만 담는 슬림 DTO. */
+public class FavoriteProductSummary {
+
+    private final Long productId;
+    private final String title;
+    private final BigDecimal price;
+    private final String region;
+    private final TradeStatus tradeStatus;
+
+    private FavoriteProductSummary(Long productId, String title, BigDecimal price,
+                                   String region, TradeStatus tradeStatus) {
+        this.productId = productId;
+        this.title = title;
+        this.price = price;
+        this.region = region;
+        this.tradeStatus = tradeStatus;
+    }
+
+    public static FavoriteProductSummary from(Product product) {
+        return new FavoriteProductSummary(
+                product.getId(),
+                product.getTitle(),
+                product.getPrice(),
+                product.getRegion(),
+                product.getTradeStatus()
+        );
+    }
+
+    public Long getProductId() { return productId; }
+    public String getTitle() { return title; }
+    public BigDecimal getPrice() { return price; }
+    public String getRegion() { return region; }
+    public TradeStatus getTradeStatus() { return tradeStatus; }
+}

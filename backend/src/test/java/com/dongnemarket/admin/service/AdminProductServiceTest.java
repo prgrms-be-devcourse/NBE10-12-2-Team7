@@ -17,6 +17,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import java.math.BigDecimal;
 
 /**
  * [단위] AdminProductService — 두 변이(hide/delete)와 공유 NOT_FOUND만 검증.
@@ -33,7 +34,7 @@ class AdminProductServiceTest {
     AdminProductService adminProductService;
 
     private Product existingProduct() {
-        return Product.create(null, null, "부적절 상품", "설명", 10000, "서울시 강남구");
+        return Product.create(null, null, "부적절 상품", "설명", new BigDecimal("10000"), "서울시 강남구");
     }
 
     @Nested

@@ -1,5 +1,7 @@
 package com.dongnemarket.product.controller;
 
+import java.math.BigDecimal;
+
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
 import com.dongnemarket.global.security.jwt.JwtTokenProvider;
@@ -186,7 +188,7 @@ class ProductControllerTest {
 				category,
 				"오래된 상품",
 				"오래된 상품 설명",
-				10000,
+				BigDecimal.valueOf(10000),
 				"서울 강남구"
 		));
 		Product newProduct = productRepository.save(Product.create(
@@ -194,13 +196,13 @@ class ProductControllerTest {
 				category,
 				"최신 상품",
 				"최신 상품 설명",
-				20000,
+				BigDecimal.valueOf(20000),
 				"서울 서초구"
 		));
-		Product hiddenProduct = Product.create(member, category, "숨김 상품", "숨김 상품 설명", 30000, "서울 송파구");
+		Product hiddenProduct = Product.create(member, category, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(30000), "서울 송파구");
 		hiddenProduct.hide();
 		productRepository.save(hiddenProduct);
-		Product deletedProduct = Product.create(member, category, "삭제 상품", "삭제 상품 설명", 40000, "서울 마포구");
+		Product deletedProduct = Product.create(member, category, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
@@ -231,7 +233,7 @@ class ProductControllerTest {
 				targetCategory,
 				"맥북 에어",
 				"가벼운 맥북입니다.",
-				1000000,
+				BigDecimal.valueOf(1000000),
 				"서울 강남구"
 		);
 		oldProduct.changeTradeStatus(com.dongnemarket.product.entity.TradeStatus.RESERVED);
@@ -241,16 +243,16 @@ class ProductControllerTest {
 				targetCategory,
 				"맥북 프로",
 				"성능 좋은 맥북입니다.",
-				1500000,
+				BigDecimal.valueOf(1500000),
 				"서울 서초구"
 		);
 		newProduct.changeTradeStatus(com.dongnemarket.product.entity.TradeStatus.RESERVED);
 		Product savedNewProduct = productRepository.save(newProduct);
-		productRepository.save(Product.create(member, otherCategory, "맥북 관련 책", "맥북 설명서입니다.", 20000, "서울 송파구"));
-		Product hiddenProduct = Product.create(member, targetCategory, "숨김 맥북", "숨김 상품입니다.", 1200000, "서울 마포구");
+		productRepository.save(Product.create(member, otherCategory, "맥북 관련 책", "맥북 설명서입니다.", BigDecimal.valueOf(20000), "서울 송파구"));
+		Product hiddenProduct = Product.create(member, targetCategory, "숨김 맥북", "숨김 상품입니다.", BigDecimal.valueOf(1200000), "서울 마포구");
 		hiddenProduct.hide();
 		productRepository.save(hiddenProduct);
-		Product deletedProduct = Product.create(member, targetCategory, "삭제 맥북", "삭제 상품입니다.", 1300000, "서울 용산구");
+		Product deletedProduct = Product.create(member, targetCategory, "삭제 맥북", "삭제 상품입니다.", BigDecimal.valueOf(1300000), "서울 용산구");
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
@@ -320,10 +322,10 @@ class ProductControllerTest {
 				category,
 				"오래된 내 상품",
 				"오래된 내 상품 설명",
-				10000,
+				BigDecimal.valueOf(10000),
 				"서울 강남구"
 		));
-		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", 20000, "서울 서초구");
+		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", BigDecimal.valueOf(20000), "서울 서초구");
 		hiddenProduct.hide();
 		Product savedHiddenProduct = productRepository.save(hiddenProduct);
 		productRepository.save(Product.create(
@@ -331,10 +333,10 @@ class ProductControllerTest {
 				category,
 				"다른 회원 상품",
 				"다른 회원 상품 설명",
-				30000,
+				BigDecimal.valueOf(30000),
 				"서울 송파구"
 		));
-		Product deletedProduct = Product.create(member, category, "삭제 내 상품", "삭제 내 상품 설명", 40000, "서울 마포구");
+		Product deletedProduct = Product.create(member, category, "삭제 내 상품", "삭제 내 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -389,7 +391,7 @@ class ProductControllerTest {
 				category,
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
-				800000,
+				BigDecimal.valueOf(800000),
 				"서울 강남구"
 		));
 
@@ -421,7 +423,7 @@ class ProductControllerTest {
 	void returnsDeletedProductWhenProductIsDeleted() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리7"));
-		Product product = Product.create(member, category, "삭제 상품", "삭제 상품 설명", 40000, "서울 마포구");
+		Product product = Product.create(member, category, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
 		product.softDelete();
 		Product savedProduct = productRepository.saveAndFlush(product);
 
@@ -435,7 +437,7 @@ class ProductControllerTest {
 	void returnsHiddenProductWhenProductIsHidden() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리8"));
-		Product product = Product.create(member, category, "숨김 상품", "숨김 상품 설명", 30000, "서울 송파구");
+		Product product = Product.create(member, category, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(30000), "서울 송파구");
 		product.hide();
 		Product savedProduct = productRepository.saveAndFlush(product);
 
@@ -455,7 +457,7 @@ class ProductControllerTest {
 				oldCategory,
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
-				800000,
+				BigDecimal.valueOf(800000),
 				"서울 강남구"
 		));
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -514,7 +516,7 @@ class ProductControllerTest {
 				category,
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
-				800000,
+				BigDecimal.valueOf(800000),
 				"서울 강남구"
 		));
 		String token = jwtTokenProvider.createAccessToken(other.getId(), other.getRole().name());
@@ -541,7 +543,7 @@ class ProductControllerTest {
 	void returnsCannotUpdateCompletedProductWhenUpdatingCompletedProduct() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리12"));
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		product.complete();
 		Product savedProduct = productRepository.saveAndFlush(product);
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -573,7 +575,7 @@ class ProductControllerTest {
 				category,
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
-				800000,
+				BigDecimal.valueOf(800000),
 				"서울 강남구"
 		));
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -598,7 +600,7 @@ class ProductControllerTest {
 	void updatesHiddenProductStatusByOwner() throws Exception {
 		Member member = memberRepository.save(Member.createUser("hidden-status@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리14"));
-		Product product = Product.create(member, category, "숨김 상품", "숨김 상품 설명", 30000, "서울 송파구");
+		Product product = Product.create(member, category, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(30000), "서울 송파구");
 		product.hide();
 		Product savedProduct = productRepository.saveAndFlush(product);
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -622,7 +624,7 @@ class ProductControllerTest {
 	void keepsCompletedProductStatusWhenRequestingCompletedAgain() throws Exception {
 		Member member = memberRepository.save(Member.createUser("same-completed-status@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리15"));
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		product.complete();
 		Product savedProduct = productRepository.saveAndFlush(product);
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -667,7 +669,7 @@ class ProductControllerTest {
 				category,
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
-				800000,
+				BigDecimal.valueOf(800000),
 				"서울 강남구"
 		));
 		String token = jwtTokenProvider.createAccessToken(other.getId(), other.getRole().name());
@@ -690,7 +692,7 @@ class ProductControllerTest {
 	void returnsCannotChangeCompletedProductWhenUpdatingCompletedStatus() throws Exception {
 		Member member = memberRepository.save(Member.createUser("completed-status@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리17"));
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		product.complete();
 		Product savedProduct = productRepository.saveAndFlush(product);
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -713,7 +715,7 @@ class ProductControllerTest {
 	void returnsDeletedProductWhenUpdatingStatusOfDeletedProduct() throws Exception {
 		Member member = memberRepository.save(Member.createUser("deleted-status@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리18"));
-		Product product = Product.create(member, category, "삭제 상품", "삭제 상품 설명", 40000, "서울 마포구");
+		Product product = Product.create(member, category, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
 		product.softDelete();
 		Product savedProduct = productRepository.saveAndFlush(product);
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -816,7 +818,7 @@ class ProductControllerTest {
 				category,
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
-				800000,
+				BigDecimal.valueOf(800000),
 				"서울 강남구"
 		));
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -850,7 +852,7 @@ class ProductControllerTest {
 				category,
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
-				800000,
+				BigDecimal.valueOf(800000),
 				"서울 강남구"
 		));
 		String token = jwtTokenProvider.createAccessToken(other.getId(), other.getRole().name());

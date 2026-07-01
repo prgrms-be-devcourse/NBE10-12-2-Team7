@@ -3,20 +3,22 @@ package com.dongnemarket.product.dto;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
 
+import java.math.BigDecimal;
+
 public class ProductSummaryResponse {
 
 	private final Long productId;
 	private final Long memberId;
 	private final Long categoryId;
 	private final String title;
-	private final Integer price;
+	private final BigDecimal price;
 	private final TradeStatus tradeStatus;
 	private final String region;
 	private final long viewCount;
 	private final boolean hidden;
 
 	private ProductSummaryResponse(Long productId, Long memberId, Long categoryId, String title,
-								   Integer price, TradeStatus tradeStatus, String region,
+								   BigDecimal price, TradeStatus tradeStatus, String region,
 								   long viewCount, boolean hidden) {
 		this.productId = productId;
 		this.memberId = memberId;
@@ -59,7 +61,7 @@ public class ProductSummaryResponse {
 		return title;
 	}
 
-	public Integer getPrice() {
+	public BigDecimal getPrice() {
 		return price;
 	}
 

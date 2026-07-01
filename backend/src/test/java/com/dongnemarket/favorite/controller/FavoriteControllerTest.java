@@ -1,5 +1,7 @@
 package com.dongnemarket.favorite.controller;
 
+import java.math.BigDecimal;
+
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
 import com.dongnemarket.favorite.repository.FavoriteRepository;
@@ -64,9 +66,9 @@ class FavoriteControllerTest {
         // 시드된 기본 카테고리(CategoryInitializer)와 이름이 겹치지 않도록 테스트 전용 카테고리를 만든다.
         Category category = categoryRepository.save(new Category("관심테스트전용카테고리"));
         Product product = productRepository.save(
-                Product.create(seller, category, "맥북 프로", "상태 좋음", 1_500_000, "서울 강남구"));
+                Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), "서울 강남구"));
         Product otherProduct = productRepository.save(
-                Product.create(seller, category, "아이패드", "상태 좋음", 700_000, "서울 강남구"));
+                Product.create(seller, category, "아이패드", "상태 좋음", BigDecimal.valueOf(700_000), "서울 강남구"));
 
         categoryId = category.getId();
         productId = product.getId();
@@ -112,6 +114,32 @@ class FavoriteControllerTest {
     }
 
     @Test
+    @DisplayName("숨김 처리된 상품을 관심 등록하면 404와 PRODUCT_NOT_FOUND를 반환한다")
+    void addFavorite_hiddenProduct_returns404() throws Exception {
+        Product hidden = productRepository.findById(productId).orElseThrow();
+        hidden.hide();
+        productRepository.saveAndFlush(hidden);
+
+        mockMvc.perform(post("/api/products/{productId}/favorites", productId)
+                        .header("Authorization", token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("PRODUCT_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("삭제된 상품을 관심 등록하면 404와 PRODUCT_NOT_FOUND를 반환한다")
+    void addFavorite_deletedProduct_returns404() throws Exception {
+        Product deleted = productRepository.findById(productId).orElseThrow();
+        deleted.softDelete();
+        productRepository.saveAndFlush(deleted);
+
+        mockMvc.perform(post("/api/products/{productId}/favorites", productId)
+                        .header("Authorization", token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("PRODUCT_NOT_FOUND"));
+    }
+
+    @Test
     @DisplayName("이미 관심 등록한 상품을 다시 등록하면 409와 FAVORITE_ALREADY_EXISTS를 반환한다")
     void addFavorite_duplicate_returns409() throws Exception {
         mockMvc.perform(post("/api/products/{productId}/favorites", productId)
@@ -124,7 +152,7 @@ class FavoriteControllerTest {
     }
 
     @Test
-    @DisplayName("내 관심 상품 목록을 조회하면 200과 최근 등록순 목록을 반환한다")
+    @DisplayName("내 관심 상품 목록을 조회하면 200과 상품 요약을 포함한 최근 등록순 목록을 반환한다")
     void getMyFavorites_success() throws Exception {
         mockMvc.perform(post("/api/products/{productId}/favorites", productId)
                 .header("Authorization", token));
@@ -136,8 +164,52 @@ class FavoriteControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.data.length()").value(2))
-                .andExpect(jsonPath("$.data[0].productId").value(otherProductId.intValue()))
-                .andExpect(jsonPath("$.data[1].productId").value(productId.intValue()));
+                .andExpect(jsonPath("$.data[0].favoriteId").exists())
+                .andExpect(jsonPath("$.data[0].product.productId").value(otherProductId.intValue()))
+                .andExpect(jsonPath("$.data[0].product.title").value("아이패드"))
+                .andExpect(jsonPath("$.data[0].product.tradeStatus").value("ON_SALE"))
+                .andExpect(jsonPath("$.data[1].product.productId").value(productId.intValue()))
+                .andExpect(jsonPath("$.data[1].product.title").value("맥북 프로"));
+    }
+
+    @Test
+    @DisplayName("삭제된 상품은 관심 목록에서 제외된다")
+    void getMyFavorites_excludesDeletedProducts() throws Exception {
+        mockMvc.perform(post("/api/products/{productId}/favorites", productId)
+                .header("Authorization", token));
+        mockMvc.perform(post("/api/products/{productId}/favorites", otherProductId)
+                .header("Authorization", token));
+
+        // productId 상품을 삭제 → 관심 row는 남지만 목록에서는 제외되어야 한다.
+        Product deleted = productRepository.findById(productId).orElseThrow();
+        deleted.softDelete();
+        productRepository.saveAndFlush(deleted);
+
+        mockMvc.perform(get("/api/members/me/favorites")
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].product.productId").value(otherProductId.intValue()));
+    }
+
+    @Test
+    @DisplayName("숨김 처리된 상품은 관심 목록에서 제외된다")
+    void getMyFavorites_excludesHiddenProducts() throws Exception {
+        mockMvc.perform(post("/api/products/{productId}/favorites", productId)
+                .header("Authorization", token));
+        mockMvc.perform(post("/api/products/{productId}/favorites", otherProductId)
+                .header("Authorization", token));
+
+        // productId 상품을 숨김 → 관심 row는 남지만 목록에서는 제외되어야 한다.
+        Product hidden = productRepository.findById(productId).orElseThrow();
+        hidden.hide();
+        productRepository.saveAndFlush(hidden);
+
+        mockMvc.perform(get("/api/members/me/favorites")
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].product.productId").value(otherProductId.intValue()));
     }
 
     @Test

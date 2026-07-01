@@ -19,7 +19,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class MemberServiceTest {
@@ -69,8 +68,8 @@ class MemberServiceTest {
 	@Test
 	@DisplayName("정지 회원이 내 정보를 조회하면 SUSPENDED_MEMBER 예외가 발생한다")
 	void getMyInfo_suspendedMember_throwsException() {
-		Member suspendedMember = mock(Member.class);
-		given(suspendedMember.getStatus()).willReturn(MemberStatus.SUSPENDED);
+		Member suspendedMember = Member.createUser("test@example.com", "encoded", "nick");
+		suspendedMember.changeStatus(MemberStatus.SUSPENDED);
 		given(memberRepository.findById(1L)).willReturn(Optional.of(suspendedMember));
 
 		assertThatThrownBy(() -> memberService.getMyInfo(1L))
@@ -134,8 +133,8 @@ class MemberServiceTest {
 	@Test
 	@DisplayName("정지 회원이 내 정보를 수정하면 SUSPENDED_MEMBER 예외가 발생한다")
 	void updateMyInfo_suspendedMember_throwsException() {
-		Member suspendedMember = mock(Member.class);
-		given(suspendedMember.getStatus()).willReturn(MemberStatus.SUSPENDED);
+		Member suspendedMember = Member.createUser("test@example.com", "encoded", "nick");
+		suspendedMember.changeStatus(MemberStatus.SUSPENDED);
 		MemberUpdateRequest request = new MemberUpdateRequest("newNick");
 		given(memberRepository.findById(1L)).willReturn(Optional.of(suspendedMember));
 
@@ -183,8 +182,8 @@ class MemberServiceTest {
 	@Test
 	@DisplayName("정지 회원이 탈퇴 요청하면 SUSPENDED_MEMBER 예외가 발생한다")
 	void deleteMyInfo_suspendedMember_throwsException() {
-		Member suspendedMember = mock(Member.class);
-		given(suspendedMember.getStatus()).willReturn(MemberStatus.SUSPENDED);
+		Member suspendedMember = Member.createUser("test@example.com", "encoded", "nick");
+		suspendedMember.changeStatus(MemberStatus.SUSPENDED);
 		given(memberRepository.findById(1L)).willReturn(Optional.of(suspendedMember));
 
 		assertThatThrownBy(() -> memberService.deleteMyInfo(1L))

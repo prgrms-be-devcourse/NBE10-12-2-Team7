@@ -39,7 +39,7 @@ class AdminCommentServiceTest {
         @Test
         @DisplayName("미삭제 댓글을 삭제하면 softDelete 되어 deletedAt이 기록된다(작성자 불문)")
         void deleteComment_success() {
-            Comment comment = Comment.of(1L, 10L, "부적절한 댓글");
+            Comment comment = Comment.of(null, null, "부적절한 댓글");
             given(adminCommentRepository.findByIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(comment));
 
             adminCommentService.deleteComment(1L);

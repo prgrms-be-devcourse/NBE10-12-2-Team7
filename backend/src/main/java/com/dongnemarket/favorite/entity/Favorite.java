@@ -1,6 +1,8 @@
 package com.dongnemarket.favorite.entity;
 
 import com.dongnemarket.global.common.BaseTimeEntity;
+import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.product.entity.Product;
 import jakarta.persistence.*;
 
 @Entity
@@ -15,22 +17,28 @@ public class Favorite extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "member_id", nullable = false)
-    private Long memberId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id", nullable = false)
+    private Member member;
 
-    @Column(name = "product_id", nullable = false)
-    private Long productId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
 
     protected Favorite() {}
 
-    public static Favorite of(Long memberId, Long productId) {
+    public static Favorite of(Member member, Product product) {
         Favorite favorite = new Favorite();
-        favorite.memberId = memberId;
-        favorite.productId = productId;
+        favorite.member = member;
+        favorite.product = product;
         return favorite;
     }
 
     public Long getId() { return id; }
-    public Long getMemberId() { return memberId; }
-    public Long getProductId() { return productId; }
+    public Member getMember() { return member; }
+    public Product getProduct() { return product; }
+
+    /** 연관 프록시의 식별자만 반환한다(식별자 접근은 프록시 초기화를 유발하지 않음). */
+    public Long getMemberId() { return member.getId(); }
+    public Long getProductId() { return product.getId(); }
 }

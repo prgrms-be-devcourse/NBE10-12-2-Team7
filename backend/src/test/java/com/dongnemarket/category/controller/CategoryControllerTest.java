@@ -1,5 +1,7 @@
 package com.dongnemarket.category.controller;
 
+import java.math.BigDecimal;
+
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
 import com.dongnemarket.member.entity.Member;
@@ -67,7 +69,7 @@ class CategoryControllerTest {
 				targetCategory,
 				"오래된 상품",
 				"오래된 상품 설명",
-				10000,
+				BigDecimal.valueOf(10000),
 				"서울 강남구"
 		));
 		Product newProduct = productRepository.save(Product.create(
@@ -75,7 +77,7 @@ class CategoryControllerTest {
 				targetCategory,
 				"최신 상품",
 				"최신 상품 설명",
-				20000,
+				BigDecimal.valueOf(20000),
 				"서울 서초구"
 		));
 		productRepository.save(Product.create(
@@ -83,13 +85,13 @@ class CategoryControllerTest {
 				otherCategory,
 				"다른 카테고리 상품",
 				"다른 카테고리 상품 설명",
-				30000,
+				BigDecimal.valueOf(30000),
 				"서울 송파구"
 		));
-		Product hiddenProduct = Product.create(member, targetCategory, "숨김 상품", "숨김 상품 설명", 40000, "서울 마포구");
+		Product hiddenProduct = Product.create(member, targetCategory, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
 		hiddenProduct.hide();
 		productRepository.save(hiddenProduct);
-		Product deletedProduct = Product.create(member, targetCategory, "삭제 상품", "삭제 상품 설명", 50000, "서울 용산구");
+		Product deletedProduct = Product.create(member, targetCategory, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(50000), "서울 용산구");
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
