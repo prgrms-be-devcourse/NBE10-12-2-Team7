@@ -5,6 +5,8 @@ import com.dongnemarket.admin.dto.AdminReportStatusUpdateRequest;
 import com.dongnemarket.admin.repository.AdminReportRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
+import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.report.entity.Report;
 import com.dongnemarket.report.entity.ReportReason;
 import com.dongnemarket.report.entity.ReportStatus;
@@ -24,6 +26,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 /**
  * [단위] AdminReportService.changeReportStatus — 서비스 고유 로직만 검증(Member와 동일 구조).
@@ -40,7 +43,7 @@ class AdminReportServiceTest {
     AdminReportService adminReportService;
 
     private Report existingReport() {
-        return Report.ofProduct(1L, 10L, ReportReason.FRAUD_SUSPECTED, "사기 의심 신고");
+        return Report.ofProduct(mock(Member.class), mock(Product.class), ReportReason.FRAUD_SUSPECTED, "사기 의심 신고");
     }
 
     @Nested
