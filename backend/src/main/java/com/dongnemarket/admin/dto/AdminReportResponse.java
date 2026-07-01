@@ -24,9 +24,9 @@ public class AdminReportResponse {
 
     private AdminReportResponse(Report report) {
         this.reportId = report.getId();
-        this.reporterId = report.getReporterId();
-        this.targetMemberId = report.getTargetMemberId();
-        this.targetProductId = report.getTargetProductId();
+        this.reporterId = report.getReporter().getId();
+        this.targetMemberId = report.getTargetMember() != null ? report.getTargetMember().getId() : null;
+        this.targetProductId = report.getTargetProduct() != null ? report.getTargetProduct().getId() : null;
         this.reportType = report.getReportType();
         this.reason = report.getReason();
         this.content = report.getContent();
