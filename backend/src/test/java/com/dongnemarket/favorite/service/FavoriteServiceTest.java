@@ -5,7 +5,10 @@ import com.dongnemarket.favorite.entity.Favorite;
 import com.dongnemarket.favorite.repository.FavoriteRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
-import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.product.entity.Product;
+import com.dongnemarket.product.service.ProductService;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -31,7 +36,10 @@ class FavoriteServiceTest {
     FavoriteRepository favoriteRepository;
 
     @Mock
-    ProductRepository productRepository;
+    ProductService productService;
+
+    @Mock
+    EntityManager entityManager;
 
     @InjectMocks
     FavoriteService favoriteService;
@@ -39,11 +47,20 @@ class FavoriteServiceTest {
     private static final Long MEMBER_ID = 1L;
     private static final Long PRODUCT_ID = 100L;
 
+    private Favorite favoriteWithProductId(Long productId) {
+        Product product = mock(Product.class);
+        given(product.getId()).willReturn(productId);
+        return Favorite.of(mock(Member.class), product);
+    }
+
     @Test
-    @DisplayName("상품이 존재하고 아직 관심 등록하지 않았으면 관심 등록에 성공한다")
+    @DisplayName("접근 가능한 상품이고 아직 관심 등록하지 않았으면 관심 등록에 성공한다")
     void add_success() {
-        given(productRepository.existsById(PRODUCT_ID)).willReturn(true);
-        given(favoriteRepository.existsByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).willReturn(false);
+        Product product = mock(Product.class);
+        given(product.getId()).willReturn(PRODUCT_ID);
+        given(favoriteRepository.existsByMember_IdAndProduct_Id(MEMBER_ID, PRODUCT_ID)).willReturn(false);
+        given(entityManager.find(Member.class, MEMBER_ID)).willReturn(mock(Member.class));
+        given(entityManager.find(Product.class, PRODUCT_ID)).willReturn(product);
         given(favoriteRepository.save(any(Favorite.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         FavoriteResponse response = favoriteService.add(MEMBER_ID, PRODUCT_ID);
@@ -52,9 +69,10 @@ class FavoriteServiceTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 상품에 관심 등록하면 PRODUCT_NOT_FOUND 예외가 발생한다")
-    void add_productNotFound_throwsException() {
-        given(productRepository.existsById(PRODUCT_ID)).willReturn(false);
+    @DisplayName("접근 불가(존재하지 않거나 삭제·숨김) 상품에 관심 등록하면 PRODUCT_NOT_FOUND 예외가 발생한다")
+    void add_productNotAccessible_throwsException() {
+        willThrow(new BusinessException(ErrorCode.PRODUCT_NOT_FOUND))
+                .given(productService).validateAccessibleProduct(PRODUCT_ID);
 
         assertThatThrownBy(() -> favoriteService.add(MEMBER_ID, PRODUCT_ID))
                 .isInstanceOf(BusinessException.class)
@@ -66,8 +84,7 @@ class FavoriteServiceTest {
     @Test
     @DisplayName("이미 관심 등록한 상품이면 FAVORITE_ALREADY_EXISTS 예외가 발생한다")
     void add_duplicate_throwsException() {
-        given(productRepository.existsById(PRODUCT_ID)).willReturn(true);
-        given(favoriteRepository.existsByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).willReturn(true);
+        given(favoriteRepository.existsByMember_IdAndProduct_Id(MEMBER_ID, PRODUCT_ID)).willReturn(true);
 
         assertThatThrownBy(() -> favoriteService.add(MEMBER_ID, PRODUCT_ID))
                 .isInstanceOf(BusinessException.class)
@@ -79,8 +96,9 @@ class FavoriteServiceTest {
     @Test
     @DisplayName("중복 체크 통과 후 save() 시점에 UNIQUE 제약을 위반하면(race condition) FAVORITE_ALREADY_EXISTS로 변환한다")
     void add_raceCondition_throwsFavoriteAlreadyExists() {
-        given(productRepository.existsById(PRODUCT_ID)).willReturn(true);
-        given(favoriteRepository.existsByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).willReturn(false);
+        given(favoriteRepository.existsByMember_IdAndProduct_Id(MEMBER_ID, PRODUCT_ID)).willReturn(false);
+        given(entityManager.find(Member.class, MEMBER_ID)).willReturn(mock(Member.class));
+        given(entityManager.find(Product.class, PRODUCT_ID)).willReturn(mock(Product.class));
         given(favoriteRepository.save(any(Favorite.class)))
                 .willThrow(new DataIntegrityViolationException("duplicate entry"));
 
@@ -92,10 +110,10 @@ class FavoriteServiceTest {
     @Test
     @DisplayName("내 관심 상품 목록을 최근 등록순으로 반환한다")
     void getMyFavorites_success() {
-        given(favoriteRepository.findAllByMemberIdOrderByCreatedAtDescIdDesc(MEMBER_ID))
-                .willReturn(List.of(
-                        Favorite.of(MEMBER_ID, 200L),
-                        Favorite.of(MEMBER_ID, 100L)));
+        // 스텁 진행 중 중첩 스텁을 피하기 위해 목록을 먼저 구성한다.
+        List<Favorite> favorites = List.of(favoriteWithProductId(200L), favoriteWithProductId(100L));
+        given(favoriteRepository.findAllByMember_IdOrderByCreatedAtDescIdDesc(MEMBER_ID))
+                .willReturn(favorites);
 
         List<FavoriteResponse> responses = favoriteService.getMyFavorites(MEMBER_ID);
 
@@ -107,7 +125,7 @@ class FavoriteServiceTest {
     @Test
     @DisplayName("관심 상품이 없으면 빈 목록을 반환한다")
     void getMyFavorites_empty() {
-        given(favoriteRepository.findAllByMemberIdOrderByCreatedAtDescIdDesc(MEMBER_ID))
+        given(favoriteRepository.findAllByMember_IdOrderByCreatedAtDescIdDesc(MEMBER_ID))
                 .willReturn(List.of());
 
         List<FavoriteResponse> responses = favoriteService.getMyFavorites(MEMBER_ID);
@@ -118,8 +136,8 @@ class FavoriteServiceTest {
     @Test
     @DisplayName("등록한 관심 상품이면 취소에 성공한다")
     void remove_success() {
-        Favorite favorite = Favorite.of(MEMBER_ID, PRODUCT_ID);
-        given(favoriteRepository.findByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID))
+        Favorite favorite = Favorite.of(mock(Member.class), mock(Product.class));
+        given(favoriteRepository.findByMember_IdAndProduct_Id(MEMBER_ID, PRODUCT_ID))
                 .willReturn(Optional.of(favorite));
 
         favoriteService.remove(MEMBER_ID, PRODUCT_ID);
@@ -130,7 +148,7 @@ class FavoriteServiceTest {
     @Test
     @DisplayName("등록하지 않은 상품을 취소하면 FAVORITE_NOT_FOUND 예외가 발생한다")
     void remove_notFound_throwsException() {
-        given(favoriteRepository.findByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID))
+        given(favoriteRepository.findByMember_IdAndProduct_Id(MEMBER_ID, PRODUCT_ID))
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> favoriteService.remove(MEMBER_ID, PRODUCT_ID))

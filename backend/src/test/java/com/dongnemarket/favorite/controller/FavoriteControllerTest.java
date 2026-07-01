@@ -114,6 +114,32 @@ class FavoriteControllerTest {
     }
 
     @Test
+    @DisplayName("숨김 처리된 상품을 관심 등록하면 404와 PRODUCT_NOT_FOUND를 반환한다")
+    void addFavorite_hiddenProduct_returns404() throws Exception {
+        Product hidden = productRepository.findById(productId).orElseThrow();
+        hidden.hide();
+        productRepository.saveAndFlush(hidden);
+
+        mockMvc.perform(post("/api/products/{productId}/favorites", productId)
+                        .header("Authorization", token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("PRODUCT_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("삭제된 상품을 관심 등록하면 404와 PRODUCT_NOT_FOUND를 반환한다")
+    void addFavorite_deletedProduct_returns404() throws Exception {
+        Product deleted = productRepository.findById(productId).orElseThrow();
+        deleted.softDelete();
+        productRepository.saveAndFlush(deleted);
+
+        mockMvc.perform(post("/api/products/{productId}/favorites", productId)
+                        .header("Authorization", token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("PRODUCT_NOT_FOUND"));
+    }
+
+    @Test
     @DisplayName("이미 관심 등록한 상품을 다시 등록하면 409와 FAVORITE_ALREADY_EXISTS를 반환한다")
     void addFavorite_duplicate_returns409() throws Exception {
         mockMvc.perform(post("/api/products/{productId}/favorites", productId)
