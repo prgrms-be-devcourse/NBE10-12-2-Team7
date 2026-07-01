@@ -122,7 +122,8 @@ class FavoriteServiceTest {
         List<Favorite> favorites = List.of(
                 favoriteWithProduct(200L, "아이패드"),
                 favoriteWithProduct(100L, "맥북 프로"));
-        given(favoriteRepository.findAllWithAccessibleProductByMember_Id(MEMBER_ID))
+        given(favoriteRepository
+                .findAllByMember_IdAndProduct_DeletedAtIsNullAndProduct_HiddenFalseOrderByCreatedAtDescIdDesc(MEMBER_ID))
                 .willReturn(favorites);
 
         List<MyFavoriteResponse> responses = favoriteService.getMyFavorites(MEMBER_ID);
@@ -137,7 +138,8 @@ class FavoriteServiceTest {
     @Test
     @DisplayName("관심 상품이 없으면 빈 목록을 반환한다")
     void getMyFavorites_empty() {
-        given(favoriteRepository.findAllWithAccessibleProductByMember_Id(MEMBER_ID))
+        given(favoriteRepository
+                .findAllByMember_IdAndProduct_DeletedAtIsNullAndProduct_HiddenFalseOrderByCreatedAtDescIdDesc(MEMBER_ID))
                 .willReturn(List.of());
 
         List<MyFavoriteResponse> responses = favoriteService.getMyFavorites(MEMBER_ID);

@@ -53,7 +53,9 @@ public class FavoriteService {
      * 삭제·숨김된 상품의 관심은 목록에서 제외한다(정책 A).
      */
     public List<MyFavoriteResponse> getMyFavorites(Long memberId) {
-        return favoriteRepository.findAllWithAccessibleProductByMember_Id(memberId).stream()
+        return favoriteRepository
+                .findAllByMember_IdAndProduct_DeletedAtIsNullAndProduct_HiddenFalseOrderByCreatedAtDescIdDesc(memberId)
+                .stream()
                 .map(MyFavoriteResponse::from)
                 .toList();
     }
