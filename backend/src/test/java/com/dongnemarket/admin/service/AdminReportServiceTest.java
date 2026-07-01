@@ -9,19 +9,27 @@ import com.dongnemarket.report.entity.Report;
 import com.dongnemarket.report.entity.ReportReason;
 import com.dongnemarket.report.entity.ReportStatus;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
+/**
+ * [단위] AdminReportService.changeReportStatus — 서비스 고유 로직만 검증(Member와 동일 구조).
+ *  - 검증 대상: parseStatus(파싱·검증) + REPORT_NOT_FOUND 예외.
+ *  - 제외: changeStatus 단순 세팅(엔티티), getReports/getReport 위임(통합), 상태 역행 허용(AD-47 갭 → 통합).
+ */
 @ExtendWith(MockitoExtension.class)
 class AdminReportServiceTest {
 
@@ -31,81 +39,69 @@ class AdminReportServiceTest {
     @InjectMocks
     AdminReportService adminReportService;
 
-    @Test
-    @DisplayName("신고 목록을 조회하면 전체 신고를 반환한다")
-    void getReports_success() {
-        Report r1 = Report.ofProduct(1L, 10L, ReportReason.FAKE_ITEM, "가짜 상품");
-        Report r2 = Report.ofMember(2L, 20L, ReportReason.FRAUD_SUSPECTED, "사기 의심");
-        given(adminReportRepository.findAll()).willReturn(List.of(r1, r2));
-
-        List<AdminReportResponse> responses = adminReportService.getReports();
-
-        assertThat(responses).hasSize(2);
-        assertThat(responses).extracting(AdminReportResponse::getReason)
-                .containsExactly(ReportReason.FAKE_ITEM, ReportReason.FRAUD_SUSPECTED);
+    private Report existingReport() {
+        return Report.ofProduct(1L, 10L, ReportReason.FRAUD_SUSPECTED, "사기 의심 신고");
     }
 
-    @Test
-    @DisplayName("신고가 없으면 빈 목록을 반환한다")
-    void getReports_empty_returnsEmptyList() {
-        given(adminReportRepository.findAll()).willReturn(List.of());
+    @Nested
+    @DisplayName("성공 케이스")
+    class Success {
 
-        assertThat(adminReportService.getReports()).isEmpty();
+        @Test
+        @DisplayName("앞뒤 공백이 있어도 trim 후 파싱되어 상태가 변경된다")
+        void trimmedStatus_success() {
+            Report report = existingReport();
+            given(adminReportRepository.findById(1L)).willReturn(Optional.of(report));
+
+            AdminReportResponse response =
+                    adminReportService.changeReportStatus(1L, new AdminReportStatusUpdateRequest("  REVIEWING  "));
+
+            assertThat(response.getStatus()).isEqualTo(ReportStatus.REVIEWING);
+            assertThat(report.getStatus()).isEqualTo(ReportStatus.REVIEWING);
+        }
     }
 
-    @Test
-    @DisplayName("존재하는 reportId로 상세 조회하면 해당 신고를 반환한다")
-    void getReport_success() {
-        Report report = Report.ofProduct(1L, 10L, ReportReason.PROHIBITED_ITEM, "금지 품목");
-        given(adminReportRepository.findById(1L)).willReturn(Optional.of(report));
+    @Nested
+    @DisplayName("실패 케이스")
+    class Failure {
 
-        AdminReportResponse response = adminReportService.getReport(1L);
+        /**
+         * null·공백·정의되지 않은 값·대소문자 불일치는 모두 같은 분기(INVALID_REPORT_STATUS)로 귀결.
+         * changeReportStatus가 findById를 먼저 호출하므로 신고 존재를 스텁해야 NOT_FOUND가 먼저 터지지 않는다.
+         */
+        @ParameterizedTest(name = "[{index}] status=\"{0}\" → INVALID_REPORT_STATUS")
+        @NullSource
+        @ValueSource(strings = {"", "   ", "FOO", "reviewing", "Completed"})
+        @DisplayName("상태값이 null·공백·오타·대소문자 불일치면 INVALID_REPORT_STATUS")
+        void invalidStatusValue_throwsInvalid(String status) {
+            given(adminReportRepository.findById(1L)).willReturn(Optional.of(existingReport()));
 
-        assertThat(response.getReason()).isEqualTo(ReportReason.PROHIBITED_ITEM);
-        assertThat(response.getContent()).isEqualTo("금지 품목");
-    }
+            assertThatThrownBy(() ->
+                    adminReportService.changeReportStatus(1L, new AdminReportStatusUpdateRequest(status)))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REPORT_STATUS);
+        }
 
-    @Test
-    @DisplayName("존재하지 않는 reportId로 상세 조회하면 REPORT_NOT_FOUND 예외가 발생한다")
-    void getReport_notFound_throwsException() {
-        given(adminReportRepository.findById(999L)).willReturn(Optional.empty());
+        @Test
+        @DisplayName("요청 객체 자체가 null이어도 INVALID_REPORT_STATUS로 방어한다")
+        void nullRequest_throwsInvalid() {
+            given(adminReportRepository.findById(1L)).willReturn(Optional.of(existingReport()));
 
-        assertThatThrownBy(() -> adminReportService.getReport(999L))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.REPORT_NOT_FOUND);
-    }
+            assertThatThrownBy(() ->
+                    adminReportService.changeReportStatus(1L, null))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REPORT_STATUS);
+        }
 
-    @Test
-    @DisplayName("신고 상태를 COMPLETED로 변경하면 상태가 바뀐다")
-    void changeReportStatus_success() {
-        Report report = Report.ofProduct(1L, 10L, ReportReason.FAKE_ITEM, "가짜 상품");
-        given(adminReportRepository.findById(1L)).willReturn(Optional.of(report));
+        @Test
+        @DisplayName("존재하지 않는 신고의 상태를 변경하면 REPORT_NOT_FOUND 예외가 발생한다")
+        void notFound_throwsException() {
+            given(adminReportRepository.findById(999L)).willReturn(Optional.empty());
 
-        AdminReportResponse response =
-                adminReportService.changeReportStatus(1L, new AdminReportStatusUpdateRequest("COMPLETED"));
-
-        assertThat(response.getStatus()).isEqualTo(ReportStatus.COMPLETED);
-        assertThat(report.getStatus()).isEqualTo(ReportStatus.COMPLETED);
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 신고의 상태 변경 시 REPORT_NOT_FOUND 예외가 발생한다")
-    void changeReportStatus_notFound_throwsException() {
-        given(adminReportRepository.findById(999L)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> adminReportService.changeReportStatus(999L, new AdminReportStatusUpdateRequest("COMPLETED")))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.REPORT_NOT_FOUND);
-    }
-
-    @Test
-    @DisplayName("잘못된 상태 값으로 변경 시 INVALID_REPORT_STATUS 예외가 발생한다")
-    void changeReportStatus_invalidStatus_throwsException() {
-        Report report = Report.ofProduct(1L, 10L, ReportReason.FAKE_ITEM, "가짜 상품");
-        given(adminReportRepository.findById(1L)).willReturn(Optional.of(report));
-
-        assertThatThrownBy(() -> adminReportService.changeReportStatus(1L, new AdminReportStatusUpdateRequest("INVALID")))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REPORT_STATUS);
+            assertThatThrownBy(() ->
+                    adminReportService.changeReportStatus(999L, new AdminReportStatusUpdateRequest("REVIEWING")))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.REPORT_NOT_FOUND);
+        }
     }
 }

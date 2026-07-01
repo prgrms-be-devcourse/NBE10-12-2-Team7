@@ -8,19 +8,27 @@ import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.entity.MemberStatus;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
+/**
+ * [단위] AdminMemberService.changeMemberStatus — 서비스 고유 로직만 검증.
+ *  - 검증 대상: parseStatus(파싱·검증) + NOT_FOUND 예외.
+ *  - 제외: deletedAt 전이(Member.changeStatus → MemberTest 커버), getMembers/getMember 위임(통합 커버).
+ */
 @ExtendWith(MockitoExtension.class)
 class AdminMemberServiceTest {
 
@@ -30,96 +38,71 @@ class AdminMemberServiceTest {
     @InjectMocks
     AdminMemberService adminMemberService;
 
-    @Test
-    @DisplayName("회원 목록을 조회하면 상태와 무관하게 전체 회원을 반환한다")
-    void getMembers_success() {
-        Member active = Member.createUser("active@example.com", "encoded", "activeUser");
-        Member deleted = Member.createUser("deleted@example.com", "encoded", "deletedUser");
-        deleted.softDelete();
-        given(adminMemberRepository.findAll()).willReturn(List.of(active, deleted));
-
-        List<AdminMemberResponse> responses = adminMemberService.getMembers();
-
-        assertThat(responses).hasSize(2);
-        assertThat(responses).extracting(AdminMemberResponse::getEmail)
-                .containsExactly("active@example.com", "deleted@example.com");
+    private Member existingMember() {
+        return Member.createUser("u@example.com", "encoded", "user");
     }
 
-    @Test
-    @DisplayName("회원이 없으면 빈 목록을 반환한다")
-    void getMembers_empty_returnsEmptyList() {
-        given(adminMemberRepository.findAll()).willReturn(List.of());
+    @Nested
+    @DisplayName("성공 케이스")
+    class Success {
 
-        List<AdminMemberResponse> responses = adminMemberService.getMembers();
+        @Test
+        @DisplayName("앞뒤 공백이 있어도 trim 후 파싱되어 상태가 변경된다")
+        void trimmedStatus_success() {
+            Member member = existingMember();
+            given(adminMemberRepository.findById(1L)).willReturn(Optional.of(member));
 
-        assertThat(responses).isEmpty();
+            AdminMemberResponse response =
+                    adminMemberService.changeMemberStatus(1L, new AdminMemberStatusUpdateRequest("  SUSPENDED  "));
+
+            assertThat(response.getStatus()).isEqualTo(MemberStatus.SUSPENDED);
+            assertThat(member.getStatus()).isEqualTo(MemberStatus.SUSPENDED);
+        }
     }
 
-    @Test
-    @DisplayName("존재하는 memberId로 상세 조회하면 해당 회원을 반환한다")
-    void getMember_success() {
-        Member member = Member.createUser("detail@example.com", "encoded", "detailUser");
-        given(adminMemberRepository.findById(1L)).willReturn(Optional.of(member));
+    @Nested
+    @DisplayName("실패 케이스")
+    class Failure {
 
-        AdminMemberResponse response = adminMemberService.getMember(1L);
+        /**
+         * null·공백·정의되지 않은 값·대소문자 불일치는 모두 같은 분기(INVALID_MEMBER_STATUS)로 귀결.
+         * 같은 결과라 메서드를 쪼개지 않고 파라미터로 묶는다.
+         * 주의: changeMemberStatus가 findById를 먼저 호출하므로 회원 존재를 스텁해야
+         *       NOT_FOUND가 먼저 터지지 않는다.
+         */
+        @ParameterizedTest(name = "[{index}] status=\"{0}\" → INVALID_MEMBER_STATUS")
+        @NullSource
+        @ValueSource(strings = {"", "   ", "FOO", "suspended", "Active"})
+        @DisplayName("상태값이 null·공백·오타·대소문자 불일치면 INVALID_MEMBER_STATUS")
+        void invalidStatusValue_throwsInvalid(String status) {
+            given(adminMemberRepository.findById(1L)).willReturn(Optional.of(existingMember()));
 
-        assertThat(response.getEmail()).isEqualTo("detail@example.com");
-        assertThat(response.getNickname()).isEqualTo("detailUser");
-    }
+            assertThatThrownBy(() ->
+                    adminMemberService.changeMemberStatus(1L, new AdminMemberStatusUpdateRequest(status)))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_MEMBER_STATUS);
+        }
 
-    @Test
-    @DisplayName("존재하지 않는 memberId로 상세 조회하면 MEMBER_NOT_FOUND 예외가 발생한다")
-    void getMember_notFound_throwsException() {
-        given(adminMemberRepository.findById(999L)).willReturn(Optional.empty());
+        @Test
+        @DisplayName("요청 객체 자체가 null이어도 INVALID_MEMBER_STATUS로 방어한다")
+        void nullRequest_throwsInvalid() {
+            given(adminMemberRepository.findById(1L)).willReturn(Optional.of(existingMember()));
 
-        assertThatThrownBy(() -> adminMemberService.getMember(999L))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
-    }
+            assertThatThrownBy(() ->
+                    adminMemberService.changeMemberStatus(1L, null))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_MEMBER_STATUS);
+        }
 
-    @Test
-    @DisplayName("회원 상태를 SUSPENDED로 변경하면 상태가 바뀐다")
-    void changeMemberStatus_success() {
-        Member member = Member.createUser("u@example.com", "encoded", "user");
-        given(adminMemberRepository.findById(1L)).willReturn(Optional.of(member));
+        @Test
+        @DisplayName("존재하지 않는 회원의 상태를 변경하면 MEMBER_NOT_FOUND 예외가 발생한다")
+        void notFound_throwsException() {
+            given(adminMemberRepository.findById(999L)).willReturn(Optional.empty());
 
-        AdminMemberResponse response =
-                adminMemberService.changeMemberStatus(1L, new AdminMemberStatusUpdateRequest("SUSPENDED"));
-
-        assertThat(response.getStatus()).isEqualTo(MemberStatus.SUSPENDED);
-        assertThat(member.getStatus()).isEqualTo(MemberStatus.SUSPENDED);
-    }
-
-    @Test
-    @DisplayName("회원 상태를 DELETED로 변경하면 deletedAt이 기록된다")
-    void changeMemberStatus_toDeleted_setsDeletedAt() {
-        Member member = Member.createUser("u@example.com", "encoded", "user");
-        given(adminMemberRepository.findById(1L)).willReturn(Optional.of(member));
-
-        adminMemberService.changeMemberStatus(1L, new AdminMemberStatusUpdateRequest("DELETED"));
-
-        assertThat(member.getStatus()).isEqualTo(MemberStatus.DELETED);
-        assertThat(member.getDeletedAt()).isNotNull();
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 회원의 상태 변경 시 MEMBER_NOT_FOUND 예외가 발생한다")
-    void changeMemberStatus_notFound_throwsException() {
-        given(adminMemberRepository.findById(999L)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> adminMemberService.changeMemberStatus(999L, new AdminMemberStatusUpdateRequest("SUSPENDED")))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
-    }
-
-    @Test
-    @DisplayName("잘못된 상태 값으로 변경 시 INVALID_MEMBER_STATUS 예외가 발생한다")
-    void changeMemberStatus_invalidStatus_throwsException() {
-        Member member = Member.createUser("u@example.com", "encoded", "user");
-        given(adminMemberRepository.findById(1L)).willReturn(Optional.of(member));
-
-        assertThatThrownBy(() -> adminMemberService.changeMemberStatus(1L, new AdminMemberStatusUpdateRequest("INVALID")))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_MEMBER_STATUS);
+            assertThatThrownBy(() ->
+                    adminMemberService.changeMemberStatus(999L, new AdminMemberStatusUpdateRequest("SUSPENDED")))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
+        }
     }
 }
