@@ -126,22 +126,22 @@ public class BaseInitDataInitializer {
 
         // ── 4단계: 신고 5건 (상태 4종 + 유형 2종) ───────
         reportRepository.save(Report.ofProduct(
-                user02.getId(), p1.getId(), ReportReason.FRAUD_SUSPECTED, "사기 의심됩니다"));       // RECEIVED
+                user02, p1, ReportReason.FRAUD_SUSPECTED, "사기 의심됩니다"));       // RECEIVED
 
         Report r2 = reportRepository.save(Report.ofProduct(
-                user01.getId(), p4.getId(), ReportReason.PROHIBITED_ITEM, "금지 품목 같아요"));
+                user01, p4, ReportReason.PROHIBITED_ITEM, "금지 품목 같아요"));
         r2.changeStatus(ReportStatus.REVIEWING);
 
         Report r3 = reportRepository.save(Report.ofMember(
-                user03.getId(), user04.getId(), ReportReason.INAPPROPRIATE_CONTENT, "부적절한 언행"));
+                user03, user04, ReportReason.INAPPROPRIATE_CONTENT, "부적절한 언행"));
         r3.changeStatus(ReportStatus.COMPLETED);
 
         Report r4 = reportRepository.save(Report.ofProduct(
-                user02.getId(), p3.getId(), ReportReason.FAKE_ITEM, "가품 의심"));
+                user02, p3, ReportReason.FAKE_ITEM, "가품 의심"));
         r4.changeStatus(ReportStatus.REJECTED);
 
         reportRepository.save(Report.ofMember(
-                user01.getId(), user02.getId(), ReportReason.ETC, "기타 신고"));                    // RECEIVED
+                user01, user02, ReportReason.ETC, "기타 신고"));                    // RECEIVED
 
         System.out.println("[BaseInitData] seeded: members=6, products=6, comments=5, reports=5");
     }
