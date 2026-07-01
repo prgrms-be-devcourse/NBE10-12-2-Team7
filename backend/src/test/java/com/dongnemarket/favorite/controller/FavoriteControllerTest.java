@@ -173,8 +173,8 @@ class FavoriteControllerTest {
     }
 
     @Test
-    @DisplayName("삭제·숨김된 상품은 관심 목록에서 제외된다")
-    void getMyFavorites_excludesDeletedAndHiddenProducts() throws Exception {
+    @DisplayName("삭제된 상품은 관심 목록에서 제외된다")
+    void getMyFavorites_excludesDeletedProducts() throws Exception {
         mockMvc.perform(post("/api/products/{productId}/favorites", productId)
                 .header("Authorization", token));
         mockMvc.perform(post("/api/products/{productId}/favorites", otherProductId)
@@ -184,6 +184,26 @@ class FavoriteControllerTest {
         Product deleted = productRepository.findById(productId).orElseThrow();
         deleted.softDelete();
         productRepository.saveAndFlush(deleted);
+
+        mockMvc.perform(get("/api/members/me/favorites")
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].product.productId").value(otherProductId.intValue()));
+    }
+
+    @Test
+    @DisplayName("숨김 처리된 상품은 관심 목록에서 제외된다")
+    void getMyFavorites_excludesHiddenProducts() throws Exception {
+        mockMvc.perform(post("/api/products/{productId}/favorites", productId)
+                .header("Authorization", token));
+        mockMvc.perform(post("/api/products/{productId}/favorites", otherProductId)
+                .header("Authorization", token));
+
+        // productId 상품을 숨김 → 관심 row는 남지만 목록에서는 제외되어야 한다.
+        Product hidden = productRepository.findById(productId).orElseThrow();
+        hidden.hide();
+        productRepository.saveAndFlush(hidden);
 
         mockMvc.perform(get("/api/members/me/favorites")
                         .header("Authorization", token))
