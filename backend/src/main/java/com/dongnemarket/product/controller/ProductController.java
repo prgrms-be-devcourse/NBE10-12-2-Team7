@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Tag(name = "Product", description = "상품 API")
@@ -57,8 +58,8 @@ public class ProductController {
 	public ApiResponse<List<ProductSummaryResponse>> searchProducts(
 			@RequestParam(required = false) String keyword,
 			@RequestParam(required = false) Long categoryId,
-			@RequestParam(required = false) Integer minPrice,
-			@RequestParam(required = false) Integer maxPrice,
+			@RequestParam(required = false) BigDecimal minPrice,
+			@RequestParam(required = false) BigDecimal maxPrice,
 			@RequestParam(required = false) String tradeStatus) {
 		ProductSearchRequest request = new ProductSearchRequest(keyword, categoryId, minPrice, maxPrice, tradeStatus);
 		return ApiResponse.success(productService.searchProducts(request));

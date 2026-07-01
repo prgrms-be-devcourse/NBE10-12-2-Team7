@@ -1,5 +1,7 @@
 package com.dongnemarket.admin.service;
 
+import java.math.BigDecimal;
+
 import com.dongnemarket.admin.dto.AdminProductResponse;
 import com.dongnemarket.admin.repository.AdminProductRepository;
 import com.dongnemarket.category.entity.Category;
@@ -35,8 +37,8 @@ class AdminProductServiceTest {
     void getProducts_success() {
         Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
         Category category = new Category("디지털기기");
-        Product visible = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰", 800000, "서울 강남구");
-        Product hidden = Product.create(member, category, "숨김 상품", "숨김 처리됨", 5000, "서울 서초구");
+        Product visible = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰", BigDecimal.valueOf(800000), "서울 강남구");
+        Product hidden = Product.create(member, category, "숨김 상품", "숨김 처리됨", BigDecimal.valueOf(5000), "서울 서초구");
         hidden.hide();
         given(adminProductRepository.findAll()).willReturn(List.of(visible, hidden));
 
@@ -63,13 +65,13 @@ class AdminProductServiceTest {
     void getProduct_success() {
         Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
         Category category = new Category("디지털기기");
-        Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰", 800000, "서울 강남구");
+        Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰", BigDecimal.valueOf(800000), "서울 강남구");
         given(adminProductRepository.findById(1L)).willReturn(Optional.of(product));
 
         AdminProductResponse response = adminProductService.getProduct(1L);
 
         assertThat(response.getTitle()).isEqualTo("아이폰 15");
-        assertThat(response.getPrice()).isEqualTo(800000);
+        assertThat(response.getPrice()).isEqualByComparingTo("800000");
         assertThat(response.getDescription()).isEqualTo("상태 좋은 아이폰");
     }
 
@@ -88,7 +90,7 @@ class AdminProductServiceTest {
     void hideProduct_success() {
         Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
         Category category = new Category("디지털기기");
-        Product product = Product.create(member, category, "아이폰 15", "설명", 800000, "서울 강남구");
+        Product product = Product.create(member, category, "아이폰 15", "설명", BigDecimal.valueOf(800000), "서울 강남구");
         given(adminProductRepository.findById(1L)).willReturn(Optional.of(product));
 
         adminProductService.hideProduct(1L);
@@ -111,7 +113,7 @@ class AdminProductServiceTest {
     void deleteProduct_success() {
         Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
         Category category = new Category("디지털기기");
-        Product product = Product.create(member, category, "아이폰 15", "설명", 800000, "서울 강남구");
+        Product product = Product.create(member, category, "아이폰 15", "설명", BigDecimal.valueOf(800000), "서울 강남구");
         given(adminProductRepository.findById(1L)).willReturn(Optional.of(product));
 
         adminProductService.deleteProduct(1L);

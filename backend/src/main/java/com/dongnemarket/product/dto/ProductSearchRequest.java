@@ -1,14 +1,16 @@
 package com.dongnemarket.product.dto;
 
+import java.math.BigDecimal;
+
 public class ProductSearchRequest {
 
 	private final String keyword;
 	private final Long categoryId;
-	private final Integer minPrice;
-	private final Integer maxPrice;
+	private final BigDecimal minPrice;
+	private final BigDecimal maxPrice;
 	private final String tradeStatus;
 
-	public ProductSearchRequest(String keyword, Long categoryId, Integer minPrice, Integer maxPrice, String tradeStatus) {
+	public ProductSearchRequest(String keyword, Long categoryId, BigDecimal minPrice, BigDecimal maxPrice, String tradeStatus) {
 		this.keyword = keyword;
 		this.categoryId = categoryId;
 		this.minPrice = minPrice;
@@ -24,15 +26,16 @@ public class ProductSearchRequest {
 		return categoryId;
 	}
 
-	public Integer getMinPrice() {
+	public BigDecimal getMinPrice() {
 		return minPrice;
 	}
 
-	public Integer getMaxPrice() {
+	public BigDecimal getMaxPrice() {
 		return maxPrice;
 	}
 
 	public String getTradeStatus() {
 		return tradeStatus;
 	}
+
 }

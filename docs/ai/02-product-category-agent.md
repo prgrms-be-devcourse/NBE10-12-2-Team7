@@ -58,6 +58,7 @@
 - 이미 머지된 로컬 feature 브랜치는 정리하고, 원격 브랜치는 사용자가 요청하지 않으면 삭제하지 않는다.
 - 한 브랜치와 한 PR에는 하나의 기능 단위만 담는다.
 - 커밋, 푸시, PR 생성은 테스트 결과와 사용자 승인 이후 진행한다.
+- Product 담당 작업 중 연결된 코드 수정 때문에 타 담당 패키지나 테스트를 변경해야 하면, 변경 이유와 파일 목록을 답변과 PR 본문에 팀원 공유용으로 명시한다.
 
 ### 코드 스타일
 - 일반 변수명, 메서드명, DTO 필드명은 camelCase를 사용한다.
@@ -75,7 +76,7 @@
 - 논리 삭제 시간은 Product 내부에 `LocalDateTime deletedAt`으로 둔다.
 - Member, Category 연관관계는 `@ManyToOne(fetch = FetchType.LAZY)`를 사용한다.
 - Product 기본 필드는 `member`, `category`, `title`, `description`, `price`, `tradeStatus`, `region`, `viewCount`, `hidden`, `deletedAt` 기준을 따른다.
-- `price` 타입은 `Integer`를 사용한다.
+- `price` 타입은 `BigDecimal`을 사용한다.
 - 상품 생성 기본값은 `tradeStatus = ON_SALE`, `viewCount = 0`, `hidden = false`다.
 
 ### 조회와 상태 정책

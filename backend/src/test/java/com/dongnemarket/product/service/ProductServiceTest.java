@@ -1,5 +1,7 @@
 package com.dongnemarket.product.service;
 
+import java.math.BigDecimal;
+
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
 import com.dongnemarket.global.exception.BusinessException;
@@ -60,7 +62,7 @@ class ProductServiceTest {
 				category.getId(),
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
-				800000,
+				BigDecimal.valueOf(800000),
 				"서울 강남구"
 		);
 		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
@@ -71,7 +73,7 @@ class ProductServiceTest {
 
 		assertThat(response.getTitle()).isEqualTo("아이폰 15");
 		assertThat(response.getDescription()).isEqualTo("상태 좋은 아이폰입니다.");
-		assertThat(response.getPrice()).isEqualTo(800000);
+		assertThat(response.getPrice()).isEqualByComparingTo("800000");
 		assertThat(response.getTradeStatus()).isEqualTo(TradeStatus.ON_SALE);
 		assertThat(response.getRegion()).isEqualTo("서울 강남구");
 		assertThat(response.getViewCount()).isZero();
@@ -81,7 +83,7 @@ class ProductServiceTest {
 	@Test
 	@DisplayName("회원이 없으면 MEMBER_NOT_FOUND 예외가 발생한다")
 	void throwsMemberNotFoundWhenMemberDoesNotExist() {
-		ProductCreateRequest request = createRequest("아이폰 15", 800000);
+		ProductCreateRequest request = createRequest("아이폰 15", BigDecimal.valueOf(800000));
 		given(memberRepository.findById(1L)).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> productService.createProduct(1L, request))
@@ -95,7 +97,7 @@ class ProductServiceTest {
 	@DisplayName("카테고리가 없으면 CATEGORY_NOT_FOUND 예외가 발생한다")
 	void throwsCategoryNotFoundWhenCategoryDoesNotExist() {
 		Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
-		ProductCreateRequest request = createRequest("아이폰 15", 800000);
+		ProductCreateRequest request = createRequest("아이폰 15", BigDecimal.valueOf(800000));
 		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
 		given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.empty());
 
@@ -109,7 +111,7 @@ class ProductServiceTest {
 	@Test
 	@DisplayName("제목이 비어 있으면 INVALID_PRODUCT_TITLE 예외가 발생한다")
 	void throwsInvalidProductTitleWhenTitleIsBlank() {
-		ProductCreateRequest request = createRequest(" ", 800000);
+		ProductCreateRequest request = createRequest(" ", BigDecimal.valueOf(800000));
 
 		assertThatThrownBy(() -> productService.createProduct(1L, request))
 				.isInstanceOf(BusinessException.class)
@@ -122,7 +124,7 @@ class ProductServiceTest {
 	@Test
 	@DisplayName("가격이 음수이면 INVALID_PRODUCT_PRICE 예외가 발생한다")
 	void throwsInvalidProductPriceWhenPriceIsNegative() {
-		ProductCreateRequest request = createRequest("아이폰 15", -1);
+		ProductCreateRequest request = createRequest("아이폰 15", BigDecimal.valueOf(-1));
 
 		assertThatThrownBy(() -> productService.createProduct(1L, request))
 				.isInstanceOf(BusinessException.class)
@@ -137,8 +139,8 @@ class ProductServiceTest {
 	void getsProductsInLatestOrder() {
 		Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
 		Category category = new Category("디지털기기");
-		Product oldProduct = Product.create(member, category, "오래된 상품", "오래된 상품 설명", 10000, "서울 강남구");
-		Product newProduct = Product.create(member, category, "최신 상품", "최신 상품 설명", 20000, "서울 서초구");
+		Product oldProduct = Product.create(member, category, "오래된 상품", "오래된 상품 설명", BigDecimal.valueOf(10000), "서울 강남구");
+		Product newProduct = Product.create(member, category, "최신 상품", "최신 상품 설명", BigDecimal.valueOf(20000), "서울 서초구");
 		given(productRepository.findAllByDeletedAtIsNullAndHiddenFalseOrderByIdDesc())
 				.willReturn(List.of(newProduct, oldProduct));
 
@@ -154,8 +156,8 @@ class ProductServiceTest {
 	void getsProductsByCategoryInLatestOrder() {
 		Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
 		Category category = new Category("디지털기기");
-		Product oldProduct = Product.create(member, category, "오래된 상품", "오래된 상품 설명", 10000, "서울 강남구");
-		Product newProduct = Product.create(member, category, "최신 상품", "최신 상품 설명", 20000, "서울 서초구");
+		Product oldProduct = Product.create(member, category, "오래된 상품", "오래된 상품 설명", BigDecimal.valueOf(10000), "서울 강남구");
+		Product newProduct = Product.create(member, category, "최신 상품", "최신 상품 설명", BigDecimal.valueOf(20000), "서울 서초구");
 		given(categoryRepository.existsById(1L)).willReturn(true);
 		given(productRepository.findAllByCategoryIdAndDeletedAtIsNullAndHiddenFalseOrderByIdDesc(1L))
 				.willReturn(List.of(newProduct, oldProduct));
@@ -184,8 +186,8 @@ class ProductServiceTest {
 	void getsMyProductsInLatestOrderIncludingHiddenProducts() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product oldProduct = Product.create(member, category, "오래된 내 상품", "오래된 내 상품 설명", 10000, "서울 강남구");
-		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", 20000, "서울 서초구");
+		Product oldProduct = Product.create(member, category, "오래된 내 상품", "오래된 내 상품 설명", BigDecimal.valueOf(10000), "서울 강남구");
+		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", BigDecimal.valueOf(20000), "서울 서초구");
 		hiddenProduct.hide();
 		given(productRepository.findAllByMemberIdAndDeletedAtIsNullOrderByIdDesc(1L))
 				.willReturn(List.of(hiddenProduct, oldProduct));
@@ -225,8 +227,14 @@ class ProductServiceTest {
 	void searchesProducts() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "맥북 프로", "상태 좋은 맥북입니다.", 1200000, "서울 강남구");
-		ProductSearchRequest request = new ProductSearchRequest("맥북", 1L, 1000000, 1500000, "ON_SALE");
+		Product product = Product.create(member, category, "맥북 프로", "상태 좋은 맥북입니다.", BigDecimal.valueOf(1200000), "서울 강남구");
+		ProductSearchRequest request = new ProductSearchRequest(
+				"맥북",
+				1L,
+				BigDecimal.valueOf(1000000),
+				BigDecimal.valueOf(1500000),
+				"ON_SALE"
+		);
 		given(productRepository.findAll(anyProductSpecification(), any(org.springframework.data.domain.Sort.class)))
 				.willReturn(List.of(product));
 
@@ -243,7 +251,7 @@ class ProductServiceTest {
 	@Test
 	@DisplayName("검색 최소 가격이 음수이면 INVALID_SEARCH_CONDITION 예외가 발생한다")
 	void throwsInvalidSearchConditionWhenMinPriceIsNegative() {
-		ProductSearchRequest request = new ProductSearchRequest(null, null, -1, null, null);
+		ProductSearchRequest request = new ProductSearchRequest(null, null, BigDecimal.valueOf(-1), null, null);
 
 		assertThatThrownBy(() -> productService.searchProducts(request))
 				.isInstanceOf(BusinessException.class)
@@ -255,7 +263,13 @@ class ProductServiceTest {
 	@Test
 	@DisplayName("검색 최대 가격이 최소 가격보다 작으면 INVALID_SEARCH_CONDITION 예외가 발생한다")
 	void throwsInvalidSearchConditionWhenMaxPriceIsLessThanMinPrice() {
-		ProductSearchRequest request = new ProductSearchRequest(null, null, 20000, 10000, null);
+		ProductSearchRequest request = new ProductSearchRequest(
+				null,
+				null,
+				BigDecimal.valueOf(20000),
+				BigDecimal.valueOf(10000),
+				null
+		);
 
 		assertThatThrownBy(() -> productService.searchProducts(request))
 				.isInstanceOf(BusinessException.class)
@@ -267,7 +281,7 @@ class ProductServiceTest {
 	@Test
 	@DisplayName("검색 최대 가격이 음수이면 INVALID_SEARCH_CONDITION 예외가 발생한다")
 	void throwsInvalidSearchConditionWhenMaxPriceIsNegative() {
-		ProductSearchRequest request = new ProductSearchRequest(null, null, null, -1, null);
+		ProductSearchRequest request = new ProductSearchRequest(null, null, null, BigDecimal.valueOf(-1), null);
 
 		assertThatThrownBy(() -> productService.searchProducts(request))
 				.isInstanceOf(BusinessException.class)
@@ -279,7 +293,7 @@ class ProductServiceTest {
 	@Test
 	@DisplayName("검색 거래 상태가 유효하지 않으면 INVALID_TRADE_STATUS 예외가 발생한다")
 	void throwsInvalidTradeStatusWhenSearchingWithInvalidTradeStatus() {
-		ProductSearchRequest request = new ProductSearchRequest(null, null, null, null, "INVALID");
+		ProductSearchRequest request = new ProductSearchRequest(null, null, (BigDecimal) null, null, "INVALID");
 
 		assertThatThrownBy(() -> productService.searchProducts(request))
 				.isInstanceOf(BusinessException.class)
@@ -291,7 +305,7 @@ class ProductServiceTest {
 	@Test
 	@DisplayName("검색 거래 상태가 공백이면 INVALID_TRADE_STATUS 예외가 발생한다")
 	void throwsInvalidTradeStatusWhenSearchingWithBlankTradeStatus() {
-		ProductSearchRequest request = new ProductSearchRequest(null, null, null, null, " ");
+		ProductSearchRequest request = new ProductSearchRequest(null, null, (BigDecimal) null, null, " ");
 
 		assertThatThrownBy(() -> productService.searchProducts(request))
 				.isInstanceOf(BusinessException.class)
@@ -305,7 +319,7 @@ class ProductServiceTest {
 	void getsProductAndIncreasesViewCount() {
 		Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 
 		ProductResponse response = productService.getProduct(1L);
@@ -331,7 +345,7 @@ class ProductServiceTest {
 	void throwsDeletedProductWhenProductIsDeleted() {
 		Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		product.softDelete();
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 
@@ -345,7 +359,7 @@ class ProductServiceTest {
 	void throwsHiddenProductWhenProductIsHidden() {
 		Member member = Member.createUser("seller@example.com", "encodedPassword", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		product.hide();
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 
@@ -360,8 +374,8 @@ class ProductServiceTest {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category oldCategory = new Category("디지털기기");
 		Category newCategory = new Category("생활가전");
-		Product product = Product.create(member, oldCategory, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
-		ProductUpdateRequest request = createUpdateRequest("맥북 프로", 1500000);
+		Product product = Product.create(member, oldCategory, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
+		ProductUpdateRequest request = createUpdateRequest("맥북 프로", BigDecimal.valueOf(1500000));
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 		given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
 
@@ -369,7 +383,7 @@ class ProductServiceTest {
 
 		assertThat(response.getTitle()).isEqualTo("맥북 프로");
 		assertThat(response.getDescription()).isEqualTo("수정된 상품 설명입니다.");
-		assertThat(response.getPrice()).isEqualTo(1500000);
+		assertThat(response.getPrice()).isEqualByComparingTo("1500000");
 		assertThat(response.getRegion()).isEqualTo("서울 서초구");
 		assertThat(product.getCategory()).isEqualTo(newCategory);
 	}
@@ -377,7 +391,7 @@ class ProductServiceTest {
 	@Test
 	@DisplayName("수정할 상품이 없으면 PRODUCT_NOT_FOUND 예외가 발생한다")
 	void throwsProductNotFoundWhenUpdatingMissingProduct() {
-		ProductUpdateRequest request = createUpdateRequest("맥북 프로", 1500000);
+		ProductUpdateRequest request = createUpdateRequest("맥북 프로", BigDecimal.valueOf(1500000));
 		given(productRepository.findById(1L)).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> productService.updateProduct(1L, 1L, request))
@@ -390,9 +404,9 @@ class ProductServiceTest {
 	void throwsDeletedProductWhenUpdatingDeletedProduct() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		product.softDelete();
-		ProductUpdateRequest request = createUpdateRequest("맥북 프로", 1500000);
+		ProductUpdateRequest request = createUpdateRequest("맥북 프로", BigDecimal.valueOf(1500000));
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 
 		assertThatThrownBy(() -> productService.updateProduct(1L, 1L, request))
@@ -405,8 +419,8 @@ class ProductServiceTest {
 	void throwsProductOwnerOnlyWhenUpdatingByNonOwner() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
-		ProductUpdateRequest request = createUpdateRequest("맥북 프로", 1500000);
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
+		ProductUpdateRequest request = createUpdateRequest("맥북 프로", BigDecimal.valueOf(1500000));
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 
 		assertThatThrownBy(() -> productService.updateProduct(2L, 1L, request))
@@ -419,9 +433,9 @@ class ProductServiceTest {
 	void throwsCannotUpdateCompletedProductWhenProductIsCompleted() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		product.complete();
-		ProductUpdateRequest request = createUpdateRequest("맥북 프로", 1500000);
+		ProductUpdateRequest request = createUpdateRequest("맥북 프로", BigDecimal.valueOf(1500000));
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 
 		assertThatThrownBy(() -> productService.updateProduct(1L, 1L, request))
@@ -434,8 +448,8 @@ class ProductServiceTest {
 	void throwsCategoryNotFoundWhenUpdatingWithMissingCategory() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
-		ProductUpdateRequest request = createUpdateRequest("맥북 프로", 1500000);
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
+		ProductUpdateRequest request = createUpdateRequest("맥북 프로", BigDecimal.valueOf(1500000));
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 		given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.empty());
 
@@ -447,7 +461,7 @@ class ProductServiceTest {
 	@Test
 	@DisplayName("수정 제목이 비어 있으면 INVALID_PRODUCT_TITLE 예외가 발생한다")
 	void throwsInvalidProductTitleWhenUpdatingWithBlankTitle() {
-		ProductUpdateRequest request = createUpdateRequest(" ", 1500000);
+		ProductUpdateRequest request = createUpdateRequest(" ", BigDecimal.valueOf(1500000));
 
 		assertThatThrownBy(() -> productService.updateProduct(1L, 1L, request))
 				.isInstanceOf(BusinessException.class)
@@ -459,7 +473,7 @@ class ProductServiceTest {
 	@Test
 	@DisplayName("수정 가격이 음수이면 INVALID_PRODUCT_PRICE 예외가 발생한다")
 	void throwsInvalidProductPriceWhenUpdatingWithNegativePrice() {
-		ProductUpdateRequest request = createUpdateRequest("맥북 프로", -1);
+		ProductUpdateRequest request = createUpdateRequest("맥북 프로", BigDecimal.valueOf(-1));
 
 		assertThatThrownBy(() -> productService.updateProduct(1L, 1L, request))
 				.isInstanceOf(BusinessException.class)
@@ -473,7 +487,7 @@ class ProductServiceTest {
 	void updatesProductStatusByOwner() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("RESERVED");
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 
@@ -488,7 +502,7 @@ class ProductServiceTest {
 	void keepsProductStatusWhenRequestingSameStatus() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("ON_SALE");
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 
@@ -503,7 +517,7 @@ class ProductServiceTest {
 	void keepsCompletedProductStatusWhenRequestingCompletedAgain() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		product.complete();
 		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("COMPLETED");
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
@@ -519,7 +533,7 @@ class ProductServiceTest {
 	void updatesHiddenProductStatusByOwner() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		product.hide();
 		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("RESERVED");
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
@@ -546,7 +560,7 @@ class ProductServiceTest {
 	void throwsDeletedProductWhenUpdatingStatusOfDeletedProduct() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		product.softDelete();
 		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("RESERVED");
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
@@ -561,7 +575,7 @@ class ProductServiceTest {
 	void throwsProductOwnerOnlyWhenUpdatingStatusByNonOwner() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("RESERVED");
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 
@@ -575,7 +589,7 @@ class ProductServiceTest {
 	void throwsCannotChangeCompletedProductWhenUpdatingCompletedStatus() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		product.complete();
 		ProductStatusUpdateRequest request = new ProductStatusUpdateRequest("ON_SALE");
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
@@ -636,7 +650,7 @@ class ProductServiceTest {
 	void deletesProductByOwner() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 
 		productService.deleteProduct(1L, 1L);
@@ -650,7 +664,7 @@ class ProductServiceTest {
 	void deletesCompletedProductByOwner() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		ReflectionTestUtils.setField(product, "tradeStatus", TradeStatus.COMPLETED);
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 
@@ -675,7 +689,7 @@ class ProductServiceTest {
 	void throwsDeletedProductWhenDeletingDeletedProduct() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		product.softDelete();
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 
@@ -689,7 +703,7 @@ class ProductServiceTest {
 	void throwsProductOwnerOnlyWhenDeletingByNonOwner() {
 		Member member = createMemberWithId(1L, "seller@example.com", "판매자");
 		Category category = new Category("디지털기기");
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", 800000, "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
 		given(productRepository.findById(1L)).willReturn(Optional.of(product));
 
 		assertThatThrownBy(() -> productService.deleteProduct(2L, 1L))
@@ -737,7 +751,7 @@ class ProductServiceTest {
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
 	}
 
-	private ProductCreateRequest createRequest(String title, Integer price) {
+	private ProductCreateRequest createRequest(String title, BigDecimal price) {
 		return new ProductCreateRequest(
 				1L,
 				title,
@@ -747,7 +761,7 @@ class ProductServiceTest {
 		);
 	}
 
-	private ProductUpdateRequest createUpdateRequest(String title, Integer price) {
+	private ProductUpdateRequest createUpdateRequest(String title, BigDecimal price) {
 		return new ProductUpdateRequest(
 				2L,
 				title,

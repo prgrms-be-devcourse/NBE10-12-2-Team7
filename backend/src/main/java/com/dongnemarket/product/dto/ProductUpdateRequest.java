@@ -1,17 +1,19 @@
 package com.dongnemarket.product.dto;
 
+import java.math.BigDecimal;
+
 public class ProductUpdateRequest {
 
 	private Long categoryId;
 	private String title;
 	private String description;
-	private Integer price;
+	private BigDecimal price;
 	private String region;
 
 	protected ProductUpdateRequest() {
 	}
 
-	public ProductUpdateRequest(Long categoryId, String title, String description, Integer price, String region) {
+	public ProductUpdateRequest(Long categoryId, String title, String description, BigDecimal price, String region) {
 		this.categoryId = categoryId;
 		this.title = title;
 		this.description = description;
@@ -31,11 +33,12 @@ public class ProductUpdateRequest {
 		return description;
 	}
 
-	public Integer getPrice() {
+	public BigDecimal getPrice() {
 		return price;
 	}
 
 	public String getRegion() {
 		return region;
 	}
+
 }

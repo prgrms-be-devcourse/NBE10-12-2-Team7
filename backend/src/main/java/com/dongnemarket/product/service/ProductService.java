@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -202,11 +203,11 @@ public class ProductService {
 		validateProductFields(request.getTitle(), request.getPrice());
 	}
 
-	private void validateProductFields(String title, Integer price) {
+	private void validateProductFields(String title, BigDecimal price) {
 		if (!StringUtils.hasText(title)) {
 			throw new BusinessException(ErrorCode.INVALID_PRODUCT_TITLE);
 		}
-		if (price == null || price < 0) {
+		if (price == null || price.signum() < 0) {
 			throw new BusinessException(ErrorCode.INVALID_PRODUCT_PRICE);
 		}
 	}
@@ -224,16 +225,16 @@ public class ProductService {
 
 	private ProductSearchRequest normalizeSearchRequest(ProductSearchRequest request) {
 		if (request == null) {
-			return new ProductSearchRequest(null, null, null, null, null);
+			return new ProductSearchRequest(null, null, (BigDecimal) null, null, null);
 		}
 		return request;
 	}
 
-	private void validateSearchPrice(Integer minPrice, Integer maxPrice) {
-		if ((minPrice != null && minPrice < 0) || (maxPrice != null && maxPrice < 0)) {
+	private void validateSearchPrice(BigDecimal minPrice, BigDecimal maxPrice) {
+		if ((minPrice != null && minPrice.signum() < 0) || (maxPrice != null && maxPrice.signum() < 0)) {
 			throw new BusinessException(ErrorCode.INVALID_SEARCH_CONDITION);
 		}
-		if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
+		if (minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0) {
 			throw new BusinessException(ErrorCode.INVALID_SEARCH_CONDITION);
 		}
 	}
