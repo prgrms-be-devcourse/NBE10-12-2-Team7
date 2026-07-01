@@ -1,5 +1,7 @@
 package com.dongnemarket.report.repository;
 
+import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.report.entity.Report;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -7,9 +9,9 @@ import java.util.List;
 
 public interface ReportRepository extends JpaRepository<Report, Long> {
 
-    boolean existsByReporterIdAndTargetProductId(Long reporterId, Long targetProductId);
+    boolean existsByReporterAndTargetProduct(Member reporter, Product targetProduct);
 
-    boolean existsByReporterIdAndTargetMemberId(Long reporterId, Long targetMemberId);
+    boolean existsByReporterAndTargetMember(Member reporter, Member targetMember);
 
-    List<Report> findAllByReporterId(Long reporterId);
+    List<Report> findAllByReporter(Member reporter);
 }

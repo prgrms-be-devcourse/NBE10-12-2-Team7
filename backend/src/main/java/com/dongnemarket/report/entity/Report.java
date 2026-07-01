@@ -1,24 +1,33 @@
 package com.dongnemarket.report.entity;
 
 import com.dongnemarket.global.common.BaseTimeEntity;
+import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.product.entity.Product;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "reports")
+@Table(name = "reports", indexes = {
+        @Index(name = "idx_reports_reporter_id",        columnList = "reporter_id"),
+        @Index(name = "idx_reports_target_product_id",  columnList = "target_product_id"),
+        @Index(name = "idx_reports_target_member_id",   columnList = "target_member_id")
+})
 public class Report extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "reporter_id", nullable = false)
-    private Long reporterId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reporter_id", nullable = false)
+    private Member reporter;
 
-    @Column(name = "target_member_id")
-    private Long targetMemberId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_member_id")
+    private Member targetMember;
 
-    @Column(name = "target_product_id")
-    private Long targetProductId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_product_id")
+    private Product targetProduct;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "report_type", nullable = false, length = 30)
@@ -37,25 +46,25 @@ public class Report extends BaseTimeEntity {
 
     protected Report() {}
 
-    private Report(Long reporterId, ReportType reportType, Long targetProductId,
-                   Long targetMemberId, ReportReason reason, String content) {
-        this.reporterId = reporterId;
+    private Report(Member reporter, ReportType reportType, Product targetProduct,
+                   Member targetMember, ReportReason reason, String content) {
+        this.reporter = reporter;
         this.reportType = reportType;
-        this.targetProductId = targetProductId;
-        this.targetMemberId = targetMemberId;
+        this.targetProduct = targetProduct;
+        this.targetMember = targetMember;
         this.reason = reason;
         this.content = content;
         this.status = ReportStatus.RECEIVED;
     }
 
-    public static Report ofProduct(Long reporterId, Long targetProductId,
+    public static Report ofProduct(Member reporter, Product targetProduct,
                                    ReportReason reason, String content) {
-        return new Report(reporterId, ReportType.PRODUCT, targetProductId, null, reason, content);
+        return new Report(reporter, ReportType.PRODUCT, targetProduct, null, reason, content);
     }
 
-    public static Report ofMember(Long reporterId, Long targetMemberId,
+    public static Report ofMember(Member reporter, Member targetMember,
                                   ReportReason reason, String content) {
-        return new Report(reporterId, ReportType.MEMBER, null, targetMemberId, reason, content);
+        return new Report(reporter, ReportType.MEMBER, null, targetMember, reason, content);
     }
 
     /** 관리자에 의한 신고 상태 변경 */
@@ -64,9 +73,9 @@ public class Report extends BaseTimeEntity {
     }
 
     public Long getId() { return id; }
-    public Long getReporterId() { return reporterId; }
-    public Long getTargetMemberId() { return targetMemberId; }
-    public Long getTargetProductId() { return targetProductId; }
+    public Member getReporter() { return reporter; }
+    public Member getTargetMember() { return targetMember; }
+    public Product getTargetProduct() { return targetProduct; }
     public ReportType getReportType() { return reportType; }
     public ReportReason getReason() { return reason; }
     public String getContent() { return content; }

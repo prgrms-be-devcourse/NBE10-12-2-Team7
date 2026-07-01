@@ -35,7 +35,8 @@ public class ReportService {
     @Transactional
     public ReportResponse reportProduct(Long reporterId, Long targetProductId,
                                         ProductReportCreateRequest request) {
-        validateMemberExists(reporterId);
+        Member reporter = memberRepository.findById(reporterId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         Product product = productRepository.findById(targetProductId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
@@ -44,47 +45,41 @@ public class ReportService {
             throw new BusinessException(ErrorCode.CANNOT_REPORT_OWN_PRODUCT);
         }
 
-        if (reportRepository.existsByReporterIdAndTargetProductId(reporterId, targetProductId)) {
+        if (reportRepository.existsByReporterAndTargetProduct(reporter, product)) {
             throw new BusinessException(ErrorCode.DUPLICATE_REPORT);
         }
 
-        Report report = Report.ofProduct(reporterId, targetProductId,
-                request.getReason(), request.getContent());
+        Report report = Report.ofProduct(reporter, product, request.getReason(), request.getContent());
         return ReportResponse.from(reportRepository.save(report));
     }
 
     @Transactional
     public ReportResponse reportMember(Long reporterId, Long targetMemberId,
                                        MemberReportCreateRequest request) {
-        validateMemberExists(reporterId);
+        Member reporter = memberRepository.findById(reporterId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         if (reporterId.equals(targetMemberId)) {
             throw new BusinessException(ErrorCode.CANNOT_REPORT_SELF);
         }
 
-        memberRepository.findById(targetMemberId)
+        Member targetMember = memberRepository.findById(targetMemberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-        if (reportRepository.existsByReporterIdAndTargetMemberId(reporterId, targetMemberId)) {
+        if (reportRepository.existsByReporterAndTargetMember(reporter, targetMember)) {
             throw new BusinessException(ErrorCode.DUPLICATE_REPORT);
         }
 
-        Report report = Report.ofMember(reporterId, targetMemberId,
-                request.getReason(), request.getContent());
+        Report report = Report.ofMember(reporter, targetMember, request.getReason(), request.getContent());
         return ReportResponse.from(reportRepository.save(report));
     }
 
     @Transactional(readOnly = true)
     public List<MyReportResponse> getMyReports(Long reporterId) {
-        validateMemberExists(reporterId);
-        return reportRepository.findAllByReporterId(reporterId).stream()
+        Member reporter = memberRepository.findById(reporterId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        return reportRepository.findAllByReporter(reporter).stream()
                 .map(MyReportResponse::from)
                 .collect(Collectors.toList());
-    }
-
-    private void validateMemberExists(Long memberId) {
-        if (!memberRepository.existsById(memberId)) {
-            throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
-        }
     }
 }
