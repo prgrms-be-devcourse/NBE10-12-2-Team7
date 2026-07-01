@@ -3,6 +3,7 @@ package com.dongnemarket.admin.dto;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -15,7 +16,7 @@ public class AdminProductResponse {
     private final Long categoryId;
     private final String title;
     private final String description;
-    private final Integer price;
+    private final BigDecimal price;
     private final TradeStatus tradeStatus;
     private final String region;
     private final long viewCount;
@@ -24,7 +25,7 @@ public class AdminProductResponse {
     private final LocalDateTime createdAt;
 
     private AdminProductResponse(Long productId, Long memberId, Long categoryId, String title, String description,
-                                 Integer price, TradeStatus tradeStatus, String region, long viewCount,
+                                 BigDecimal price, TradeStatus tradeStatus, String region, long viewCount,
                                  boolean hidden, LocalDateTime deletedAt, LocalDateTime createdAt) {
         this.productId = productId;
         this.memberId = memberId;
@@ -62,7 +63,7 @@ public class AdminProductResponse {
     public Long getCategoryId() { return categoryId; }
     public String getTitle() { return title; }
     public String getDescription() { return description; }
-    public Integer getPrice() { return price; }
+    public BigDecimal getPrice() { return price; }
     public TradeStatus getTradeStatus() { return tradeStatus; }
     public String getRegion() { return region; }
     public long getViewCount() { return viewCount; }

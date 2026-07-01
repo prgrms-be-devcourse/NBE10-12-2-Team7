@@ -1,5 +1,7 @@
 package com.dongnemarket.report;
 
+import java.math.BigDecimal;
+
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.entity.Member;
@@ -195,7 +197,7 @@ class ReportServiceTest {
             idField.setAccessible(true);
             idField.set(owner, ownerId);
 
-            Product product = Product.create(owner, null, "테스트 상품", "설명", 10000, "서울");
+            Product product = Product.create(owner, null, "테스트 상품", "설명", BigDecimal.valueOf(10000), "서울");
             return product;
         } catch (Exception e) {
             throw new RuntimeException(e);

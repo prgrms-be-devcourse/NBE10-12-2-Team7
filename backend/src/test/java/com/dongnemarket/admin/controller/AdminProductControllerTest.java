@@ -1,5 +1,7 @@
 package com.dongnemarket.admin.controller;
 
+import java.math.BigDecimal;
+
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
 import com.dongnemarket.global.security.jwt.JwtTokenProvider;
@@ -82,8 +84,8 @@ class AdminProductControllerTest {
     void getProducts_asAdmin_success() throws Exception {
         Member seller = savedSeller();
         Category category = savedCategory();
-        productRepository.save(Product.create(seller, category, "아이폰 15", "설명1", 800000, "서울 강남구"));
-        Product hidden = Product.create(seller, category, "숨김 상품", "설명2", 5000, "서울 서초구");
+        productRepository.save(Product.create(seller, category, "아이폰 15", "설명1", BigDecimal.valueOf(800000), "서울 강남구"));
+        Product hidden = Product.create(seller, category, "숨김 상품", "설명2", BigDecimal.valueOf(5000), "서울 서초구");
         hidden.hide();
         productRepository.save(hidden);
 
@@ -119,7 +121,7 @@ class AdminProductControllerTest {
         Member seller = savedSeller();
         Category category = savedCategory();
         Product product = productRepository.save(
-                Product.create(seller, category, "아이폰 15", "상태 좋은 아이폰", 800000, "서울 강남구"));
+                Product.create(seller, category, "아이폰 15", "상태 좋은 아이폰", BigDecimal.valueOf(800000), "서울 강남구"));
 
         mockMvc.perform(get("/api/admin/products/{productId}", product.getId())
                         .header("Authorization", "Bearer " + adminToken()))
@@ -148,7 +150,7 @@ class AdminProductControllerTest {
         Member seller = savedSeller();
         Category category = savedCategory();
         Product product = productRepository.save(
-                Product.create(seller, category, "아이폰 15", "설명", 800000, "서울 강남구"));
+                Product.create(seller, category, "아이폰 15", "설명", BigDecimal.valueOf(800000), "서울 강남구"));
 
         mockMvc.perform(patch("/api/admin/products/{productId}/hidden", product.getId())
                         .header("Authorization", "Bearer " + adminToken()))
@@ -164,7 +166,7 @@ class AdminProductControllerTest {
         Member seller = savedSeller();
         Category category = savedCategory();
         Product product = productRepository.save(
-                Product.create(seller, category, "아이폰 15", "설명", 800000, "서울 강남구"));
+                Product.create(seller, category, "아이폰 15", "설명", BigDecimal.valueOf(800000), "서울 강남구"));
 
         mockMvc.perform(delete("/api/admin/products/{productId}", product.getId())
                         .header("Authorization", "Bearer " + adminToken()))

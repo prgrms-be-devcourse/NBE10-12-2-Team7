@@ -1,5 +1,7 @@
 package com.dongnemarket.favorite.controller;
 
+import java.math.BigDecimal;
+
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
 import com.dongnemarket.favorite.repository.FavoriteRepository;
@@ -64,9 +66,9 @@ class FavoriteControllerTest {
         // 시드된 기본 카테고리(CategoryInitializer)와 이름이 겹치지 않도록 테스트 전용 카테고리를 만든다.
         Category category = categoryRepository.save(new Category("관심테스트전용카테고리"));
         Product product = productRepository.save(
-                Product.create(seller, category, "맥북 프로", "상태 좋음", 1_500_000, "서울 강남구"));
+                Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), "서울 강남구"));
         Product otherProduct = productRepository.save(
-                Product.create(seller, category, "아이패드", "상태 좋음", 700_000, "서울 강남구"));
+                Product.create(seller, category, "아이패드", "상태 좋음", BigDecimal.valueOf(700_000), "서울 강남구"));
 
         categoryId = category.getId();
         productId = product.getId();
