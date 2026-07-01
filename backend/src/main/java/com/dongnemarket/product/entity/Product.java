@@ -15,7 +15,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -41,7 +40,7 @@ public class Product extends BaseTimeEntity {
 	private String description;
 
 	@Column(nullable = false)
-	private Integer price;   // 부동소수점 오류로 인해 가격관련된 부분BigDecimal 권장
+	private Integer price;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
@@ -61,7 +60,7 @@ public class Product extends BaseTimeEntity {
 
 	protected Product() {
 	}
-    //  리플렉션에 대해서 고려
+
 	private Product(Member member, Category category, String title, String description,
 					Integer price, String region) {
 		this.member = member;
