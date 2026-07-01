@@ -20,8 +20,8 @@ public class MyReportResponse {
         this.reportId = report.getId();
         this.reportType = report.getReportType();
         this.targetId = report.getReportType() == ReportType.PRODUCT
-                ? report.getTargetProductId()
-                : report.getTargetMemberId();
+                ? report.getTargetProduct().getId()
+                : report.getTargetMember().getId();
         this.reason = report.getReason();
         this.status = report.getStatus();
         this.createdAt = report.getCreatedAt();
