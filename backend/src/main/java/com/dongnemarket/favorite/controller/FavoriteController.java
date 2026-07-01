@@ -1,6 +1,7 @@
 package com.dongnemarket.favorite.controller;
 
 import com.dongnemarket.favorite.dto.FavoriteResponse;
+import com.dongnemarket.favorite.dto.MyFavoriteResponse;
 import com.dongnemarket.favorite.service.FavoriteService;
 import com.dongnemarket.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,11 +37,11 @@ public class FavoriteController {
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), "관심 상품으로 등록되었습니다.", response));
     }
 
-    @Operation(summary = "내 관심 상품 목록 조회", description = "로그인 사용자가 자신이 등록한 관심 상품 목록을 최근 등록순으로 조회한다.")
+    @Operation(summary = "내 관심 상품 목록 조회", description = "로그인 사용자가 자신이 등록한 관심 상품 목록을 상품 요약과 함께 최근 등록순으로 조회한다. 삭제·숨김 상품은 제외된다.")
     @GetMapping("/api/members/me/favorites")
-    public ResponseEntity<ApiResponse<List<FavoriteResponse>>> getMyFavorites(
+    public ResponseEntity<ApiResponse<List<MyFavoriteResponse>>> getMyFavorites(
             @AuthenticationPrincipal Long memberId) {
-        List<FavoriteResponse> response = favoriteService.getMyFavorites(memberId);
+        List<MyFavoriteResponse> response = favoriteService.getMyFavorites(memberId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
