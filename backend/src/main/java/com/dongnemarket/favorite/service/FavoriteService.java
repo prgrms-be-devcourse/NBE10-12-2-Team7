@@ -1,6 +1,7 @@
 package com.dongnemarket.favorite.service;
 
 import com.dongnemarket.favorite.dto.FavoriteResponse;
+import com.dongnemarket.favorite.dto.MyFavoriteResponse;
 import com.dongnemarket.favorite.entity.Favorite;
 import com.dongnemarket.favorite.repository.FavoriteRepository;
 import com.dongnemarket.global.exception.BusinessException;
@@ -47,10 +48,13 @@ public class FavoriteService {
         }
     }
 
-    /** 내 관심 상품 목록 조회. 로그인 사용자가 등록한 관심 상품을 최근 등록순으로 조회한다. */
-    public List<FavoriteResponse> getMyFavorites(Long memberId) {
-        return favoriteRepository.findAllByMember_IdOrderByCreatedAtDescIdDesc(memberId).stream()
-                .map(FavoriteResponse::from)
+    /**
+     * 내 관심 상품 목록 조회. 로그인 사용자가 등록한 관심 상품을 상품 요약과 함께 최근 등록순으로 조회한다.
+     * 삭제·숨김된 상품의 관심은 목록에서 제외한다(정책 A).
+     */
+    public List<MyFavoriteResponse> getMyFavorites(Long memberId) {
+        return favoriteRepository.findAllWithAccessibleProductByMember_Id(memberId).stream()
+                .map(MyFavoriteResponse::from)
                 .toList();
     }
 

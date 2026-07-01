@@ -152,7 +152,7 @@ class FavoriteControllerTest {
     }
 
     @Test
-    @DisplayName("내 관심 상품 목록을 조회하면 200과 최근 등록순 목록을 반환한다")
+    @DisplayName("내 관심 상품 목록을 조회하면 200과 상품 요약을 포함한 최근 등록순 목록을 반환한다")
     void getMyFavorites_success() throws Exception {
         mockMvc.perform(post("/api/products/{productId}/favorites", productId)
                 .header("Authorization", token));
@@ -164,8 +164,32 @@ class FavoriteControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.data.length()").value(2))
-                .andExpect(jsonPath("$.data[0].productId").value(otherProductId.intValue()))
-                .andExpect(jsonPath("$.data[1].productId").value(productId.intValue()));
+                .andExpect(jsonPath("$.data[0].favoriteId").exists())
+                .andExpect(jsonPath("$.data[0].product.productId").value(otherProductId.intValue()))
+                .andExpect(jsonPath("$.data[0].product.title").value("아이패드"))
+                .andExpect(jsonPath("$.data[0].product.tradeStatus").value("ON_SALE"))
+                .andExpect(jsonPath("$.data[1].product.productId").value(productId.intValue()))
+                .andExpect(jsonPath("$.data[1].product.title").value("맥북 프로"));
+    }
+
+    @Test
+    @DisplayName("삭제·숨김된 상품은 관심 목록에서 제외된다")
+    void getMyFavorites_excludesDeletedAndHiddenProducts() throws Exception {
+        mockMvc.perform(post("/api/products/{productId}/favorites", productId)
+                .header("Authorization", token));
+        mockMvc.perform(post("/api/products/{productId}/favorites", otherProductId)
+                .header("Authorization", token));
+
+        // productId 상품을 삭제 → 관심 row는 남지만 목록에서는 제외되어야 한다.
+        Product deleted = productRepository.findById(productId).orElseThrow();
+        deleted.softDelete();
+        productRepository.saveAndFlush(deleted);
+
+        mockMvc.perform(get("/api/members/me/favorites")
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].product.productId").value(otherProductId.intValue()));
     }
 
     @Test

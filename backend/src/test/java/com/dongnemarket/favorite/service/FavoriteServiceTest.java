@@ -1,14 +1,18 @@
 package com.dongnemarket.favorite.service;
 
 import com.dongnemarket.favorite.dto.FavoriteResponse;
+import com.dongnemarket.favorite.dto.MyFavoriteResponse;
 import com.dongnemarket.favorite.entity.Favorite;
 import com.dongnemarket.favorite.repository.FavoriteRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.product.entity.Product;
+import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.service.ProductService;
 import jakarta.persistence.EntityManager;
+
+import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,9 +51,13 @@ class FavoriteServiceTest {
     private static final Long MEMBER_ID = 1L;
     private static final Long PRODUCT_ID = 100L;
 
-    private Favorite favoriteWithProductId(Long productId) {
+    private Favorite favoriteWithProduct(Long productId, String title) {
         Product product = mock(Product.class);
         given(product.getId()).willReturn(productId);
+        given(product.getTitle()).willReturn(title);
+        given(product.getPrice()).willReturn(BigDecimal.valueOf(1_000));
+        given(product.getRegion()).willReturn("서울 강남구");
+        given(product.getTradeStatus()).willReturn(TradeStatus.ON_SALE);
         return Favorite.of(mock(Member.class), product);
     }
 
@@ -108,27 +116,31 @@ class FavoriteServiceTest {
     }
 
     @Test
-    @DisplayName("내 관심 상품 목록을 최근 등록순으로 반환한다")
+    @DisplayName("내 관심 상품 목록을 상품 요약과 함께 최근 등록순으로 반환한다")
     void getMyFavorites_success() {
         // 스텁 진행 중 중첩 스텁을 피하기 위해 목록을 먼저 구성한다.
-        List<Favorite> favorites = List.of(favoriteWithProductId(200L), favoriteWithProductId(100L));
-        given(favoriteRepository.findAllByMember_IdOrderByCreatedAtDescIdDesc(MEMBER_ID))
+        List<Favorite> favorites = List.of(
+                favoriteWithProduct(200L, "아이패드"),
+                favoriteWithProduct(100L, "맥북 프로"));
+        given(favoriteRepository.findAllWithAccessibleProductByMember_Id(MEMBER_ID))
                 .willReturn(favorites);
 
-        List<FavoriteResponse> responses = favoriteService.getMyFavorites(MEMBER_ID);
+        List<MyFavoriteResponse> responses = favoriteService.getMyFavorites(MEMBER_ID);
 
         assertThat(responses).hasSize(2);
-        assertThat(responses).extracting(FavoriteResponse::getProductId)
+        assertThat(responses).extracting(r -> r.getProduct().getProductId())
                 .containsExactly(200L, 100L);
+        assertThat(responses).extracting(r -> r.getProduct().getTitle())
+                .containsExactly("아이패드", "맥북 프로");
     }
 
     @Test
     @DisplayName("관심 상품이 없으면 빈 목록을 반환한다")
     void getMyFavorites_empty() {
-        given(favoriteRepository.findAllByMember_IdOrderByCreatedAtDescIdDesc(MEMBER_ID))
+        given(favoriteRepository.findAllWithAccessibleProductByMember_Id(MEMBER_ID))
                 .willReturn(List.of());
 
-        List<FavoriteResponse> responses = favoriteService.getMyFavorites(MEMBER_ID);
+        List<MyFavoriteResponse> responses = favoriteService.getMyFavorites(MEMBER_ID);
 
         assertThat(responses).isEmpty();
     }
