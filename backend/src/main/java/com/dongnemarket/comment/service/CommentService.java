@@ -7,7 +7,10 @@ import com.dongnemarket.comment.entity.Comment;
 import com.dongnemarket.comment.repository.CommentRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
-import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.product.entity.Product;
+import com.dongnemarket.product.service.ProductService;
+import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,30 +21,32 @@ import java.util.List;
 public class CommentService {
 
     private final CommentRepository commentRepository;
-    private final ProductRepository productRepository;
+    private final ProductService productService;
+    private final EntityManager entityManager;
 
     public CommentService(CommentRepository commentRepository,
-                          ProductRepository productRepository) {
+                          ProductService productService,
+                          EntityManager entityManager) {
         this.commentRepository = commentRepository;
-        this.productRepository = productRepository;
+        this.productService = productService;
+        this.entityManager = entityManager;
     }
 
-    /** 댓글 작성. 로그인 사용자가 특정 상품에 댓글을 단다. */
+    /** 댓글 작성. 로그인 사용자가 접근 가능한 상품에 댓글을 단다. */
     @Transactional
     public CommentResponse create(Long memberId, Long productId, CommentCreateRequest request) {
-        if (!productRepository.existsById(productId)) {
-            throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
-        }
-        Comment saved = commentRepository.save(Comment.of(memberId, productId, request.getContent()));
+        productService.validateAccessibleProduct(productId);
+
+        Member member = entityManager.find(Member.class, memberId);
+        Product product = entityManager.find(Product.class, productId);
+        Comment saved = commentRepository.save(Comment.of(member, product, request.getContent()));
         return CommentResponse.from(saved);
     }
 
-    /** 댓글 목록 조회. 특정 상품의 삭제되지 않은 댓글을 조회한다. 비로그인도 가능하다. */
+    /** 댓글 목록 조회. 접근 가능한 상품의 삭제되지 않은 댓글을 조회한다. 비로그인도 가능하다. */
     public List<CommentResponse> getComments(Long productId) {
-        if (!productRepository.existsById(productId)) {
-            throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
-        }
-        return commentRepository.findAllByProductIdAndDeletedAtIsNullOrderByCreatedAtAsc(productId).stream()
+        productService.validateAccessibleProduct(productId);
+        return commentRepository.findAllByProduct_IdAndDeletedAtIsNullOrderByCreatedAtAsc(productId).stream()
                 .map(CommentResponse::from)
                 .toList();
     }

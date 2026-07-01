@@ -62,14 +62,17 @@ class CommentControllerTest {
     private Long memberId;
     private Long otherMemberId;
     private String token;
+    private Member writer;
+    private Member seller;
+    private Product product;
 
     @BeforeEach
     void setUp() {
-        Member writer = memberRepository.save(Member.createUser("writer@example.com", "encoded-pw", "writer"));
-        Member seller = memberRepository.save(Member.createUser("seller@example.com", "encoded-pw", "seller"));
+        writer = memberRepository.save(Member.createUser("writer@example.com", "encoded-pw", "writer"));
+        seller = memberRepository.save(Member.createUser("seller@example.com", "encoded-pw", "seller"));
         // 시드된 기본 카테고리(CategoryInitializer)와 이름이 겹치지 않도록 테스트 전용 카테고리를 만든다.
         Category category = categoryRepository.save(new Category("댓글테스트전용카테고리"));
-        Product product = productRepository.save(
+        product = productRepository.save(
                 Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), "서울 강남구"));
 
         categoryId = category.getId();
@@ -124,6 +127,20 @@ class CommentControllerTest {
     }
 
     @Test
+    @DisplayName("숨김 처리된 상품에 댓글을 작성하면 404와 PRODUCT_NOT_FOUND를 반환한다")
+    void createComment_hiddenProduct_returns404() throws Exception {
+        product.hide();
+        productRepository.saveAndFlush(product);
+
+        mockMvc.perform(post("/api/products/{productId}/comments", productId)
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"content\": \"좋은 상품이네요\" }"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("PRODUCT_NOT_FOUND"));
+    }
+
+    @Test
     @DisplayName("댓글 내용이 공백이면 400과 INVALID_INPUT_VALUE를 반환한다")
     void createComment_blankContent_returns400() throws Exception {
         mockMvc.perform(post("/api/products/{productId}/comments", productId)
@@ -137,9 +154,9 @@ class CommentControllerTest {
     @Test
     @DisplayName("비로그인 사용자도 댓글 목록을 조회하면 200과 삭제되지 않은 댓글을 작성순으로 반환한다")
     void getComments_withoutToken_success() throws Exception {
-        commentRepository.save(Comment.of(memberId, productId, "첫 번째 댓글"));
-        commentRepository.save(Comment.of(otherMemberId, productId, "두 번째 댓글"));
-        Comment deleted = commentRepository.save(Comment.of(memberId, productId, "삭제된 댓글"));
+        commentRepository.save(Comment.of(writer, product, "첫 번째 댓글"));
+        commentRepository.save(Comment.of(seller, product, "두 번째 댓글"));
+        Comment deleted = commentRepository.save(Comment.of(writer, product, "삭제된 댓글"));
         deleted.softDelete();
         commentRepository.save(deleted);
 
@@ -169,9 +186,31 @@ class CommentControllerTest {
     }
 
     @Test
+    @DisplayName("숨김 처리된 상품의 댓글 목록을 조회하면 404와 PRODUCT_NOT_FOUND를 반환한다")
+    void getComments_hiddenProduct_returns404() throws Exception {
+        product.hide();
+        productRepository.saveAndFlush(product);
+
+        mockMvc.perform(get("/api/products/{productId}/comments", productId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("PRODUCT_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("삭제된 상품의 댓글 목록을 조회하면 404와 PRODUCT_NOT_FOUND를 반환한다")
+    void getComments_deletedProduct_returns404() throws Exception {
+        product.softDelete();
+        productRepository.saveAndFlush(product);
+
+        mockMvc.perform(get("/api/products/{productId}/comments", productId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("PRODUCT_NOT_FOUND"));
+    }
+
+    @Test
     @DisplayName("작성자 본인이 자신의 댓글을 수정하면 200과 수정된 내용을 반환한다")
     void updateComment_success() throws Exception {
-        Long commentId = commentRepository.save(Comment.of(memberId, productId, "원본 내용")).getId();
+        Long commentId = commentRepository.save(Comment.of(writer, product, "원본 내용")).getId();
 
         mockMvc.perform(patch("/api/comments/{commentId}", commentId)
                         .header("Authorization", token)
@@ -185,7 +224,7 @@ class CommentControllerTest {
     @Test
     @DisplayName("작성자가 아닌 사용자가 수정하면 403과 COMMENT_OWNER_ONLY를 반환한다")
     void updateComment_notOwner_returns403() throws Exception {
-        Long commentId = commentRepository.save(Comment.of(otherMemberId, productId, "남의 댓글")).getId();
+        Long commentId = commentRepository.save(Comment.of(seller, product, "남의 댓글")).getId();
 
         mockMvc.perform(patch("/api/comments/{commentId}", commentId)
                         .header("Authorization", token)
@@ -219,7 +258,7 @@ class CommentControllerTest {
     @Test
     @DisplayName("작성자 본인이 자신의 댓글을 삭제하면 200을 반환한다")
     void deleteComment_success() throws Exception {
-        Long commentId = commentRepository.save(Comment.of(memberId, productId, "삭제될 댓글")).getId();
+        Long commentId = commentRepository.save(Comment.of(writer, product, "삭제될 댓글")).getId();
 
         mockMvc.perform(delete("/api/comments/{commentId}", commentId)
                         .header("Authorization", token))
@@ -230,7 +269,7 @@ class CommentControllerTest {
     @Test
     @DisplayName("작성자가 아닌 사용자가 삭제하면 403과 COMMENT_OWNER_ONLY를 반환한다")
     void deleteComment_notOwner_returns403() throws Exception {
-        Long commentId = commentRepository.save(Comment.of(otherMemberId, productId, "남의 댓글")).getId();
+        Long commentId = commentRepository.save(Comment.of(seller, product, "남의 댓글")).getId();
 
         mockMvc.perform(delete("/api/comments/{commentId}", commentId)
                         .header("Authorization", token))
