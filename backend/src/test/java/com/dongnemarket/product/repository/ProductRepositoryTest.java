@@ -23,6 +23,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import jakarta.persistence.EntityManager;
+
 @DataJpaTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -37,6 +39,9 @@ class ProductRepositoryTest {
 
 	@Autowired
 	CategoryRepository categoryRepository;
+
+	@Autowired
+	EntityManager entityManager;
 
 	@Test
 	@DisplayName("상품을 저장하고 기본 필드와 시간 필드를 조회할 수 있다")
@@ -87,6 +92,92 @@ class ProductRepositoryTest {
 		boolean exists = productRepository.existsByIdAndDeletedAtIsNullAndHiddenFalse(product.getId());
 
 		assertThat(exists).isTrue();
+	}
+
+	@Test
+	@DisplayName("상품 저장 시 favoriteCount 기본값은 0이다")
+	void savesProductWithDefaultFavoriteCount() {
+		Member member = memberRepository.save(Member.createUser("favorite-default@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("디지털기기"));
+		Product product = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"아이패드",
+				"깨끗한 아이패드입니다.",
+				BigDecimal.valueOf(500000),
+				"서울 강남구"
+		));
+
+		assertThat(product.getFavoriteCount()).isZero();
+	}
+
+	@Test
+	@DisplayName("favoriteCount는 원자 UPDATE로 1 증가한다")
+	void incrementsFavoriteCount() {
+		Member member = memberRepository.save(Member.createUser("favorite-increment@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("생활가전"));
+		Product product = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"청소기",
+				"상태 좋은 청소기입니다.",
+				BigDecimal.valueOf(150000),
+				"서울 서초구"
+		));
+
+		productRepository.incrementFavoriteCount(product.getId());
+		productRepository.flush();
+		entityManager.clear();
+
+		Product foundProduct = productRepository.findById(product.getId()).orElseThrow();
+		assertThat(foundProduct.getFavoriteCount()).isEqualTo(1);
+	}
+
+	@Test
+	@DisplayName("favoriteCount는 원자 UPDATE로 1 감소한다")
+	void decrementsFavoriteCount() {
+		Member member = memberRepository.save(Member.createUser("favorite-decrement@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("가구/인테리어"));
+		Product product = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"책상",
+				"튼튼한 책상입니다.",
+				BigDecimal.valueOf(70000),
+				"서울 송파구"
+		));
+		productRepository.incrementFavoriteCount(product.getId());
+		productRepository.flush();
+		entityManager.clear();
+
+		productRepository.decrementFavoriteCount(product.getId());
+		productRepository.flush();
+		entityManager.clear();
+
+		Product foundProduct = productRepository.findById(product.getId()).orElseThrow();
+		assertThat(foundProduct.getFavoriteCount()).isZero();
+	}
+
+	@Test
+	@DisplayName("favoriteCount가 0이면 감소 요청을 해도 음수가 되지 않는다")
+	void doesNotDecrementFavoriteCountBelowZero() {
+		Member member = memberRepository.save(Member.createUser("favorite-zero@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("도서"));
+		Product product = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"자바 책",
+				"깨끗한 자바 책입니다.",
+				BigDecimal.valueOf(20000),
+				"서울 마포구"
+		));
+
+		productRepository.decrementFavoriteCount(product.getId());
+		productRepository.flush();
+		entityManager.clear();
+
+		Product foundProduct = productRepository.findById(product.getId()).orElseThrow();
+		assertThat(foundProduct.getFavoriteCount()).isZero();
 	}
 
 	@Test

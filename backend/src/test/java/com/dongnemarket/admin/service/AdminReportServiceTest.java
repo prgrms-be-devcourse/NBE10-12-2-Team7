@@ -21,12 +21,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 /**
  * [단위] AdminReportService.changeReportStatus — 서비스 고유 로직만 검증(Member와 동일 구조).
@@ -43,9 +43,7 @@ class AdminReportServiceTest {
     AdminReportService adminReportService;
 
     private Report existingReport() {
-        Member reporter = Member.createUser("reporter@example.com", "encoded", "reporter");
-        Product target = Product.create(reporter, null, "신고 대상 상품", "설명", BigDecimal.valueOf(10000), "서울");
-        return Report.ofProduct(reporter, target, ReportReason.FRAUD_SUSPECTED, "사기 의심 신고");
+        return Report.ofProduct(mock(Member.class), mock(Product.class), ReportReason.FRAUD_SUSPECTED, "사기 의심 신고");
     }
 
     @Nested
