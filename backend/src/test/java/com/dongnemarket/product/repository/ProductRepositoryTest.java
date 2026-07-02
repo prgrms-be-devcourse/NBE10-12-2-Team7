@@ -11,6 +11,7 @@ import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.spec.ProductSpecification;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Sort;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,7 @@ import org.springframework.test.context.ActiveProfiles;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import jakarta.persistence.EntityManager;
 
@@ -178,6 +180,76 @@ class ProductRepositoryTest {
 
 		Product foundProduct = productRepository.findById(product.getId()).orElseThrow();
 		assertThat(foundProduct.getFavoriteCount()).isZero();
+	}
+
+	@Nested
+	@DisplayName("관심 수 원자 업데이트")
+	class FavoriteCountAtomicUpdate {
+
+		@Test
+		@DisplayName("존재하지 않는 상품의 관심 수 증가를 요청해도 예외가 발생하지 않는다")
+		void doesNotThrowWhenIncrementingMissingProduct() {
+			Long missingProductId = Long.MAX_VALUE;
+
+			assertThatCode(() -> productRepository.incrementFavoriteCount(missingProductId))
+					.doesNotThrowAnyException();
+		}
+
+		@Test
+		@DisplayName("존재하지 않는 상품의 관심 수 감소를 요청해도 예외가 발생하지 않는다")
+		void doesNotThrowWhenDecrementingMissingProduct() {
+			Long missingProductId = Long.MAX_VALUE;
+
+			assertThatCode(() -> productRepository.decrementFavoriteCount(missingProductId))
+					.doesNotThrowAnyException();
+		}
+
+		@Test
+		@DisplayName("특정 상품의 관심 수만 증가하고 다른 상품은 변경되지 않는다")
+		void incrementsOnlyTargetProductFavoriteCount() {
+			Member member = memberRepository.save(Member.createUser("favorite-target@example.com", "encodedPassword", "판매자"));
+			Category category = categoryRepository.save(new Category("반려동물용품"));
+			Product targetProduct = saveFavoriteCountProduct(member, category, "관심 증가 대상 상품");
+			Product otherProduct = saveFavoriteCountProduct(member, category, "관심 증가 비대상 상품");
+
+			productRepository.incrementFavoriteCount(targetProduct.getId());
+			productRepository.flush();
+			entityManager.clear();
+
+			Product foundTargetProduct = productRepository.findById(targetProduct.getId()).orElseThrow();
+			Product foundOtherProduct = productRepository.findById(otherProduct.getId()).orElseThrow();
+			assertThat(foundTargetProduct.getFavoriteCount()).isEqualTo(1);
+			assertThat(foundOtherProduct.getFavoriteCount()).isZero();
+		}
+
+		@Test
+		@DisplayName("관심 수 증가와 감소를 여러 번 호출하면 최종 값이 정확히 반영된다")
+		void reflectsFinalFavoriteCountAfterRepeatedIncrementAndDecrement() {
+			Member member = memberRepository.save(Member.createUser("favorite-repeated@example.com", "encodedPassword", "판매자"));
+			Category category = categoryRepository.save(new Category("기타"));
+			Product product = saveFavoriteCountProduct(member, category, "관심 반복 변경 상품");
+
+			productRepository.incrementFavoriteCount(product.getId());
+			productRepository.incrementFavoriteCount(product.getId());
+			productRepository.incrementFavoriteCount(product.getId());
+			productRepository.decrementFavoriteCount(product.getId());
+			productRepository.flush();
+			entityManager.clear();
+
+			Product foundProduct = productRepository.findById(product.getId()).orElseThrow();
+			assertThat(foundProduct.getFavoriteCount()).isEqualTo(2);
+		}
+
+		private Product saveFavoriteCountProduct(Member member, Category category, String title) {
+			return productRepository.saveAndFlush(Product.create(
+					member,
+					category,
+					title,
+					"관심 수 원자 업데이트 테스트 상품입니다.",
+					BigDecimal.valueOf(10000),
+					"서울 강남구"
+			));
+		}
 	}
 
 	@Test
