@@ -12,13 +12,13 @@ import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.service.ProductService;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,7 +30,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+/**
+ * CommentService 단위 테스트.
+ * <p>Repository·ProductService·EntityManager를 mock으로 대체하고 <b>서비스의 비자명 분기 로직만</b> 검증한다
+ * (접근 게이트, 작성자 검증, 소프트삭제 의미). 단순 매핑/조회는 컨트롤러 통합 테스트(CommentControllerTest)가
+ * 실제 값으로 검증한다.
+ */
 @ExtendWith(MockitoExtension.class)
+@DisplayName("CommentService 단위 테스트")
 class CommentServiceTest {
 
     @Mock
@@ -56,141 +63,114 @@ class CommentServiceTest {
         return Comment.of(member, mock(Product.class), content);
     }
 
-    @Test
-    @DisplayName("접근 가능한 상품이면 댓글 작성에 성공한다")
-    void create_success() {
-        CommentCreateRequest request = new CommentCreateRequest("좋은 상품이네요");
-        Member member = mock(Member.class);
-        Product product = mock(Product.class);
-        given(member.getId()).willReturn(MEMBER_ID);
-        given(product.getId()).willReturn(PRODUCT_ID);
-        given(entityManager.find(Member.class, MEMBER_ID)).willReturn(member);
-        given(entityManager.find(Product.class, PRODUCT_ID)).willReturn(product);
-        given(commentRepository.save(any(Comment.class))).willAnswer(invocation -> invocation.getArgument(0));
+    @Nested
+    @DisplayName("댓글 작성")
+    class Create {
 
-        CommentResponse response = commentService.create(MEMBER_ID, PRODUCT_ID, request);
+        @Test
+        @DisplayName("접근 불가(존재하지 않거나 삭제·숨김) 상품이면 PRODUCT_NOT_FOUND, 저장하지 않는다")
+        void productNotAccessible_throwsAndDoesNotSave() {
+            CommentCreateRequest request = new CommentCreateRequest("좋은 상품이네요");
+            willThrow(new BusinessException(ErrorCode.PRODUCT_NOT_FOUND))
+                    .given(productService).validateAccessibleProduct(PRODUCT_ID);
 
-        assertThat(response.getProductId()).isEqualTo(PRODUCT_ID);
-        assertThat(response.getMemberId()).isEqualTo(MEMBER_ID);
-        assertThat(response.getContent()).isEqualTo("좋은 상품이네요");
+            assertThatThrownBy(() -> commentService.create(MEMBER_ID, PRODUCT_ID, request))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
+
+            verify(commentRepository, never()).save(any());
+        }
     }
 
-    @Test
-    @DisplayName("접근 불가(존재하지 않거나 삭제·숨김) 상품에 댓글을 작성하면 PRODUCT_NOT_FOUND 예외가 발생한다")
-    void create_productNotAccessible_throwsException() {
-        CommentCreateRequest request = new CommentCreateRequest("좋은 상품이네요");
-        willThrow(new BusinessException(ErrorCode.PRODUCT_NOT_FOUND))
-                .given(productService).validateAccessibleProduct(PRODUCT_ID);
+    @Nested
+    @DisplayName("댓글 목록 조회")
+    class GetComments {
 
-        assertThatThrownBy(() -> commentService.create(MEMBER_ID, PRODUCT_ID, request))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
+        @Test
+        @DisplayName("접근 불가(존재하지 않거나 삭제·숨김) 상품이면 PRODUCT_NOT_FOUND, 조회하지 않는다")
+        void productNotAccessible_throwsAndDoesNotQuery() {
+            willThrow(new BusinessException(ErrorCode.PRODUCT_NOT_FOUND))
+                    .given(productService).validateAccessibleProduct(PRODUCT_ID);
 
-        verify(commentRepository, never()).save(any());
+            assertThatThrownBy(() -> commentService.getComments(PRODUCT_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
+
+            verify(commentRepository, never()).findAllByProduct_IdAndDeletedAtIsNullOrderByCreatedAtAsc(any());
+        }
     }
 
-    @Test
-    @DisplayName("접근 가능한 상품이면 삭제되지 않은 댓글 목록을 반환한다")
-    void getComments_success() {
-        // 스텁 진행 중 중첩 스텁을 피하기 위해 목록을 먼저 구성한다.
-        List<Comment> comments = List.of(
-                commentByMember(MEMBER_ID, "첫 번째 댓글"),
-                commentByMember(2L, "두 번째 댓글"));
-        given(commentRepository.findAllByProduct_IdAndDeletedAtIsNullOrderByCreatedAtAsc(PRODUCT_ID))
-                .willReturn(comments);
+    @Nested
+    @DisplayName("댓글 수정")
+    class Update {
 
-        List<CommentResponse> responses = commentService.getComments(PRODUCT_ID);
+        @Test
+        @DisplayName("작성자 본인이면 내용이 수정된다")
+        void owner_updatesContent() {
+            Comment comment = commentByMember(MEMBER_ID, "원본 내용");
+            given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.of(comment));
 
-        assertThat(responses).hasSize(2);
-        assertThat(responses).extracting(CommentResponse::getContent)
-                .containsExactly("첫 번째 댓글", "두 번째 댓글");
+            CommentResponse response = commentService.update(MEMBER_ID, COMMENT_ID, new CommentUpdateRequest("수정된 내용"));
+
+            assertThat(response.getContent()).isEqualTo("수정된 내용");
+        }
+
+        @Test
+        @DisplayName("존재하지 않거나 삭제된 댓글이면 COMMENT_NOT_FOUND 예외가 발생한다")
+        void notFound_throwsException() {
+            given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> commentService.update(MEMBER_ID, COMMENT_ID, new CommentUpdateRequest("수정")))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMMENT_NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("작성자가 아니면 COMMENT_OWNER_ONLY 예외가 발생한다")
+        void notOwner_throwsException() {
+            Comment othersComment = commentByMember(999L, "남의 댓글");
+            given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.of(othersComment));
+
+            assertThatThrownBy(() -> commentService.update(MEMBER_ID, COMMENT_ID, new CommentUpdateRequest("수정")))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMMENT_OWNER_ONLY);
+        }
     }
 
-    @Test
-    @DisplayName("댓글이 없는 상품을 조회하면 빈 목록을 반환한다")
-    void getComments_empty() {
-        given(commentRepository.findAllByProduct_IdAndDeletedAtIsNullOrderByCreatedAtAsc(PRODUCT_ID))
-                .willReturn(List.of());
+    @Nested
+    @DisplayName("댓글 삭제")
+    class Delete {
 
-        List<CommentResponse> responses = commentService.getComments(PRODUCT_ID);
+        @Test
+        @DisplayName("작성자 본인이면 소프트 삭제된다")
+        void owner_softDeletes() {
+            Comment comment = commentByMember(MEMBER_ID, "삭제될 댓글");
+            given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.of(comment));
 
-        assertThat(responses).isEmpty();
-    }
+            commentService.delete(MEMBER_ID, COMMENT_ID);
 
-    @Test
-    @DisplayName("접근 불가(존재하지 않거나 삭제·숨김) 상품의 댓글을 조회하면 PRODUCT_NOT_FOUND 예외가 발생한다")
-    void getComments_productNotAccessible_throwsException() {
-        willThrow(new BusinessException(ErrorCode.PRODUCT_NOT_FOUND))
-                .given(productService).validateAccessibleProduct(PRODUCT_ID);
+            assertThat(comment.isDeleted()).isTrue();
+        }
 
-        assertThatThrownBy(() -> commentService.getComments(PRODUCT_ID))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
+        @Test
+        @DisplayName("존재하지 않거나 이미 삭제된 댓글이면 COMMENT_NOT_FOUND 예외가 발생한다")
+        void notFound_throwsException() {
+            given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.empty());
 
-        verify(commentRepository, never()).findAllByProduct_IdAndDeletedAtIsNullOrderByCreatedAtAsc(any());
-    }
+            assertThatThrownBy(() -> commentService.delete(MEMBER_ID, COMMENT_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMMENT_NOT_FOUND);
+        }
 
-    @Test
-    @DisplayName("작성자 본인이면 댓글 수정에 성공한다")
-    void update_success() {
-        Comment comment = commentByMember(MEMBER_ID, "원본 내용");
-        given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.of(comment));
+        @Test
+        @DisplayName("작성자가 아니면 COMMENT_OWNER_ONLY 예외가 발생한다")
+        void notOwner_throwsException() {
+            Comment othersComment = commentByMember(999L, "남의 댓글");
+            given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.of(othersComment));
 
-        CommentResponse response = commentService.update(MEMBER_ID, COMMENT_ID, new CommentUpdateRequest("수정된 내용"));
-
-        assertThat(response.getContent()).isEqualTo("수정된 내용");
-    }
-
-    @Test
-    @DisplayName("존재하지 않거나 삭제된 댓글을 수정하면 COMMENT_NOT_FOUND 예외가 발생한다")
-    void update_notFound_throwsException() {
-        given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> commentService.update(MEMBER_ID, COMMENT_ID, new CommentUpdateRequest("수정")))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMMENT_NOT_FOUND);
-    }
-
-    @Test
-    @DisplayName("작성자가 아니면 댓글 수정 시 COMMENT_OWNER_ONLY 예외가 발생한다")
-    void update_notOwner_throwsException() {
-        Comment othersComment = commentByMember(999L, "남의 댓글");
-        given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.of(othersComment));
-
-        assertThatThrownBy(() -> commentService.update(MEMBER_ID, COMMENT_ID, new CommentUpdateRequest("수정")))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMMENT_OWNER_ONLY);
-    }
-
-    @Test
-    @DisplayName("작성자 본인이면 댓글 삭제(소프트)에 성공한다")
-    void delete_success() {
-        Comment comment = commentByMember(MEMBER_ID, "삭제될 댓글");
-        given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.of(comment));
-
-        commentService.delete(MEMBER_ID, COMMENT_ID);
-
-        assertThat(comment.isDeleted()).isTrue();
-    }
-
-    @Test
-    @DisplayName("존재하지 않거나 이미 삭제된 댓글을 삭제하면 COMMENT_NOT_FOUND 예외가 발생한다")
-    void delete_notFound_throwsException() {
-        given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> commentService.delete(MEMBER_ID, COMMENT_ID))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMMENT_NOT_FOUND);
-    }
-
-    @Test
-    @DisplayName("작성자가 아니면 댓글 삭제 시 COMMENT_OWNER_ONLY 예외가 발생한다")
-    void delete_notOwner_throwsException() {
-        Comment othersComment = commentByMember(999L, "남의 댓글");
-        given(commentRepository.findByIdAndDeletedAtIsNull(COMMENT_ID)).willReturn(Optional.of(othersComment));
-
-        assertThatThrownBy(() -> commentService.delete(MEMBER_ID, COMMENT_ID))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMMENT_OWNER_ONLY);
+            assertThatThrownBy(() -> commentService.delete(MEMBER_ID, COMMENT_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMMENT_OWNER_ONLY);
+        }
     }
 }
