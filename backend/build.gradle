@@ -20,6 +20,14 @@ repositories {
 ext {
 	springdocVersion = '2.8.6'
 	jjwtVersion = '0.12.6'
+	springAiVersion = '1.1.8'
+}
+
+// Spring AI BOM: spring-ai-* 의존성 버전을 일괄 관리
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+	}
 }
 
 dependencies {
@@ -28,9 +36,13 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
 	// Swagger / OpenAPI (Springdoc)
 	implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
+
+	// Spring AI (로컬 Ollama 모델 연동, 버전은 spring-ai-bom이 관리)
+	implementation 'org.springframework.ai:spring-ai-starter-model-ollama'
 
 	// JWT (jjwt)
 	implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
