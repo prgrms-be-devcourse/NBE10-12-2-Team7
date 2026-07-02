@@ -5,6 +5,8 @@ import com.dongnemarket.admin.dto.AdminReportStatusUpdateRequest;
 import com.dongnemarket.admin.repository.AdminReportRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
+import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.report.entity.Report;
 import com.dongnemarket.report.entity.ReportReason;
 import com.dongnemarket.report.entity.ReportStatus;
@@ -19,6 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,7 +43,9 @@ class AdminReportServiceTest {
     AdminReportService adminReportService;
 
     private Report existingReport() {
-        return Report.ofProduct(1L, 10L, ReportReason.FRAUD_SUSPECTED, "사기 의심 신고");
+        Member reporter = Member.createUser("reporter@example.com", "encoded", "reporter");
+        Product target = Product.create(reporter, null, "신고 대상 상품", "설명", BigDecimal.valueOf(10000), "서울");
+        return Report.ofProduct(reporter, target, ReportReason.FRAUD_SUSPECTED, "사기 의심 신고");
     }
 
     @Nested

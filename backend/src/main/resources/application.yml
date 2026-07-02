@@ -16,11 +16,22 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
+        # default_batch_fetch_size: 100 (임의 설정)
+
     open-in-view: false
 
   jackson:
     serialization:
       write-dates-as-timestamps: false   # LocalDateTime -> ISO-8601 문자열
+
+  # Spring AI - 로컬 Ollama (관리자 AI 어시스턴트)
+  ai:
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://10.111.111.90:11434}   # OpenVPN 내 Ollama 서버
+      chat:
+        options:
+          model: ${OLLAMA_MODEL:qwen3:14b}   # tool calling 지원 모델 필수 (gemma·qwen2.5-coder 불가, 실측)
+          temperature: 0.1                   # 관리 데이터 조회이므로 사실성 우선
 
 # JWT (시크릿은 운영 시 반드시 JWT_SECRET 환경변수로 교체)
 jwt:

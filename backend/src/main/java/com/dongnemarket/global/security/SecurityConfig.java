@@ -50,6 +50,8 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						// Swagger 문서
 						.requestMatchers(SWAGGER_WHITELIST).permitAll()
+						// 헬스체크(배포/모니터링용,인증 불필요)
+						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 						// 인증 불필요 (회원가입/로그인, 공개 조회)
 						.requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/products", "/api/products/{productId}").permitAll()
