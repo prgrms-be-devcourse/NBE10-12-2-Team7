@@ -54,6 +54,9 @@ public class Product extends BaseTimeEntity {
 	private long viewCount;
 
 	@Column(nullable = false)
+	private int favoriteCount;
+
+	@Column(nullable = false)
 	private boolean hidden;
 
 	@Column
@@ -72,6 +75,7 @@ public class Product extends BaseTimeEntity {
 		this.tradeStatus = TradeStatus.ON_SALE;
 		this.region = region;
 		this.viewCount = 0L;
+		this.favoriteCount = 0;
 		this.hidden = false;
 	}
 
@@ -150,6 +154,10 @@ public class Product extends BaseTimeEntity {
 
 	public long getViewCount() {
 		return viewCount;
+	}
+
+	public int getFavoriteCount() {
+		return favoriteCount;
 	}
 
 	public boolean isHidden() {
