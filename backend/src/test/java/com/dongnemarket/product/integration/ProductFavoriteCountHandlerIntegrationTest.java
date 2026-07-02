@@ -1,11 +1,13 @@
 package com.dongnemarket.product.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -58,6 +60,42 @@ class ProductFavoriteCountHandlerIntegrationTest extends BaseIntegrationTest {
 
 		Product foundProduct = productRepository.findById(product.getId()).orElseThrow();
 		assertThat(foundProduct.getFavoriteCount()).isZero();
+	}
+
+	@Nested
+	@DisplayName("관심 수 감소")
+	class DecreaseFavoriteCount {
+
+		@Test
+		@DisplayName("FavoriteRemovedEvent를 0인 상품에 발행해도 관심 수가 음수가 되지 않는다")
+		void doesNotDecreaseFavoriteCountBelowZeroWhenFavoriteRemovedEventPublished() {
+			Product product = saveProduct("removed-zero-event@example.com", "이벤트 감소 하한 상품");
+
+			eventPublisher.publishEvent(new FavoriteRemovedEvent(product.getId()));
+
+			Product foundProduct = productRepository.findById(product.getId()).orElseThrow();
+			assertThat(foundProduct.getFavoriteCount()).isZero();
+		}
+	}
+
+	@Nested
+	@DisplayName("오염된 입력")
+	class DirtyInput {
+
+		@Test
+		@DisplayName("존재하지 않는 상품 이벤트를 발행해도 예외가 발생하지 않고 정상 상품은 변경되지 않는다")
+		void doesNotThrowAndDoesNotChangeNormalProductWhenMissingProductEventsPublished() {
+			Product product = saveProduct("missing-event@example.com", "오염된 입력 기준 상품");
+			Long missingProductId = Long.MAX_VALUE;
+
+			assertThatCode(() -> {
+				eventPublisher.publishEvent(new FavoriteAddedEvent(missingProductId));
+				eventPublisher.publishEvent(new FavoriteRemovedEvent(missingProductId));
+			}).doesNotThrowAnyException();
+
+			Product foundProduct = productRepository.findById(product.getId()).orElseThrow();
+			assertThat(foundProduct.getFavoriteCount()).isZero();
+		}
 	}
 
 	private Product saveProduct(String email, String title) {
