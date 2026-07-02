@@ -4,12 +4,15 @@ import com.dongnemarket.favorite.dto.FavoriteResponse;
 import com.dongnemarket.favorite.dto.MyFavoriteResponse;
 import com.dongnemarket.favorite.entity.Favorite;
 import com.dongnemarket.favorite.repository.FavoriteRepository;
+import com.dongnemarket.global.common.event.FavoriteAddedEvent;
+import com.dongnemarket.global.common.event.FavoriteRemovedEvent;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.service.ProductService;
 import jakarta.persistence.EntityManager;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,13 +26,16 @@ public class FavoriteService {
     private final FavoriteRepository favoriteRepository;
     private final ProductService productService;
     private final EntityManager entityManager;
+    private final ApplicationEventPublisher eventPublisher;
 
     public FavoriteService(FavoriteRepository favoriteRepository,
                            ProductService productService,
-                           EntityManager entityManager) {
+                           EntityManager entityManager,
+                           ApplicationEventPublisher eventPublisher) {
         this.favoriteRepository = favoriteRepository;
         this.productService = productService;
         this.entityManager = entityManager;
+        this.eventPublisher = eventPublisher;
     }
 
     /** 관심 상품 등록. 로그인 사용자가 특정 상품을 관심 목록에 추가한다. */
@@ -39,13 +45,17 @@ public class FavoriteService {
 
         Member member = entityManager.find(Member.class, memberId);
         Product product = entityManager.find(Product.class, productId);
+        Favorite saved;
         try {
-            Favorite saved = favoriteRepository.save(Favorite.of(member, product));
-            return FavoriteResponse.from(saved);
+            saved = favoriteRepository.save(Favorite.of(member, product));
         } catch (DataIntegrityViolationException e) {
             // 중복 체크 통과 후 save() 사이의 race condition으로 UNIQUE 제약을 위반한 경우
             throw new BusinessException(ErrorCode.FAVORITE_ALREADY_EXISTS);
         }
+        // 같은 트랜잭션 내 동기 리스너가 Product.favoriteCount를 1 증가시킨다(무결성 보장).
+        // 발행은 catch 밖에 두어, 리스너 예외가 race condition으로 오분류되지 않게 한다.
+        eventPublisher.publishEvent(new FavoriteAddedEvent(productId));
+        return FavoriteResponse.from(saved);
     }
 
     /**
@@ -66,6 +76,8 @@ public class FavoriteService {
         Favorite favorite = favoriteRepository.findByMember_IdAndProduct_Id(memberId, productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FAVORITE_NOT_FOUND));
         favoriteRepository.delete(favorite);
+        // 같은 트랜잭션 내 동기 리스너가 Product.favoriteCount를 1 감소시킨다(무결성 보장).
+        eventPublisher.publishEvent(new FavoriteRemovedEvent(productId));
     }
 
     /**

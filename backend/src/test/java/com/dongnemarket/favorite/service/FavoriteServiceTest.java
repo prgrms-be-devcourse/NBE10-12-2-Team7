@@ -4,6 +4,8 @@ import com.dongnemarket.favorite.dto.FavoriteResponse;
 import com.dongnemarket.favorite.dto.MyFavoriteResponse;
 import com.dongnemarket.favorite.entity.Favorite;
 import com.dongnemarket.favorite.repository.FavoriteRepository;
+import com.dongnemarket.global.common.event.FavoriteAddedEvent;
+import com.dongnemarket.global.common.event.FavoriteRemovedEvent;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.entity.Member;
@@ -11,6 +13,7 @@ import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.service.ProductService;
 import jakarta.persistence.EntityManager;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +48,9 @@ class FavoriteServiceTest {
     @Mock
     EntityManager entityManager;
 
+    @Mock
+    ApplicationEventPublisher eventPublisher;
+
     @InjectMocks
     FavoriteService favoriteService;
 
@@ -74,6 +80,32 @@ class FavoriteServiceTest {
         FavoriteResponse response = favoriteService.add(MEMBER_ID, PRODUCT_ID);
 
         assertThat(response.getProductId()).isEqualTo(PRODUCT_ID);
+    }
+
+    @Test
+    @DisplayName("관심 등록에 성공하면 해당 상품의 FavoriteAddedEvent를 발행한다")
+    void add_success_publishesFavoriteAddedEvent() {
+        Product product = mock(Product.class);
+        given(product.getId()).willReturn(PRODUCT_ID);
+        given(favoriteRepository.existsByMember_IdAndProduct_Id(MEMBER_ID, PRODUCT_ID)).willReturn(false);
+        given(entityManager.find(Member.class, MEMBER_ID)).willReturn(mock(Member.class));
+        given(entityManager.find(Product.class, PRODUCT_ID)).willReturn(product);
+        given(favoriteRepository.save(any(Favorite.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        favoriteService.add(MEMBER_ID, PRODUCT_ID);
+
+        verify(eventPublisher).publishEvent(new FavoriteAddedEvent(PRODUCT_ID));
+    }
+
+    @Test
+    @DisplayName("관심 등록 실패(중복) 시에는 FavoriteAddedEvent를 발행하지 않는다")
+    void add_duplicate_doesNotPublishEvent() {
+        given(favoriteRepository.existsByMember_IdAndProduct_Id(MEMBER_ID, PRODUCT_ID)).willReturn(true);
+
+        assertThatThrownBy(() -> favoriteService.add(MEMBER_ID, PRODUCT_ID))
+                .isInstanceOf(BusinessException.class);
+
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -157,6 +189,30 @@ class FavoriteServiceTest {
         favoriteService.remove(MEMBER_ID, PRODUCT_ID);
 
         verify(favoriteRepository).delete(favorite);
+    }
+
+    @Test
+    @DisplayName("관심 취소에 성공하면 해당 상품의 FavoriteRemovedEvent를 발행한다")
+    void remove_success_publishesFavoriteRemovedEvent() {
+        Favorite favorite = Favorite.of(mock(Member.class), mock(Product.class));
+        given(favoriteRepository.findByMember_IdAndProduct_Id(MEMBER_ID, PRODUCT_ID))
+                .willReturn(Optional.of(favorite));
+
+        favoriteService.remove(MEMBER_ID, PRODUCT_ID);
+
+        verify(eventPublisher).publishEvent(new FavoriteRemovedEvent(PRODUCT_ID));
+    }
+
+    @Test
+    @DisplayName("관심 취소 실패(미등록) 시에는 FavoriteRemovedEvent를 발행하지 않는다")
+    void remove_notFound_doesNotPublishEvent() {
+        given(favoriteRepository.findByMember_IdAndProduct_Id(MEMBER_ID, PRODUCT_ID))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> favoriteService.remove(MEMBER_ID, PRODUCT_ID))
+                .isInstanceOf(BusinessException.class);
+
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
