@@ -1,5 +1,6 @@
 package com.dongnemarket.global.security;
 
+import com.dongnemarket.global.security.jwt.JwtTokenProvider;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.DisplayName;
@@ -30,6 +31,9 @@ class SecurityPolicyTest {
 
 	@Autowired
 	MockMvc mockMvc;
+
+	@Autowired
+	JwtTokenProvider jwtTokenProvider;
 
 	@Test
 	@DisplayName("인증 없이 보호 API 접근 시 401 + 공통 ErrorResponse(JSON)")
@@ -72,6 +76,17 @@ class SecurityPolicyTest {
 
 		mockMvc.perform(get("/api/admin/members")
 						.header("Authorization", "Bearer " + forgedToken))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("INVALID_TOKEN"));
+	}
+
+	@Test
+	@DisplayName("Refresh Token으로 보호 API 접근 시 401 + INVALID_TOKEN (Access Token 용도로 사용 불가)")
+	void protectedApi_withRefreshToken_returns401InvalidToken() throws Exception {
+		String refreshToken = jwtTokenProvider.createRefreshToken(1L);
+
+		mockMvc.perform(get("/api/admin/members")
+						.header("Authorization", "Bearer " + refreshToken))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error").value("INVALID_TOKEN"));
 	}
