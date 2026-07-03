@@ -51,8 +51,13 @@ docs/
 │   └── ai-native-collaboration-scenario.md   하루 흐름 시나리오(예시)
 ├── convention/
 │   └── git-collaboration.md           Git/GitHub 협업 규칙
-└── architecture/                      시스템 구조 문서 (C4 기반: context·container·application·erd)
-    └── README.md                      구조 문서 인덱스
+└── architecture/                      시스템 구조 문서 (C4 기반)
+    ├── 01-context.md                  C4 L1 — 시스템 컨텍스트
+    ├── 02-container.md                C4 L2 — 컨테이너
+    ├── 03-application.md              C4 L3 — 애플리케이션(컴포넌트)
+    ├── 04-erd.md                      데이터 모델(ERD)
+    ├── 05-flows.md                    주요 흐름
+    └── 06-admin-module.md             admin 모듈 구현(as-built) — 팀장
 ```
 
 > PR 리뷰·통합 도구는 팀장이 별도로 보유한다(팀원 폴더에는 없음).
