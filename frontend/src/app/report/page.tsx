@@ -1,11 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { Suspense, useRef, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { apiFetch, bootstrapAutoLogin } from '@/lib/apiClient'
 import { getAccessToken } from '@/lib/auth'
 import { REPORT_REASONS, type ReportReason } from '@/lib/reportReasons'
 import styles from './page.module.css'
+
+type LoadStatus = 'checking' | 'ready' | 'unauthenticated'
 
 type TargetType = 'product' | 'member'
 
@@ -42,8 +45,18 @@ function ReportForm() {
   const [contentErr, setContentErr] = useState('')
   const [formMsg, setFormMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>('checking')
 
-  const token = getAccessToken()
+  useEffect(() => {
+    let cancelled = false
+    async function init() {
+      // accessToken이 없어도 refreshToken이 남아있으면 재발급을 먼저 시도한다(자동 로그인).
+      if (!getAccessToken()) await bootstrapAutoLogin()
+      if (!cancelled) setLoadStatus(getAccessToken() ? 'ready' : 'unauthenticated')
+    }
+    init()
+    return () => { cancelled = true }
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -78,12 +91,9 @@ function ReportForm() {
       : `/api/members/${targetId}/reports`
 
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason, content: content.trim() }),
       })
 
@@ -107,7 +117,20 @@ function ReportForm() {
     ? [styles.formMsg, styles.show, styles[formMsg.type]].join(' ')
     : styles.formMsg
 
-  if (!token) {
+  if (loadStatus === 'checking') {
+    return (
+      <main className={styles.wrap}>
+        <div className={styles.intro}>
+          <span className={styles.badge}>🚨 신고 접수</span>
+          <h1>신고 작성</h1>
+          <p>부적절한 상품이나 사용자를 신고해주세요. 접수된 신고는 운영팀이 검토합니다.</p>
+        </div>
+        <div className={styles.card}><p>불러오는 중...</p></div>
+      </main>
+    )
+  }
+
+  if (loadStatus === 'unauthenticated') {
     return (
       <main className={styles.wrap}>
         <div className={styles.intro}>

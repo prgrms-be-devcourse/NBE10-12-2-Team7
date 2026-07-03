@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { getAccessToken } from '@/lib/auth'
+import { apiFetch } from '@/lib/apiClient'
 import { TRADE_STATUS_LABEL, type TradeStatus } from '@/lib/tradeStatus'
 import styles from './page.module.css'
 
@@ -17,7 +17,7 @@ interface FavoriteProduct {
   }
 }
 
-type PageStatus = 'loading' | 'ready' | 'unauthenticated' | 'error'
+type PageStatus = 'loading' | 'ready' | 'error'
 
 function priceText(price: number) {
   return price === 0 ? '나눔' : price.toLocaleString('ko-KR') + '원'
@@ -46,13 +46,9 @@ export default function FavoritesPage() {
   }
 
   useEffect(() => {
-    const token = getAccessToken()
-    if (!token) { setStatus('unauthenticated'); return }
-
     let cancelled = false
-    fetch('/api/members/me/favorites', { headers: { Authorization: `Bearer ${token}` } })
+    apiFetch('/api/members/me/favorites')
       .then(async r => {
-        if (r.status === 401) { if (!cancelled) setStatus('unauthenticated'); return }
         const data = await r.json().catch(() => null)
         if (!r.ok) throw new Error(data?.message ?? '관심 상품을 불러오지 못했습니다.')
         if (!cancelled) {
@@ -66,13 +62,8 @@ export default function FavoritesPage() {
 
   async function removeFavorite(e: React.MouseEvent, productId: number) {
     e.preventDefault()
-    const token = getAccessToken()
-    if (!token) return
     try {
-      const res = await fetch(`/api/products/${productId}/favorites`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await apiFetch(`/api/products/${productId}/favorites`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json().catch(() => null)
         showToast(data?.message ?? '해제 중 오류가 발생했습니다.')
@@ -97,13 +88,6 @@ export default function FavoritesPage() {
         </h1>
         <p>찜해둔 상품 <b>{favorites.length}</b>개예요. 하트를 다시 누르면 관심에서 빠져요.</p>
       </div>
-
-      {status === 'unauthenticated' && (
-        <div className={styles.empty}>
-          <p>로그인 후 관심 상품을 확인할 수 있어요.</p>
-          <Link href="/login" className={styles.emptyBtn}>로그인하기</Link>
-        </div>
-      )}
 
       {status === 'loading' && (
         <div className={styles.empty}><p>불러오는 중...</p></div>

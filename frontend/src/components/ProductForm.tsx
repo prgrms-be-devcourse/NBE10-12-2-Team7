@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { apiFetch, bootstrapAutoLogin } from '@/lib/apiClient'
 import { getAccessToken, getCurrentMemberId } from '@/lib/auth'
 import styles from './ProductForm.module.css'
 
@@ -42,47 +43,56 @@ export default function ProductForm({ editId }: Props) {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    const token = getAccessToken()
-    if (!token) { setLoadStatus('unauthenticated'); return }
-
     let cancelled = false
-    const requests: Promise<unknown>[] = [fetch('/api/categories').then(r => r.json())]
-    if (isEdit) requests.push(fetch(`/api/products/${editId}`).then(async r => ({ ok: r.ok, data: await r.json().catch(() => null) })))
 
-    Promise.all(requests).then(results => {
+    async function init() {
+      // accessToken이 없어도 refreshToken이 남아있으면 재발급을 먼저 시도한다(자동 로그인).
+      if (!getAccessToken()) await bootstrapAutoLogin()
       if (cancelled) return
-      const categoriesRes = results[0] as { data?: Category[] }
-      setCategories(categoriesRes?.data ?? [])
+      if (!getAccessToken()) { setLoadStatus('unauthenticated'); return }
+      await loadFormData()
+    }
 
-      if (isEdit) {
-        const productRes = results[1] as { ok: boolean; data: { data?: {
-          memberId: number; categoryId: number; title: string; description: string; price: number; region: string
-          thumbnailUrl?: string; imageUrls?: string[]
-        } } }
-        if (!productRes.ok || !productRes.data?.data) {
-          setLoadStatus('error')
-          return
-        }
-        const product = productRes.data.data
-        const myId = getCurrentMemberId()
-        if (myId === null || product.memberId !== myId) {
-          setLoadStatus('forbidden')
-          return
-        }
-        setTitle(product.title)
-        setCategoryId(product.categoryId)
-        setRegion(product.region)
-        setPrice(product.price === 0 ? '' : product.price.toLocaleString('ko-KR'))
-        setIsFree(product.price === 0)
-        setDesc(product.description)
-        const fetchedImages = product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls : ['']
-        setImages(fetchedImages)
-        const thumbIdx = product.thumbnailUrl ? fetchedImages.indexOf(product.thumbnailUrl) : 0
-        setThumbnailIndex(thumbIdx === -1 ? 0 : thumbIdx)
-      }
-      setLoadStatus('ready')
-    }).catch(() => { if (!cancelled) setLoadStatus('error') })
+    async function loadFormData() {
+      const requests: Promise<unknown>[] = [fetch('/api/categories').then(r => r.json())]
+      if (isEdit) requests.push(fetch(`/api/products/${editId}`).then(async r => ({ ok: r.ok, data: await r.json().catch(() => null) })))
 
+      await Promise.all(requests).then(results => {
+        if (cancelled) return
+        const categoriesRes = results[0] as { data?: Category[] }
+        setCategories(categoriesRes?.data ?? [])
+
+        if (isEdit) {
+          const productRes = results[1] as { ok: boolean; data: { data?: {
+            memberId: number; categoryId: number; title: string; description: string; price: number; region: string
+            thumbnailUrl?: string; imageUrls?: string[]
+          } } }
+          if (!productRes.ok || !productRes.data?.data) {
+            setLoadStatus('error')
+            return
+          }
+          const product = productRes.data.data
+          const myId = getCurrentMemberId()
+          if (myId === null || product.memberId !== myId) {
+            setLoadStatus('forbidden')
+            return
+          }
+          setTitle(product.title)
+          setCategoryId(product.categoryId)
+          setRegion(product.region)
+          setPrice(product.price === 0 ? '' : product.price.toLocaleString('ko-KR'))
+          setIsFree(product.price === 0)
+          setDesc(product.description)
+          const fetchedImages = product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls : ['']
+          setImages(fetchedImages)
+          const thumbIdx = product.thumbnailUrl ? fetchedImages.indexOf(product.thumbnailUrl) : 0
+          setThumbnailIndex(thumbIdx === -1 ? 0 : thumbIdx)
+        }
+        setLoadStatus('ready')
+      }).catch(() => { if (!cancelled) setLoadStatus('error') })
+    }
+
+    init()
     return () => { cancelled = true }
   }, [isEdit, editId])
 
@@ -171,9 +181,6 @@ export default function ProductForm({ editId }: Props) {
       return
     }
 
-    const token = getAccessToken()
-    if (!token) { setLoadStatus('unauthenticated'); return }
-
     const { trimmed, nonBlankIndices } = getValidImages()
     const imageUrls = nonBlankIndices.map(i => trimmed[i])
     const payloadThumbnailIndex = Math.max(0, nonBlankIndices.indexOf(thumbnailIndex))
@@ -192,9 +199,9 @@ export default function ProductForm({ editId }: Props) {
 
     setSubmitting(true)
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
       const data = await res.json().catch(() => null)

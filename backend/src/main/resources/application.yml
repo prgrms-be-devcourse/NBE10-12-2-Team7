@@ -34,6 +34,12 @@ jwt:
   access-token-validity-seconds: ${JWT_ACCESS_TTL:900}
   refresh-token-validity-seconds: ${JWT_REFRESH_TTL:604800}
 
+# Refresh Token 쿠키. HTTPS 적용 전까지는 false 유지 — true인데 HTTP면 브라우저가 쿠키를 저장하지 않는다.
+auth:
+  cookie:
+    secure: ${AUTH_COOKIE_SECURE:false}
+
+# Swagger / Springdoc
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

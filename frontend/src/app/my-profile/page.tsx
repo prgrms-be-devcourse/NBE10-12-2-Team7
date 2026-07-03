@@ -1,12 +1,12 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { ACCESS_TOKEN_KEY, getAccessToken } from '@/lib/auth'
+import { apiFetch } from '@/lib/apiClient'
+import { clearAccessToken } from '@/lib/auth'
 import styles from './page.module.css'
 
 type MsgType = 'success' | 'error'
-type PageStatus = 'loading' | 'ready' | 'unauthenticated' | 'error'
+type PageStatus = 'loading' | 'ready' | 'error'
 
 interface Member {
   memberId: number
@@ -41,13 +41,9 @@ export default function MyProfilePage() {
   }
 
   useEffect(() => {
-    const token = getAccessToken()
-    if (!token) { setStatus('unauthenticated'); return }
-
     let cancelled = false
-    fetch('/api/members/me', { headers: { Authorization: `Bearer ${token}` } })
+    apiFetch('/api/members/me')
       .then(async res => {
-        if (res.status === 401) { if (!cancelled) setStatus('unauthenticated'); return }
         const data = await res.json().catch(() => null)
         if (!res.ok) throw new Error(data?.message ?? '회원 정보를 불러오지 못했습니다.')
         if (!cancelled) {
@@ -76,14 +72,11 @@ export default function MyProfilePage() {
     }
     setNicknameHint({ text: '', kind: 'ok' })
 
-    const token = getAccessToken()
-    if (!token) { setStatus('unauthenticated'); return }
-
     setSaving(true)
     try {
-      const res = await fetch('/api/members/me', {
+      const res = await apiFetch('/api/members/me', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nickname: nv }),
       })
       const data = await res.json().catch(() => null)
@@ -104,22 +97,16 @@ export default function MyProfilePage() {
   async function handleWithdraw() {
     if (!window.confirm('정말 탈퇴하시겠어요? 이 작업은 되돌릴 수 없어요.')) return
 
-    const token = getAccessToken()
-    if (!token) { setStatus('unauthenticated'); return }
-
     setWithdrawing(true)
     try {
-      const res = await fetch('/api/members/me', {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await apiFetch('/api/members/me', { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json().catch(() => null)
         showToast(data?.message ?? '탈퇴 처리 중 오류가 발생했습니다.')
         setWithdrawing(false)
         return
       }
-      try { localStorage.removeItem(ACCESS_TOKEN_KEY) } catch {}
+      clearAccessToken()
       showToast('탈퇴 처리되었습니다')
       setTimeout(() => { window.location.href = '/login' }, 1200)
     } catch {
@@ -143,21 +130,6 @@ export default function MyProfilePage() {
           <p>계정 정보를 확인하고 프로필을 수정할 수 있어요.</p>
         </div>
         <div className={styles.notice}><p>불러오는 중...</p></div>
-      </main>
-    )
-  }
-
-  if (status === 'unauthenticated') {
-    return (
-      <main className={styles.wrap}>
-        <div className={styles.intro}>
-          <h1>내 정보</h1>
-          <p>계정 정보를 확인하고 프로필을 수정할 수 있어요.</p>
-        </div>
-        <div className={styles.notice}>
-          <p>로그인 후 내 정보를 확인할 수 있어요.</p>
-          <Link href="/login" className={`btn ${styles.noticeBtn}`}>로그인하기</Link>
-        </div>
       </main>
     )
   }
