@@ -2,12 +2,12 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { getAccessToken } from '@/lib/auth'
+import { apiFetch } from '@/lib/apiClient'
 import { TRADE_STATUS_LABEL, type TradeStatus } from '@/lib/tradeStatus'
 import styles from './page.module.css'
 
 type FilterTab = '전체' | TradeStatus
-type PageStatus = 'loading' | 'ready' | 'unauthenticated' | 'error'
+type PageStatus = 'loading' | 'ready' | 'error'
 
 interface MyProduct {
   productId: number
@@ -52,13 +52,9 @@ export default function MyProductsPage() {
   }
 
   useEffect(() => {
-    const token = getAccessToken()
-    if (!token) { setStatus('unauthenticated'); return }
-
     let cancelled = false
-    fetch('/api/products/me', { headers: { Authorization: `Bearer ${token}` } })
+    apiFetch('/api/products/me')
       .then(async r => {
-        if (r.status === 401) { if (!cancelled) setStatus('unauthenticated'); return }
         const data = await r.json().catch(() => null)
         if (!r.ok) throw new Error(data?.message ?? '내 상품을 불러오지 못했습니다.')
         if (!cancelled) {
@@ -71,13 +67,11 @@ export default function MyProductsPage() {
   }, [])
 
   async function changeStatus(productId: number, newStatus: TradeStatus) {
-    const token = getAccessToken()
-    if (!token) return
     const product = products.find(p => p.productId === productId)
     try {
-      const res = await fetch(`/api/products/${productId}/status`, {
+      const res = await apiFetch(`/api/products/${productId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tradeStatus: newStatus }),
       })
       const data = await res.json().catch(() => null)
@@ -91,13 +85,8 @@ export default function MyProductsPage() {
 
   async function deleteProduct(productId: number, title: string) {
     if (!window.confirm(`"${title}" 상품을 삭제할까요?`)) return
-    const token = getAccessToken()
-    if (!token) return
     try {
-      const res = await fetch(`/api/products/${productId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await apiFetch(`/api/products/${productId}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json().catch(() => null)
         showToast(data?.message ?? '삭제 중 오류가 발생했습니다.')
@@ -128,13 +117,6 @@ export default function MyProductsPage() {
           <p>내가 등록한 상품을 관리하고 거래 상태를 변경할 수 있어요.</p>
         </div>
       </div>
-
-      {status === 'unauthenticated' && (
-        <div className={styles.empty}>
-          <p>로그인 후 내 상품을 확인할 수 있어요.</p>
-          <Link href="/login" className={styles.emptyBtn}>로그인하기</Link>
-        </div>
-      )}
 
       {status === 'loading' && (
         <div className={styles.empty}><p>불러오는 중...</p></div>

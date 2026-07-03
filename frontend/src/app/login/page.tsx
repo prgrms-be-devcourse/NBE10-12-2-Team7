@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { ACCESS_TOKEN_KEY } from '@/lib/auth'
+import { setAccessToken } from '@/lib/auth'
 import styles from './page.module.css'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -13,6 +13,7 @@ type MsgType = 'success' | 'error'
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [autoLogin, setAutoLogin] = useState(false)
 
   const [emailHint, setEmailHint] = useState<Hint>({ text: '' })
   const [passwordHint, setPasswordHint] = useState<Hint>({ text: '' })
@@ -43,8 +44,9 @@ export default function LoginPage() {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: email.trim(), password, autoLogin }),
       })
       const data = await res.json().catch(() => null)
 
@@ -56,7 +58,7 @@ export default function LoginPage() {
 
       const accessToken = data?.data?.accessToken
       if (accessToken) {
-        try { localStorage.setItem(ACCESS_TOKEN_KEY, accessToken) } catch {}
+        setAccessToken(accessToken)
       }
       setFormMsg({ text: '로그인되었습니다. 이동합니다.', type: 'success' })
       setTimeout(() => { window.location.href = '/products' }, 900)
@@ -109,6 +111,16 @@ export default function LoginPage() {
               aria-invalid={passwordHint.kind === 'err' ? 'true' : 'false'}
             />
             <div className={hintClass(passwordHint.kind)}>{passwordHint.text}</div>
+          </div>
+
+          <div className={styles.autoLoginRow}>
+            <input
+              type="checkbox"
+              id="autoLogin"
+              checked={autoLogin}
+              onChange={e => setAutoLogin(e.target.checked)}
+            />
+            <label htmlFor="autoLogin">자동 로그인</label>
           </div>
 
           <button type="submit" className="btn block" disabled={submitting}>

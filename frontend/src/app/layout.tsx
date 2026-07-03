@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import AuthBootstrap from '@/components/AuthBootstrap'
 import Header from '@/components/Header'
 import './globals.css'
 
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
+        <AuthBootstrap />
         <Header />
         {children}
       </body>

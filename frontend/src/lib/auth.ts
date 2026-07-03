@@ -1,11 +1,20 @@
-export const ACCESS_TOKEN_KEY = 'marketon-access-token'
+/**
+ * Access Token은 모듈 스코프 변수에만 보관한다(localStorage/sessionStorage 사용 안 함).
+ * 새로고침하면 사라지는 게 의도된 동작 — apiClient.bootstrapAutoLogin()이
+ * HttpOnly Refresh Token 쿠키로 재발급받아 복구한다.
+ */
+let accessToken: string | null = null
 
 export function getAccessToken(): string | null {
-  try {
-    return localStorage.getItem(ACCESS_TOKEN_KEY)
-  } catch {
-    return null
-  }
+  return accessToken
+}
+
+export function setAccessToken(token: string): void {
+  accessToken = token
+}
+
+export function clearAccessToken(): void {
+  accessToken = null
 }
 
 function decodeTokenPayload(): Record<string, unknown> | null {

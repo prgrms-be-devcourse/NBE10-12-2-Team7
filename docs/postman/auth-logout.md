@@ -4,8 +4,9 @@
 
 ## 현재 검증 상태
 - [x] 로그인한 사용자가 로그아웃하면 200 확인 완료
+- [x] 로그아웃 응답에 `Set-Cookie: refreshToken=; Max-Age=0`(쿠키 만료)이 포함됨을 확인 완료 — 쿠키 전환 이후 신규 확인 항목
 - [x] 로그아웃을 두 번 연속 호출해도 둘 다 200(멱등) 확인 완료
-- [x] 로그아웃 이후 기존 Refresh Token으로 재발급 시도 시 401 `REFRESH_TOKEN_NOT_FOUND` 확인 완료
+- [x] 로그아웃 이후 기존 Refresh Token 쿠키로 재발급 시도 시 401 `REFRESH_TOKEN_NOT_FOUND` 확인 완료
 - [x] 인증 헤더 없이 로그아웃 시도 시 401 `UNAUTHORIZED` 확인 완료
 - [x] 로그아웃 이후에도 기존 Access Token으로 다른 보호 API(`GET /api/members/me`) 호출은 계속 성공함을 확인 완료 (Stateless 정책 — 아래 "동작 방식" 참고)
 - [x] `refresh_tokens` 테이블에서 해당 회원의 row가 실제로 삭제됨을 DB 직접 조회로 확인 완료
@@ -17,16 +18,16 @@
 
 | 항목 | 내용 |
 |---|---|
-| 요청 방식 | `POST /api/auth/logout`, 요청 본문 없음 |
+| 요청 방식 | `POST /api/auth/logout`, 요청 본문 없음, `credentials:'include'` 필요(쿠키 삭제 응답을 받으려면) |
 | 필요 헤더 | `Authorization: Bearer {accessToken}` (필수 — 없으면 401) |
-| 성공 응답 | `200`, `data` 없음 |
+| 성공 응답 | `200`, `data` 없음, `Set-Cookie: refreshToken=; Max-Age=0`으로 쿠키 만료 |
 | 실패 응답 | 토큰 없음/무효 → `401 UNAUTHORIZED` (기존 공통 인증 실패 처리, 로그아웃 전용 에러 아님) |
-| 쿠키 사용 여부 | **사용하지 않음.** Access/Refresh Token 모두 로그인·재발급 응답의 JSON `data` 필드로만 내려간다. 서버가 `Set-Cookie`로 아무것도 지우지 않으므로, 프론트가 직접 클라이언트 저장소(메모리/localStorage 등)에서 토큰을 지워야 한다 |
+| 쿠키 사용 여부 | **Refresh Token은 HttpOnly 쿠키로 관리된다**(2026-07-03 전환). 로그아웃 시 서버가 `Set-Cookie`로 쿠키를 직접 만료시키므로, 프론트는 쿠키를 직접 지울 필요가 없다 — 메모리에 든 Access Token만 지우면 된다 |
 | 멱등성 | 여러 번 호출해도 항상 200. 이미 로그아웃된 상태에서 다시 호출해도 에러가 나지 않는다 |
 
 **로그아웃 후 프론트 처리 흐름**
-1. `POST /api/auth/logout` 호출 (Access Token 헤더 포함)
-2. 응답 상태와 무관하게(멱등이므로 실패할 일이 거의 없지만, 네트워크 오류 등으로 실패해도) 클라이언트에 저장된 `accessToken`/`refreshToken`을 즉시 삭제
+1. `POST /api/auth/logout` 호출 (`credentials:'include'` + Access Token 헤더 포함)
+2. 응답 상태와 무관하게(멱등이므로 실패할 일이 거의 없지만, 네트워크 오류 등으로 실패해도) 메모리에 보관 중인 Access Token을 즉시 삭제(Refresh Token 쿠키는 서버가 이미 만료시킴)
 3. 로그인 페이지 등으로 이동
 
 **일반 사용자 페이지 / 관리자 페이지 공통 사용**
@@ -48,12 +49,16 @@ Authorization: Bearer {accessToken}
 ```
 
 **Response** `200 OK`
+```
+Set-Cookie: refreshToken=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax
+```
 ```json
 {
   "status": 200,
   "message": "요청이 성공적으로 처리되었습니다."
 }
 ```
+`Set-Cookie`의 `Max-Age=0`으로 브라우저가 즉시 쿠키를 삭제한다 — 로그인 때 내려간 `refreshToken` 쿠키와 동일한 이름·경로로 값만 비워 재설정하는 표준적인 쿠키 삭제 방식이다.
 
 ## 2) 성공 — 로그아웃을 두 번 연속 호출해도 둘 다 200 (멱등)
 
@@ -81,15 +86,12 @@ POST /api/auth/logout
 
 ## 4) 로그아웃 이후 기존 Refresh Token으로 재발급 시도 → 실패
 
-로그아웃으로 삭제된 Refresh Token을 그대로 `/api/auth/reissue`에 사용.
+로그아웃으로 서버가 쿠키를 만료시켰지만, 로그아웃 전에 브라우저가 이미 저장해둔(또는 별도로 보관해둔) 옛 Refresh Token 값을 그대로 쿠키에 담아 재발급을 시도(탈취된 구 토큰 재사용 시나리오 재현).
 
 **Request**
 ```
 POST /api/auth/reissue
-Content-Type: application/json
-```
-```json
-{ "refreshToken": "eyJhbGciOiJIUzUxMiJ9...(로그아웃 전 발급된 값)" }
+Cookie: refreshToken=eyJhbGciOiJIUzUxMiJ9...(로그아웃 전 발급된 값)
 ```
 
 **Response** `401 Unauthorized`
@@ -98,7 +100,7 @@ Content-Type: application/json
   "status": 401,
   "error": "REFRESH_TOKEN_NOT_FOUND",
   "message": "Refresh Token 정보를 찾을 수 없습니다. 다시 로그인해주세요.",
-  "timestamp": "2026-07-03T15:35:27.5480177"
+  "timestamp": "2026-07-03T19:53:56.7586983"
 }
 ```
 (신규 ErrorCode 아님 — `docs/postman/auth-refresh-token.md`에 정의된 기존 `REFRESH_TOKEN_NOT_FOUND`(AUTH_007)를 그대로 재사용한다.)
@@ -140,8 +142,9 @@ mysql> SELECT id, member_id FROM refresh_tokens;
 ## 검증 체크리스트
 
 - [x] 로그인한 사용자가 로그아웃하면 200 반환
+- [x] 로그아웃 응답에 `Set-Cookie: refreshToken=; Max-Age=0`으로 쿠키가 만료됨
 - [x] 로그아웃을 여러 번 호출해도 항상 200(멱등)
 - [x] 인증 헤더 없이 로그아웃 시도 시 401 `UNAUTHORIZED`
-- [x] 로그아웃 후 기존 Refresh Token으로 재발급 시도 시 401 `REFRESH_TOKEN_NOT_FOUND`
+- [x] 로그아웃 후 기존 Refresh Token(쿠키 값)으로 재발급 시도 시 401 `REFRESH_TOKEN_NOT_FOUND`
 - [x] 로그아웃 후에도 기존 Access Token은 자연 만료 전까지 다른 보호 API에 그대로 사용 가능(Stateless 정책, 의도된 동작)
 - [x] DB에서 해당 회원의 `refresh_tokens` row만 정확히 삭제되고 다른 회원 row는 영향받지 않음

@@ -2,6 +2,7 @@ package com.dongnemarket.auth.controller;
 
 import com.dongnemarket.member.repository.MemberRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,7 +14,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -38,6 +41,11 @@ class AuthControllerTest {
 	@AfterEach
 	void cleanUp() {
 		memberRepository.deleteAll();
+	}
+
+	private String extractRefreshTokenCookie(MvcResult result) {
+		Cookie cookie = result.getResponse().getCookie("refreshToken");
+		return cookie != null ? cookie.getValue() : null;
 	}
 
 	@Test
@@ -92,7 +100,7 @@ class AuthControllerTest {
 	// ===== login =====
 
 	@Test
-	@DisplayName("올바른 이메일·비밀번호로 로그인하면 200과 accessToken·refreshToken을 반환한다")
+	@DisplayName("올바른 이메일·비밀번호로 로그인하면 200과 accessToken을 반환하고, Refresh Token은 HttpOnly 쿠키로 내려간다")
 	void login_success() throws Exception {
 		String signup = "{ \"email\": \"login@example.com\", \"password\": \"password123\", \"nickname\": \"loginUser\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
@@ -103,7 +111,38 @@ class AuthControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value(200))
 				.andExpect(jsonPath("$.data.accessToken").exists())
-				.andExpect(jsonPath("$.data.refreshToken").exists());
+				.andExpect(jsonPath("$.data.refreshToken").doesNotExist())
+				.andExpect(cookie().exists("refreshToken"))
+				.andExpect(cookie().httpOnly("refreshToken", true))
+				.andExpect(cookie().path("refreshToken", "/"));
+	}
+
+	@Test
+	@DisplayName("autoLogin=true로 로그인하면 Refresh Token 쿠키에 Max-Age(7일)가 설정된 영속 쿠키로 내려간다")
+	void login_autoLoginTrue_setsPersistentCookieWithMaxAge() throws Exception {
+		String signup = "{ \"email\": \"autologin-true@example.com\", \"password\": \"password123\", \"nickname\": \"autoLoginTrue\" }";
+		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
+				.andExpect(status().isCreated());
+
+		String login = "{ \"email\": \"autologin-true@example.com\", \"password\": \"password123\", \"autoLogin\": true }";
+		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
+				.andExpect(status().isOk())
+				.andExpect(cookie().exists("refreshToken"))
+				.andExpect(cookie().maxAge("refreshToken", 604800));
+	}
+
+	@Test
+	@DisplayName("autoLogin=false(또는 미지정)로 로그인하면 Refresh Token 쿠키가 Max-Age 없는 세션 쿠키로 내려간다")
+	void login_autoLoginFalse_setsSessionCookieWithoutMaxAge() throws Exception {
+		String signup = "{ \"email\": \"autologin-false@example.com\", \"password\": \"password123\", \"nickname\": \"autoLoginFalse\" }";
+		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
+				.andExpect(status().isCreated());
+
+		String login = "{ \"email\": \"autologin-false@example.com\", \"password\": \"password123\", \"autoLogin\": false }";
+		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
+				.andExpect(status().isOk())
+				.andExpect(cookie().exists("refreshToken"))
+				.andExpect(cookie().maxAge("refreshToken", -1));
 	}
 
 	@Test
@@ -152,7 +191,7 @@ class AuthControllerTest {
 	// ===== reissue =====
 
 	@Test
-	@DisplayName("유효한 Refresh Token으로 재발급하면 인증 헤더 없이도 200과 새 accessToken을 반환한다")
+	@DisplayName("유효한 Refresh Token 쿠키로 재발급하면 200과 새 accessToken을 반환한다")
 	void reissue_success() throws Exception {
 		String signup = "{ \"email\": \"reissue@example.com\", \"password\": \"password123\", \"nickname\": \"reissueUser\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
@@ -161,18 +200,16 @@ class AuthControllerTest {
 		String login = "{ \"email\": \"reissue@example.com\", \"password\": \"password123\" }";
 		MvcResult loginResult = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
 				.andReturn();
-		String refreshToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
-				.path("data").path("refreshToken").asText();
+		String refreshToken = extractRefreshTokenCookie(loginResult);
 
-		String reissueBody = String.format("{ \"refreshToken\": \"%s\" }", refreshToken);
-		mockMvc.perform(post("/api/auth/reissue").contentType(MediaType.APPLICATION_JSON).content(reissueBody))
+		mockMvc.perform(post("/api/auth/reissue").cookie(new Cookie("refreshToken", refreshToken)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.accessToken").exists())
-				.andExpect(jsonPath("$.data.refreshToken").value(refreshToken));
+				.andExpect(jsonPath("$.data.refreshToken").doesNotExist());
 	}
 
 	@Test
-	@DisplayName("Access Token으로 재발급을 시도하면 401과 INVALID_REFRESH_TOKEN을 반환한다")
+	@DisplayName("Access Token을 쿠키에 담아 재발급을 시도하면 401과 INVALID_REFRESH_TOKEN을 반환한다")
 	void reissue_withAccessToken_returnsInvalidRefreshToken() throws Exception {
 		String signup = "{ \"email\": \"reissue-access@example.com\", \"password\": \"password123\", \"nickname\": \"reissueAccess\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
@@ -184,28 +221,23 @@ class AuthControllerTest {
 		String accessToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
 				.path("data").path("accessToken").asText();
 
-		String reissueBody = String.format("{ \"refreshToken\": \"%s\" }", accessToken);
-		mockMvc.perform(post("/api/auth/reissue").contentType(MediaType.APPLICATION_JSON).content(reissueBody))
+		mockMvc.perform(post("/api/auth/reissue").cookie(new Cookie("refreshToken", accessToken)))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error").value("INVALID_REFRESH_TOKEN"));
 	}
 
 	@Test
-	@DisplayName("Refresh Token이 빈 값이면 400과 INVALID_INPUT_VALUE를 반환한다")
-	void reissue_blankRefreshToken() throws Exception {
-		String body = "{ \"refreshToken\": \"\" }";
-
-		mockMvc.perform(post("/api/auth/reissue").contentType(MediaType.APPLICATION_JSON).content(body))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
+	@DisplayName("Refresh Token 쿠키가 없으면 401과 INVALID_REFRESH_TOKEN을 반환한다")
+	void reissue_noCookie_returnsInvalidRefreshToken() throws Exception {
+		mockMvc.perform(post("/api/auth/reissue"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("INVALID_REFRESH_TOKEN"));
 	}
 
 	@Test
-	@DisplayName("형식이 깨진(malformed) Refresh Token으로 재발급하면 401과 INVALID_REFRESH_TOKEN을 반환한다")
+	@DisplayName("형식이 깨진(malformed) Refresh Token 쿠키로 재발급하면 401과 INVALID_REFRESH_TOKEN을 반환한다")
 	void reissue_malformedToken() throws Exception {
-		String body = "{ \"refreshToken\": \"not.a.valid.token\" }";
-
-		mockMvc.perform(post("/api/auth/reissue").contentType(MediaType.APPLICATION_JSON).content(body))
+		mockMvc.perform(post("/api/auth/reissue").cookie(new Cookie("refreshToken", "not.a.valid.token")))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error").value("INVALID_REFRESH_TOKEN"));
 	}
@@ -213,7 +245,7 @@ class AuthControllerTest {
 	// ===== logout =====
 
 	@Test
-	@DisplayName("로그인한 사용자가 로그아웃하면 200을 반환한다")
+	@DisplayName("로그인한 사용자가 로그아웃하면 200을 반환하고 Refresh Token 쿠키를 만료시킨다")
 	void logout_success() throws Exception {
 		String signup = "{ \"email\": \"logout@example.com\", \"password\": \"password123\", \"nickname\": \"logoutUser\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
@@ -225,9 +257,14 @@ class AuthControllerTest {
 		String accessToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
 				.path("data").path("accessToken").asText();
 
-		mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + accessToken))
+		MvcResult logoutResult = mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.status").value(200));
+				.andExpect(jsonPath("$.status").value(200))
+				.andReturn();
+
+		Cookie clearedCookie = logoutResult.getResponse().getCookie("refreshToken");
+		assertThat(clearedCookie).isNotNull();
+		assertThat(clearedCookie.getMaxAge()).isEqualTo(0);
 	}
 
 	@Test
@@ -266,15 +303,14 @@ class AuthControllerTest {
 		String login = "{ \"email\": \"logout-reissue@example.com\", \"password\": \"password123\" }";
 		MvcResult loginResult = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
 				.andReturn();
-		String loginBody = loginResult.getResponse().getContentAsString();
-		String accessToken = objectMapper.readTree(loginBody).path("data").path("accessToken").asText();
-		String refreshToken = objectMapper.readTree(loginBody).path("data").path("refreshToken").asText();
+		String accessToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
+				.path("data").path("accessToken").asText();
+		String refreshToken = extractRefreshTokenCookie(loginResult);
 
 		mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isOk());
 
-		String reissueBody = String.format("{ \"refreshToken\": \"%s\" }", refreshToken);
-		mockMvc.perform(post("/api/auth/reissue").contentType(MediaType.APPLICATION_JSON).content(reissueBody))
+		mockMvc.perform(post("/api/auth/reissue").cookie(new Cookie("refreshToken", refreshToken)))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error").value("REFRESH_TOKEN_NOT_FOUND"));
 	}

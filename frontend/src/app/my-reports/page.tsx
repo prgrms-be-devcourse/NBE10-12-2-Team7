@@ -1,15 +1,14 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { getAccessToken } from '@/lib/auth'
+import { apiFetch } from '@/lib/apiClient'
 import { REPORT_REASON_LABEL, type ReportReason } from '@/lib/reportReasons'
 import styles from './page.module.css'
 
 type ReportType = 'PRODUCT' | 'MEMBER'
 type ReportStatus = 'RECEIVED' | 'REVIEWING' | 'COMPLETED' | 'REJECTED'
 type FilterTab = '전체' | ReportStatus
-type PageStatus = 'loading' | 'ready' | 'unauthenticated' | 'error'
+type PageStatus = 'loading' | 'ready' | 'error'
 
 interface MyReport {
   reportId: number
@@ -52,16 +51,10 @@ export default function MyReportsPage() {
   const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
-    const token = getAccessToken()
-    if (!token) { setStatus('unauthenticated'); return }
-
     let cancelled = false
 
-    fetch('/api/members/me/reports', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    apiFetch('/api/members/me/reports')
       .then(async res => {
-        if (res.status === 401) { if (!cancelled) setStatus('unauthenticated'); return }
         const data = await res.json().catch(() => null)
         if (!res.ok) throw new Error(data?.message ?? '신고 내역을 불러오지 못했습니다.')
         if (!cancelled) {
@@ -90,14 +83,6 @@ export default function MyReportsPage() {
 
       {status === 'loading' && (
         <div className={styles.empty}><p>불러오는 중...</p></div>
-      )}
-
-      {status === 'unauthenticated' && (
-        <div className={styles.empty}>
-          <div className={styles.emptyIcon}>🔒</div>
-          <p>로그인 후 신고 내역을 확인할 수 있어요.</p>
-          <Link href="/login" className={`btn ${styles.loginBtn}`}>로그인하기</Link>
-        </div>
       )}
 
       {status === 'error' && (

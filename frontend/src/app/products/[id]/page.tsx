@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { apiFetch } from '@/lib/apiClient'
 import { getAccessToken, getCurrentMemberId } from '@/lib/auth'
 import { TRADE_STATUS_LABEL, type TradeStatus } from '@/lib/tradeStatus'
 import styles from './page.module.css'
@@ -107,9 +108,8 @@ export default function ProductDetailPage() {
   }, [id])
 
   useEffect(() => {
-    const token = getAccessToken()
-    if (!token || !product) return
-    fetch('/api/members/me/favorites', { headers: { Authorization: `Bearer ${token}` } })
+    if (!getAccessToken() || !product) return
+    apiFetch('/api/members/me/favorites')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         const list: MyFavorite[] = data?.data ?? []
@@ -121,14 +121,12 @@ export default function ProductDetailPage() {
   /* ── 관심 토글 ── */
   async function toggleFav() {
     if (!product) return
-    const token = getAccessToken()
-    if (!token) { showToast('로그인 후 이용할 수 있어요'); return }
+    if (!getAccessToken()) { showToast('로그인 후 이용할 수 있어요'); return }
 
     const next = !favorited
     try {
-      const res = await fetch(`/api/products/${product.productId}/favorites`, {
+      const res = await apiFetch(`/api/products/${product.productId}/favorites`, {
         method: next ? 'POST' : 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) {
         const data = await res.json().catch(() => null)
@@ -146,12 +144,10 @@ export default function ProductDetailPage() {
   /* ── 거래 상태 변경 ── */
   async function applyStatus() {
     if (!product) return
-    const token = getAccessToken()
-    if (!token) return
     try {
-      const res = await fetch(`/api/products/${product.productId}/status`, {
+      const res = await apiFetch(`/api/products/${product.productId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tradeStatus: selectVal }),
       })
       const data = await res.json().catch(() => null)
@@ -167,13 +163,8 @@ export default function ProductDetailPage() {
   async function handleDelete() {
     if (!product) return
     if (!window.confirm('이 상품을 삭제할까요? 삭제 후 되돌릴 수 없어요.')) return
-    const token = getAccessToken()
-    if (!token) return
     try {
-      const res = await fetch(`/api/products/${product.productId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await apiFetch(`/api/products/${product.productId}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json().catch(() => null)
         showToast(data?.message ?? '삭제 중 오류가 발생했습니다.')
@@ -191,13 +182,12 @@ export default function ProductDetailPage() {
     if (!product) return
     const v = cInput.trim()
     if (!v) { showToast('댓글 내용을 입력해주세요'); return }
-    const token = getAccessToken()
-    if (!token) { showToast('로그인 후 댓글을 작성할 수 있어요'); return }
+    if (!getAccessToken()) { showToast('로그인 후 댓글을 작성할 수 있어요'); return }
 
     try {
-      const res = await fetch(`/api/products/${product.productId}/comments`, {
+      const res = await apiFetch(`/api/products/${product.productId}/comments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: v }),
       })
       const data = await res.json().catch(() => null)
@@ -222,13 +212,12 @@ export default function ProductDetailPage() {
   async function saveEdit(commentId: number) {
     const v = editContent.trim()
     if (!v) { showToast('댓글 내용을 입력해주세요'); return }
-    const token = getAccessToken()
-    if (!token) { showToast('로그인 후 이용할 수 있어요'); return }
+    if (!getAccessToken()) { showToast('로그인 후 이용할 수 있어요'); return }
 
     try {
-      const res = await fetch(`/api/comments/${commentId}`, {
+      const res = await apiFetch(`/api/comments/${commentId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: v }),
       })
       const data = await res.json().catch(() => null)
@@ -242,13 +231,8 @@ export default function ProductDetailPage() {
   }
 
   async function deleteComment(commentId: number) {
-    const token = getAccessToken()
-    if (!token) return
     try {
-      const res = await fetch(`/api/comments/${commentId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await apiFetch(`/api/comments/${commentId}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json().catch(() => null)
         showToast(data?.message ?? '삭제 중 오류가 발생했습니다.')
