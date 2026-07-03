@@ -132,6 +132,12 @@ header {
   border-color: color-mix(in srgb, var(--danger) 32%, var(--border)); box-shadow: none;
 }
 .btn.danger:hover { background: var(--danger-soft); }
+.btn.ghost {
+  background: var(--surface); color: var(--text);
+  border-color: var(--border); box-shadow: none; font-weight: 600;
+}
+.btn.ghost:hover { background: var(--primary-soft); border-color: var(--primary-soft); color: var(--primary); }
+.btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
 
 .tag { display: inline-block; padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 700; }
 .tag.active { background: var(--ok-soft); color: var(--ok); }
