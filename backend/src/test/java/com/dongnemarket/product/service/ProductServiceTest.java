@@ -41,6 +41,7 @@ import com.dongnemarket.product.entity.ProductImage;
 import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.ProductImageRepository;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.repository.RegionRepository;
 
 @ExtendWith(MockitoExtension.class)
 class ProductServiceTest {
@@ -63,6 +64,9 @@ class ProductServiceTest {
 	@Mock
 	ProductImageRepository productImageRepository;
 
+	@Mock
+	RegionRepository regionRepository;
+
 	@InjectMocks
 	ProductService productService;
 
@@ -78,6 +82,7 @@ class ProductServiceTest {
 			ProductCreateRequest request = createRequest("아이폰 15", BigDecimal.valueOf(800000));
 			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(member));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category));
+			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
 			given(productRepository.save(any(Product.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 			ProductResponse response = productService.createProduct(SELLER_ID, request);
@@ -172,13 +177,30 @@ class ProductServiceTest {
 		void getsProductsInLatestOrder() {
 			Product oldProduct = product("오래된 상품", BigDecimal.valueOf(10000));
 			Product newProduct = product("최신 상품", BigDecimal.valueOf(20000));
-			given(productRepository.findAllByDeletedAtIsNullAndHiddenFalseOrderByIdDesc())
+			given(productRepository.findAll(anyProductSpecification(), any(Sort.class)))
 					.willReturn(List.of(newProduct, oldProduct));
 
-			List<ProductSummaryResponse> responses = productService.getProducts();
+			List<ProductSummaryResponse> responses = productService.getProducts(null);
 
 			assertThat(responses).extracting(ProductSummaryResponse::getTitle)
 					.containsExactly("최신 상품", "오래된 상품");
+
+			ArgumentCaptor<Sort> sortCaptor = ArgumentCaptor.forClass(Sort.class);
+			verify(productRepository).findAll(anyProductSpecification(), sortCaptor.capture());
+			Sort.Order idOrder = sortCaptor.getValue().getOrderFor("id");
+			assertThat(idOrder).isNotNull();
+			assertThat(idOrder.getDirection()).isEqualTo(Sort.Direction.DESC);
+		}
+
+		@Test
+		@DisplayName("상품 목록 지역 필터가 3개이면 조회할 수 없다")
+		void throwsInvalidInputWhenGettingProductsWithMoreThanTwoRegions() {
+			assertBusinessException(
+					() -> productService.getProducts(List.of("서울 강남구", "서울 마포구", "서울 송파구")),
+					ErrorCode.INVALID_INPUT_VALUE
+			);
+
+			verify(productRepository, never()).findAll(anyProductSpecification(), any(Sort.class));
 		}
 
 		@Test
@@ -267,7 +289,8 @@ class ProductServiceTest {
 					CATEGORY_ID,
 					BigDecimal.valueOf(1000000),
 					BigDecimal.valueOf(1500000),
-					"ON_SALE"
+					"ON_SALE",
+					List.of("서울 강남구", "서울 마포구")
 			);
 			given(productRepository.findAll(anyProductSpecification(), any(Sort.class))).willReturn(List.of(product));
 
@@ -327,6 +350,26 @@ class ProductServiceTest {
 			ProductSearchRequest request = new ProductSearchRequest(null, null, null, null, " ");
 
 			assertInvalidTradeStatus(() -> productService.searchProducts(request));
+		}
+
+		@Test
+		@DisplayName("검색 지역 필터가 3개이면 검색할 수 없다")
+		void throwsInvalidInputWhenSearchingWithMoreThanTwoRegions() {
+			ProductSearchRequest request = new ProductSearchRequest(
+					null,
+					null,
+					null,
+					null,
+					null,
+					List.of("서울 강남구", "서울 마포구", "서울 송파구")
+			);
+
+			assertBusinessException(
+					() -> productService.searchProducts(request),
+					ErrorCode.INVALID_INPUT_VALUE
+			);
+
+			verify(productRepository, never()).findAll(anyProductSpecification(), any(Sort.class));
 		}
 	}
 
@@ -396,6 +439,7 @@ class ProductServiceTest {
 			ProductUpdateRequest request = updateRequest("맥북 프로", BigDecimal.valueOf(1500000));
 			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
+			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
 
 			ProductResponse response = productService.updateProduct(SELLER_ID, PRODUCT_ID, request);
 
@@ -508,6 +552,30 @@ class ProductServiceTest {
 			);
 
 			verify(productRepository, never()).findById(any());
+		}
+
+		@Test
+		@DisplayName("수정 지역이 지역 마스터에 없으면 수정할 수 없다")
+		void throwsInvalidInputWhenUpdatingWithUnknownRegion() {
+			Product product = product("아이폰 15", BigDecimal.valueOf(800000));
+			Category newCategory = category("생활가전");
+			ProductUpdateRequest request = updateRequest(
+					"맥북 프로",
+					BigDecimal.valueOf(1500000),
+					List.of("https://example.com/update-default.jpg"),
+					0,
+					"서울시 강남구"
+			);
+			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
+			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
+			given(regionRepository.existsByName(request.getRegion())).willReturn(false);
+
+			assertBusinessException(
+					() -> productService.updateProduct(SELLER_ID, PRODUCT_ID, request),
+					ErrorCode.INVALID_INPUT_VALUE
+			);
+
+			verify(productImageRepository, never()).deleteAllByProductId(any());
 		}
 	}
 
@@ -779,6 +847,7 @@ class ProductServiceTest {
 			);
 			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(member));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category));
+			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
 			given(productRepository.save(any(Product.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 			ProductResponse response = productService.createProduct(SELLER_ID, request);
@@ -809,6 +878,7 @@ class ProductServiceTest {
 			);
 			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
+			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
 
 			ProductResponse response = productService.updateProduct(SELLER_ID, PRODUCT_ID, request);
 
@@ -836,6 +906,7 @@ class ProductServiceTest {
 			);
 			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
+			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
 
 			ProductResponse response = productService.updateProduct(SELLER_ID, PRODUCT_ID, request);
 
@@ -863,6 +934,7 @@ class ProductServiceTest {
 			);
 			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(seller()));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category("디지털기기")));
+			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
 			given(productRepository.save(any(Product.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 			productService.createProduct(SELLER_ID, request);
@@ -883,6 +955,7 @@ class ProductServiceTest {
 			);
 			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(seller()));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category("디지털기기")));
+			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
 			given(productRepository.save(any(Product.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 			ProductResponse response = productService.createProduct(SELLER_ID, request);
@@ -905,6 +978,7 @@ class ProductServiceTest {
 			);
 			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(seller()));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category("디지털기기")));
+			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
 			given(productRepository.save(any(Product.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 			ProductResponse response = productService.createProduct(SELLER_ID, request);
@@ -1017,6 +1091,28 @@ class ProductServiceTest {
 			assertThat(response.getThumbnailUrl()).isNull();
 			assertThat(response.getImageUrls()).isEmpty();
 		}
+
+		@Test
+		@DisplayName("등록 지역이 지역 마스터에 없으면 상품을 등록할 수 없다")
+		void throwsInvalidInputWhenCreatingWithUnknownRegion() {
+			ProductCreateRequest request = createRequest(
+					"아이폰 15",
+					BigDecimal.valueOf(800000),
+					List.of("https://example.com/default.jpg"),
+					0,
+					"강남"
+			);
+			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(seller()));
+			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category("디지털기기")));
+			given(regionRepository.existsByName(request.getRegion())).willReturn(false);
+
+			assertBusinessException(
+					() -> productService.createProduct(SELLER_ID, request),
+					ErrorCode.INVALID_INPUT_VALUE
+			);
+
+			verify(productRepository, never()).save(any());
+		}
 	}
 
 	private Member seller() {
@@ -1072,12 +1168,17 @@ class ProductServiceTest {
 	}
 
 	private ProductCreateRequest createRequest(String title, BigDecimal price, List<String> imageUrls, int thumbnailIndex) {
+		return createRequest(title, price, imageUrls, thumbnailIndex, "서울 강남구");
+	}
+
+	private ProductCreateRequest createRequest(String title, BigDecimal price, List<String> imageUrls,
+											   int thumbnailIndex, String region) {
 		return new ProductCreateRequest(
 				CATEGORY_ID,
 				title,
 				"상태 좋은 아이폰입니다.",
 				price,
-				"서울 강남구",
+				region,
 				imageUrls,
 				thumbnailIndex
 		);
@@ -1093,12 +1194,17 @@ class ProductServiceTest {
 	}
 
 	private ProductUpdateRequest updateRequest(String title, BigDecimal price, List<String> imageUrls, int thumbnailIndex) {
+		return updateRequest(title, price, imageUrls, thumbnailIndex, "서울 서초구");
+	}
+
+	private ProductUpdateRequest updateRequest(String title, BigDecimal price, List<String> imageUrls,
+											   int thumbnailIndex, String region) {
 		return new ProductUpdateRequest(
 				UPDATE_CATEGORY_ID,
 				title,
 				"수정된 상품 설명입니다.",
 				price,
-				"서울 서초구",
+				region,
 				imageUrls,
 				thumbnailIndex
 		);

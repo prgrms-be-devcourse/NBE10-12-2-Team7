@@ -218,6 +218,32 @@ class ProductControllerTest {
 	}
 
 	@Test
+	@DisplayName("지역 마스터에 없는 지역으로 상품 등록 시 INVALID_INPUT_VALUE를 반환한다")
+	void returnsInvalidInputValueWhenCreatingWithUnknownRegion() throws Exception {
+		Member member = memberRepository.save(Member.createUser("unknown-region-seller@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리미등록지역"));
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "categoryId": %d,
+				  "title": "아이폰 15",
+				  "description": "상태 좋은 아이폰입니다.",
+				  "price": 800000,
+				  "region": "서울시 강남구",
+				  "imageUrls": ["https://example.com/product-1.jpg"],
+				  "thumbnailIndex": 0
+				}
+				""".formatted(category.getId());
+
+		mockMvc.perform(post("/api/products")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
+	}
+
+	@Test
 	@DisplayName("상품 목록은 인증 없이 최신 등록순으로 조회하고 숨김·삭제 상품은 제외한다")
 	void getsProductsInLatestOrderWithoutAuthentication() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
@@ -259,6 +285,53 @@ class ProductControllerTest {
 				.andExpect(jsonPath("$.data[0].hidden").value(false))
 				.andExpect(jsonPath("$.data[1].productId").value(oldProduct.getId()))
 				.andExpect(jsonPath("$.data[1].title").value("오래된 상품"));
+	}
+
+	@Test
+	@DisplayName("상품 목록은 지역 2개로 필터링해 최신 등록순으로 조회한다")
+	void getsProductsFilteredByTwoRegions() throws Exception {
+		Member member = memberRepository.save(Member.createUser("region-list-controller@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리지역목록"));
+		Product gangnamProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"강남 상품",
+				"강남 상품 설명",
+				BigDecimal.valueOf(10000),
+				"서울 강남구"
+		));
+		Product mapoProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"마포 상품",
+				"마포 상품 설명",
+				BigDecimal.valueOf(20000),
+				"서울 마포구"
+		));
+		productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"송파 상품",
+				"송파 상품 설명",
+				BigDecimal.valueOf(30000),
+				"서울 송파구"
+		));
+
+		mockMvc.perform(get("/api/products")
+						.param("regions", "서울 강남구", "서울 마포구"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.length()").value(2))
+				.andExpect(jsonPath("$.data[0].productId").value(mapoProduct.getId()))
+				.andExpect(jsonPath("$.data[1].productId").value(gangnamProduct.getId()));
+	}
+
+	@Test
+	@DisplayName("상품 목록 지역 필터가 3개이면 INVALID_INPUT_VALUE를 반환한다")
+	void returnsInvalidInputValueWhenGettingProductsWithMoreThanTwoRegions() throws Exception {
+		mockMvc.perform(get("/api/products")
+						.param("regions", "서울 강남구", "서울 마포구", "서울 송파구"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
 	}
 
 	@Test
@@ -310,6 +383,53 @@ class ProductControllerTest {
 				.andExpect(jsonPath("$.data[0].hidden").value(false))
 				.andExpect(jsonPath("$.data[1].productId").value(savedOldProduct.getId()))
 				.andExpect(jsonPath("$.data[1].title").value("맥북 에어"));
+	}
+
+	@Test
+	@DisplayName("상품 검색은 키워드와 지역 필터를 함께 적용한다")
+	void searchesProductsWithKeywordAndRegions() throws Exception {
+		Member member = memberRepository.save(Member.createUser("search-region-controller@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("검색지역카테고리"));
+		Product matchedProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"맥북 프로",
+				"상태 좋은 노트북입니다.",
+				BigDecimal.valueOf(1500000),
+				"서울 강남구"
+		));
+		productRepository.save(Product.create(
+				member,
+				category,
+				"맥북 에어",
+				"가벼운 노트북입니다.",
+				BigDecimal.valueOf(1000000),
+				"서울 송파구"
+		));
+		productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"아이패드",
+				"상태 좋은 태블릿입니다.",
+				BigDecimal.valueOf(700000),
+				"서울 강남구"
+		));
+
+		mockMvc.perform(get("/api/products/search")
+						.param("keyword", "맥북")
+						.param("regions", "서울 강남구"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.length()").value(1))
+				.andExpect(jsonPath("$.data[0].productId").value(matchedProduct.getId()));
+	}
+
+	@Test
+	@DisplayName("상품 검색 지역 필터가 3개이면 INVALID_INPUT_VALUE를 반환한다")
+	void returnsInvalidInputValueWhenSearchingWithMoreThanTwoRegions() throws Exception {
+		mockMvc.perform(get("/api/products/search")
+						.param("regions", "서울 강남구", "서울 마포구", "서울 송파구"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
 	}
 
 	@Test

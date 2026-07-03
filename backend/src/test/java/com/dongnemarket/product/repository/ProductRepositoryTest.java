@@ -399,7 +399,7 @@ class ProductRepositoryTest {
 		productRepository.saveAndFlush(deletedProduct);
 
 		List<Product> products = productRepository.findAll(
-				ProductSpecification.search("맥북", null, (BigDecimal) null, null, null),
+				ProductSpecification.search("맥북", null, (BigDecimal) null, null, null, null),
 				Sort.by(Sort.Direction.DESC, "id")
 		);
 
@@ -443,12 +443,181 @@ class ProductRepositoryTest {
 						targetCategory.getId(),
 						BigDecimal.valueOf(100000),
 						BigDecimal.valueOf(200000),
-						TradeStatus.RESERVED
+						TradeStatus.RESERVED,
+						null
 				),
 				Sort.by(Sort.Direction.DESC, "id")
 		);
 
 		assertThat(products).containsExactly(savedTargetProduct);
 		assertThat(products).doesNotContain(wrongStatusProduct, wrongCategoryProduct, wrongPriceProduct);
+	}
+
+	@Test
+	@DisplayName("상품 목록 조건은 지역 필터가 없어도 기존처럼 숨김·삭제 상품을 제외하고 최신순으로 조회한다")
+	void findsProductsWithoutRegionFilterKeepingExistingListBehavior() {
+		Member member = memberRepository.save(Member.createUser("region-list-regression@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("지역목록회귀"));
+		Product oldProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"오래된 상품",
+				"오래된 상품 설명",
+				BigDecimal.valueOf(10000),
+				"서울 강남구"
+		));
+		Product newProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"최신 상품",
+				"최신 상품 설명",
+				BigDecimal.valueOf(20000),
+				"서울 마포구"
+		));
+		Product hiddenProduct = Product.create(member, category, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(30000), "서울 서초구");
+		hiddenProduct.hide();
+		productRepository.save(hiddenProduct);
+		Product deletedProduct = Product.create(member, category, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(40000), "서울 송파구");
+		deletedProduct.softDelete();
+		productRepository.saveAndFlush(deletedProduct);
+
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.list(null),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+
+		assertThat(products).containsExactly(newProduct, oldProduct);
+		assertThat(products).doesNotContain(hiddenProduct, deletedProduct);
+	}
+
+	@Test
+	@DisplayName("상품 목록 조건은 지역 1개를 지정하면 해당 지역 상품만 조회한다")
+	void findsProductsByOneRegion() {
+		Member member = memberRepository.save(Member.createUser("region-one@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("지역필터1"));
+		Product gangnamProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"강남 상품",
+				"강남 상품 설명",
+				BigDecimal.valueOf(10000),
+				"서울 강남구"
+		));
+		Product mapoProduct = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"마포 상품",
+				"마포 상품 설명",
+				BigDecimal.valueOf(20000),
+				"서울 마포구"
+		));
+
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.list(List.of("서울 강남구")),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+
+		assertThat(products).containsExactly(gangnamProduct);
+		assertThat(products).doesNotContain(mapoProduct);
+	}
+
+	@Test
+	@DisplayName("상품 목록 조건은 지역 2개를 지정하면 두 지역 상품을 최신순으로 조회한다")
+	void findsProductsByTwoRegionsInLatestOrder() {
+		Member member = memberRepository.save(Member.createUser("region-two@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("지역필터2"));
+		Product gangnamProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"강남 상품",
+				"강남 상품 설명",
+				BigDecimal.valueOf(10000),
+				"서울 강남구"
+		));
+		Product mapoProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"마포 상품",
+				"마포 상품 설명",
+				BigDecimal.valueOf(20000),
+				"서울 마포구"
+		));
+		Product otherProduct = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"송파 상품",
+				"송파 상품 설명",
+				BigDecimal.valueOf(30000),
+				"서울 송파구"
+		));
+
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.list(List.of("서울 강남구", "서울 마포구")),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+
+		assertThat(products).containsExactly(mapoProduct, gangnamProduct);
+		assertThat(products).doesNotContain(otherProduct);
+	}
+
+	@Test
+	@DisplayName("상품 목록 조건은 존재하지 않는 지역을 지정하면 빈 목록을 반환한다")
+	void returnsEmptyListWhenFilteringByUnknownRegion() {
+		Member member = memberRepository.save(Member.createUser("region-unknown@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("지역필터없음"));
+		productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"강남 상품",
+				"강남 상품 설명",
+				BigDecimal.valueOf(10000),
+				"서울 강남구"
+		));
+
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.list(List.of("서울 없는구")),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+
+		assertThat(products).isEmpty();
+	}
+
+	@Test
+	@DisplayName("상품 검색 조건은 키워드와 지역 필터를 함께 적용한다")
+	void searchesProductsByKeywordAndRegions() {
+		Member member = memberRepository.save(Member.createUser("region-search@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("지역검색"));
+		Product matchedProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"맥북 프로",
+				"상태 좋은 노트북입니다.",
+				BigDecimal.valueOf(1200000),
+				"서울 강남구"
+		));
+		Product wrongRegionProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"맥북 에어",
+				"가벼운 노트북입니다.",
+				BigDecimal.valueOf(900000),
+				"서울 송파구"
+		));
+		Product wrongKeywordProduct = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"아이패드",
+				"상태 좋은 태블릿입니다.",
+				BigDecimal.valueOf(700000),
+				"서울 강남구"
+		));
+
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.search("맥북", null, (BigDecimal) null, null, null, List.of("서울 강남구")),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+
+		assertThat(products).containsExactly(matchedProduct);
+		assertThat(products).doesNotContain(wrongRegionProduct, wrongKeywordProduct);
 	}
 }
