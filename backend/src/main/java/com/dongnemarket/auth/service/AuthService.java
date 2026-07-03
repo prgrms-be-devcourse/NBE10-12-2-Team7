@@ -81,6 +81,16 @@ public class AuthService {
 		return TokenResponse.of(newAccessToken, refreshToken);
 	}
 
+	/**
+	 * 로그아웃: 저장된 Refresh Token만 삭제한다(멱등 — 여러 번 호출해도 항상 성공).
+	 * <p>Access Token 자체는 서버에서 즉시 무효화하지 않는다(Stateless JWT 정책 유지) —
+	 * 이미 발급된 Access Token은 만료 시각(최대 15분)까지 그대로 유효하며, 그 사이 재발급만 막힌다.
+	 */
+	@Transactional
+	public void logout(Long memberId) {
+		refreshTokenService.deleteByMemberId(memberId);
+	}
+
 	/** 탈퇴/정지 회원은 로그인/재발급 모두 불가 (login()과 reissue()의 정책을 일관되게 유지) */
 	private void validateActiveStatus(Member member) {
 		if (member.getStatus() == MemberStatus.DELETED) {
