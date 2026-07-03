@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
@@ -27,12 +29,15 @@ public class JwtTokenProvider {
 
 	private final SecretKey key;
 	private final long accessTokenValidityMillis;
+	private final long refreshTokenValidityMillis;
 
 	public JwtTokenProvider(
 			@Value("${jwt.secret}") String secret,
-			@Value("${jwt.access-token-validity-seconds}") long accessTokenValiditySeconds) {
+			@Value("${jwt.access-token-validity-seconds}") long accessTokenValiditySeconds,
+			@Value("${jwt.refresh-token-validity-seconds}") long refreshTokenValiditySeconds) {
 		this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
 		this.accessTokenValidityMillis = accessTokenValiditySeconds * 1000L;
+		this.refreshTokenValidityMillis = refreshTokenValiditySeconds * 1000L;
 	}
 
 	/** 로그인 성공 시 호출: memberId(subject) + role 클레임으로 액세스 토큰 발급 */
@@ -46,6 +51,24 @@ public class JwtTokenProvider {
 				.expiration(expiry)
 				.signWith(key)
 				.compact();
+	}
+
+	/** 로그인 성공 시 호출: memberId(subject)만 담아 리프레시 토큰 발급 */
+	public String createRefreshToken(Long memberId) {
+		Date now = new Date();
+		Date expiry = new Date(now.getTime() + refreshTokenValidityMillis);
+		return Jwts.builder()
+				.subject(String.valueOf(memberId))
+				.issuedAt(now)
+				.expiration(expiry)
+				.signWith(key)
+				.compact();
+	}
+
+	/** 토큰의 만료 시각(java.time). RefreshToken 저장 시 expiresAt 계산에 사용 */
+	public LocalDateTime getExpiration(String token) {
+		Date expiration = parse(token).getExpiration();
+		return LocalDateTime.ofInstant(expiration.toInstant(), ZoneId.systemDefault());
 	}
 
 	/** 토큰 유효성 검증 (서명/만료/형식) */

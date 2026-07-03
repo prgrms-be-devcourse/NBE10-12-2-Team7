@@ -1,6 +1,7 @@
 package com.dongnemarket.auth.controller;
 
 import com.dongnemarket.member.repository.MemberRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -29,6 +31,9 @@ class AuthControllerTest {
 
 	@Autowired
 	MemberRepository memberRepository;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@AfterEach
 	void cleanUp() {
@@ -87,7 +92,7 @@ class AuthControllerTest {
 	// ===== login =====
 
 	@Test
-	@DisplayName("올바른 이메일·비밀번호로 로그인하면 200과 accessToken을 반환한다")
+	@DisplayName("올바른 이메일·비밀번호로 로그인하면 200과 accessToken·refreshToken을 반환한다")
 	void login_success() throws Exception {
 		String signup = "{ \"email\": \"login@example.com\", \"password\": \"password123\", \"nickname\": \"loginUser\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
@@ -97,7 +102,8 @@ class AuthControllerTest {
 		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value(200))
-				.andExpect(jsonPath("$.data.accessToken").exists());
+				.andExpect(jsonPath("$.data.accessToken").exists())
+				.andExpect(jsonPath("$.data.refreshToken").exists());
 	}
 
 	@Test
@@ -141,5 +147,47 @@ class AuthControllerTest {
 		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
+	}
+
+	// ===== reissue =====
+
+	@Test
+	@DisplayName("유효한 Refresh Token으로 재발급하면 인증 헤더 없이도 200과 새 accessToken을 반환한다")
+	void reissue_success() throws Exception {
+		String signup = "{ \"email\": \"reissue@example.com\", \"password\": \"password123\", \"nickname\": \"reissueUser\" }";
+		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
+				.andExpect(status().isCreated());
+
+		String login = "{ \"email\": \"reissue@example.com\", \"password\": \"password123\" }";
+		MvcResult loginResult = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
+				.andReturn();
+		String refreshToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
+				.path("data").path("refreshToken").asText();
+
+		String reissueBody = String.format("{ \"refreshToken\": \"%s\" }", refreshToken);
+		mockMvc.perform(post("/api/auth/reissue").contentType(MediaType.APPLICATION_JSON).content(reissueBody))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.accessToken").exists())
+				.andExpect(jsonPath("$.data.refreshToken").value(refreshToken));
+	}
+
+	@Test
+	@DisplayName("Refresh Token이 빈 값이면 400과 INVALID_INPUT_VALUE를 반환한다")
+	void reissue_blankRefreshToken() throws Exception {
+		String body = "{ \"refreshToken\": \"\" }";
+
+		mockMvc.perform(post("/api/auth/reissue").contentType(MediaType.APPLICATION_JSON).content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
+	}
+
+	@Test
+	@DisplayName("형식이 깨진(malformed) Refresh Token으로 재발급하면 401과 INVALID_REFRESH_TOKEN을 반환한다")
+	void reissue_malformedToken() throws Exception {
+		String body = "{ \"refreshToken\": \"not.a.valid.token\" }";
+
+		mockMvc.perform(post("/api/auth/reissue").contentType(MediaType.APPLICATION_JSON).content(body))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("INVALID_REFRESH_TOKEN"));
 	}
 }

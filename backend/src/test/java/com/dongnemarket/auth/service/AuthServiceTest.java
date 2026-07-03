@@ -4,6 +4,9 @@ import com.dongnemarket.auth.dto.LoginRequest;
 import com.dongnemarket.auth.dto.LoginResponse;
 import com.dongnemarket.auth.dto.SignupRequest;
 import com.dongnemarket.auth.dto.SignupResponse;
+import com.dongnemarket.auth.dto.TokenResponse;
+import com.dongnemarket.auth.entity.RefreshToken;
+import com.dongnemarket.auth.repository.RefreshTokenRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.global.security.jwt.JwtTokenProvider;
@@ -21,6 +24,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,7 +35,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
- * Repository만 Mock 처리하고, 외부 시스템 의존성이 없는 PasswordEncoder·JwtTokenProvider는
+ * Repository만 Mock 처리하고, 외부 시스템 의존성이 없는 PasswordEncoder·JwtTokenProvider·RefreshTokenService는
  * 실제 구현체를 사용해 AuthService의 비즈니스 흐름을 검증한다.
  */
 @ExtendWith(MockitoExtension.class)
@@ -40,16 +44,21 @@ class AuthServiceTest {
 	@Mock
 	MemberRepository memberRepository;
 
+	@Mock
+	RefreshTokenRepository refreshTokenRepository;
+
 	PasswordEncoder passwordEncoder;
 	JwtTokenProvider jwtTokenProvider;
+	RefreshTokenService refreshTokenService;
 	AuthService authService;
 
 	@BeforeEach
 	void setUp() {
 		passwordEncoder = new BCryptPasswordEncoder();
 		jwtTokenProvider = new JwtTokenProvider(
-				"test-jwt-secret-key-for-auth-service-unit-test-0123456789", 3600L);
-		authService = new AuthService(memberRepository, passwordEncoder, jwtTokenProvider);
+				"test-jwt-secret-key-for-auth-service-unit-test-0123456789", 3600L, 604800L);
+		refreshTokenService = new RefreshTokenService(refreshTokenRepository, jwtTokenProvider);
+		authService = new AuthService(memberRepository, passwordEncoder, jwtTokenProvider, refreshTokenService);
 	}
 
 	// ===== signup =====
@@ -137,17 +146,102 @@ class AuthServiceTest {
 	// ===== login =====
 
 	@Test
-	@DisplayName("올바른 이메일·비밀번호로 로그인하면 memberId가 담긴 accessToken을 반환한다")
+	@DisplayName("올바른 이메일·비밀번호로 로그인하면 memberId가 담긴 accessToken·refreshToken을 반환한다")
 	void login_success() {
 		LoginRequest request = new LoginRequest("test@example.com", "password123");
 		Member member = Member.createUser(request.getEmail(), passwordEncoder.encode(request.getPassword()), "tester");
 		ReflectionTestUtils.setField(member, "id", 1L);
 		given(memberRepository.findByEmail(request.getEmail())).willReturn(Optional.of(member));
+		given(refreshTokenRepository.findByMemberId(1L)).willReturn(Optional.empty());
 
 		LoginResponse response = authService.login(request);
 
 		assertThat(response.getAccessToken()).isNotBlank();
+		assertThat(response.getRefreshToken()).isNotBlank();
 		assertThat(jwtTokenProvider.getMemberId(response.getAccessToken())).isEqualTo(1L);
+		assertThat(jwtTokenProvider.getMemberId(response.getRefreshToken())).isEqualTo(1L);
+		verify(refreshTokenRepository).save(any(RefreshToken.class));
+	}
+
+	@Test
+	@DisplayName("이미 Refresh Token이 저장된 회원이 재로그인하면 신규 저장 대신 기존 토큰을 교체한다")
+	void login_existingRefreshToken_replacesInsteadOfInserting() {
+		LoginRequest request = new LoginRequest("test@example.com", "password123");
+		Member member = Member.createUser(request.getEmail(), passwordEncoder.encode(request.getPassword()), "tester");
+		ReflectionTestUtils.setField(member, "id", 1L);
+		given(memberRepository.findByEmail(request.getEmail())).willReturn(Optional.of(member));
+		RefreshToken existing = RefreshToken.issue(1L, "old-token", LocalDateTime.now().plusDays(7));
+		given(refreshTokenRepository.findByMemberId(1L)).willReturn(Optional.of(existing));
+
+		LoginResponse response = authService.login(request);
+
+		assertThat(existing.getToken()).isEqualTo(response.getRefreshToken());
+		verify(refreshTokenRepository, never()).save(any());
+	}
+
+	// ===== reissue =====
+
+	@Test
+	@DisplayName("유효한 Refresh Token으로 재발급하면 새 accessToken과 동일한 refreshToken을 반환한다")
+	void reissue_success() {
+		String refreshToken = jwtTokenProvider.createRefreshToken(1L);
+		Member member = Member.createUser("test@example.com", "encoded", "tester");
+		ReflectionTestUtils.setField(member, "id", 1L);
+		given(refreshTokenRepository.findByMemberId(1L))
+				.willReturn(Optional.of(RefreshToken.issue(1L, refreshToken, LocalDateTime.now().plusDays(7))));
+		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+
+		TokenResponse response = authService.reissue(refreshToken);
+
+		assertThat(response.getRefreshToken()).isEqualTo(refreshToken);
+		assertThat(jwtTokenProvider.getMemberId(response.getAccessToken())).isEqualTo(1L);
+	}
+
+	@Test
+	@DisplayName("만료된 Refresh Token으로 재발급하면 EXPIRED_REFRESH_TOKEN 예외가 발생한다")
+	void reissue_expiredRefreshToken_throwsException() {
+		JwtTokenProvider shortLivedProvider = new JwtTokenProvider(
+				"test-jwt-secret-key-for-auth-service-unit-test-0123456789", 3600L, 0L);
+		String expiredToken = shortLivedProvider.createRefreshToken(1L);
+
+		assertThatThrownBy(() -> authService.reissue(expiredToken))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.EXPIRED_REFRESH_TOKEN);
+	}
+
+	@Test
+	@DisplayName("다른 키로 서명된(위조) Refresh Token으로 재발급하면 INVALID_REFRESH_TOKEN 예외가 발생한다")
+	void reissue_forgedSignature_throwsInvalidRefreshToken() {
+		JwtTokenProvider otherProvider = new JwtTokenProvider(
+				"a-totally-different-secret-key-for-forgery-0123456789", 3600L, 604800L);
+		String forgedToken = otherProvider.createRefreshToken(1L);
+
+		assertThatThrownBy(() -> authService.reissue(forgedToken))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REFRESH_TOKEN);
+	}
+
+	@Test
+	@DisplayName("DB에 저장된 Refresh Token이 없으면 REFRESH_TOKEN_NOT_FOUND 예외가 발생한다")
+	void reissue_notFoundInDb_throwsRefreshTokenNotFound() {
+		String refreshToken = jwtTokenProvider.createRefreshToken(1L);
+		given(refreshTokenRepository.findByMemberId(1L)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> authService.reissue(refreshToken))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.REFRESH_TOKEN_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("DB에 저장된 값과 다른 Refresh Token으로 재발급하면 INVALID_REFRESH_TOKEN 예외가 발생한다")
+	void reissue_tokenMismatch_throwsInvalidRefreshToken() {
+		String refreshToken = jwtTokenProvider.createRefreshToken(1L);
+		given(refreshTokenRepository.findByMemberId(1L))
+				.willReturn(Optional.of(RefreshToken.issue(1L, "different-stored-token", LocalDateTime.now().plusDays(7))));
+
+		assertThatThrownBy(() -> authService.reissue(refreshToken))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REFRESH_TOKEN);
 	}
 
 	@Test

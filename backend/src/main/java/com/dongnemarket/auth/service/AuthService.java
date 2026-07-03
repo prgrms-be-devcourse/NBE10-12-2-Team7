@@ -4,6 +4,7 @@ import com.dongnemarket.auth.dto.LoginRequest;
 import com.dongnemarket.auth.dto.LoginResponse;
 import com.dongnemarket.auth.dto.SignupRequest;
 import com.dongnemarket.auth.dto.SignupResponse;
+import com.dongnemarket.auth.dto.TokenResponse;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.global.security.jwt.JwtTokenProvider;
@@ -22,11 +23,14 @@ public class AuthService {
 	private final MemberRepository memberRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtTokenProvider jwtTokenProvider;
+	private final RefreshTokenService refreshTokenService;
 
-	public AuthService(MemberRepository memberRepository, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider) {
+	public AuthService(MemberRepository memberRepository, PasswordEncoder passwordEncoder,
+			JwtTokenProvider jwtTokenProvider, RefreshTokenService refreshTokenService) {
 		this.memberRepository = memberRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.jwtTokenProvider = jwtTokenProvider;
+		this.refreshTokenService = refreshTokenService;
 	}
 
 	@Transactional
@@ -49,6 +53,7 @@ public class AuthService {
 		}
 	}
 
+	@Transactional
 	public LoginResponse login(LoginRequest request) {
 		Member member = memberRepository.findByEmail(request.getEmail())
 				.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
@@ -63,8 +68,21 @@ public class AuthService {
 			throw new BusinessException(ErrorCode.INVALID_PASSWORD);
 		}
 
-		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
-		return LoginResponse.of(token);
+		String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String refreshToken = jwtTokenProvider.createRefreshToken(member.getId());
+		refreshTokenService.saveOrReplace(member.getId(), refreshToken);
+
+		return LoginResponse.of(accessToken, refreshToken);
+	}
+
+	/** Refresh Token 검증 후 Access Token만 재발급한다(Refresh Token 회전 없음). */
+	public TokenResponse reissue(String refreshToken) {
+		Long memberId = refreshTokenService.validateAndGetMemberId(refreshToken);
+		Member member = memberRepository.findById(memberId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+		String newAccessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		return TokenResponse.of(newAccessToken, refreshToken);
 	}
 
 	/** 중복 체크 이후 save() 사이의 race condition으로 unique 제약을 위반한 경우, 원인을 재조회해 알맞은 BusinessException으로 변환한다. */

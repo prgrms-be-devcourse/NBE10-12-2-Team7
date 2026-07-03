@@ -1,17 +1,17 @@
 package com.dongnemarket.auth.dto;
 
-public class LoginResponse {
+public class TokenResponse {
 
 	private final String accessToken;
 	private final String refreshToken;
 
-	private LoginResponse(String accessToken, String refreshToken) {
+	private TokenResponse(String accessToken, String refreshToken) {
 		this.accessToken = accessToken;
 		this.refreshToken = refreshToken;
 	}
 
-	public static LoginResponse of(String accessToken, String refreshToken) {
-		return new LoginResponse(accessToken, refreshToken);
+	public static TokenResponse of(String accessToken, String refreshToken) {
+		return new TokenResponse(accessToken, refreshToken);
 	}
 
 	public String getAccessToken() {

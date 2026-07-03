@@ -18,6 +18,9 @@ public enum ErrorCode {
 	DUPLICATE_NICKNAME(409, "AUTH_002", "이미 사용 중인 닉네임입니다."),
 	INVALID_PASSWORD(401, "AUTH_003", "비밀번호가 일치하지 않습니다."),
 	INVALID_TOKEN(401, "AUTH_004", "유효하지 않은 토큰입니다."),
+	EXPIRED_REFRESH_TOKEN(401, "AUTH_005", "Refresh Token이 만료되었습니다. 다시 로그인해주세요."),
+	INVALID_REFRESH_TOKEN(401, "AUTH_006", "유효하지 않은 Refresh Token입니다."),
+	REFRESH_TOKEN_NOT_FOUND(401, "AUTH_007", "Refresh Token 정보를 찾을 수 없습니다. 다시 로그인해주세요."),
 
 	// ===== MEMBER ERROR (김대연) =====
 	MEMBER_NOT_FOUND(404, "MEMBER_001", "회원을 찾을 수 없습니다."),
