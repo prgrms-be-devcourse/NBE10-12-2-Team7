@@ -1,0 +1,162 @@
+'use client'
+
+import Link from 'next/link'
+import { useState } from 'react'
+import styles from './page.module.css'
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const PW_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,20}$/
+
+type Hint = { text: string; kind?: string }
+type MsgType = 'success' | 'error'
+
+export default function SignupPage() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [nickname, setNickname] = useState('')
+
+  const [emailHint, setEmailHint] = useState<Hint>({ text: '로그인에 사용할 이메일을 입력하세요.' })
+  const [passwordHint, setPasswordHint] = useState<Hint>({ text: '영문과 숫자를 포함해 8~20자로 입력하세요.' })
+  const [nicknameHint, setNicknameHint] = useState<Hint>({ text: '2~20자로 입력하세요. 다른 이웃에게 보여집니다.' })
+
+  const [formMsg, setFormMsg] = useState<{ text: string; type: MsgType } | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  function validateEmail() {
+    const v = email.trim()
+    if (!v) { setEmailHint({ text: '이메일을 입력하세요.', kind: 'err' }); return false }
+    if (!EMAIL_RE.test(v)) { setEmailHint({ text: '올바른 이메일 형식이 아닙니다.', kind: 'err' }); return false }
+    setEmailHint({ text: '' })
+    return true
+  }
+
+  function validatePassword() {
+    if (!PW_RE.test(password)) { setPasswordHint({ text: '영문·숫자 포함 8~20자여야 합니다.', kind: 'err' }); return false }
+    setPasswordHint({ text: '사용 가능한 비밀번호입니다.', kind: 'ok' })
+    return true
+  }
+
+  function validateNickname() {
+    const v = nickname.trim()
+    if (v.length < 2 || v.length > 20) { setNicknameHint({ text: '닉네임은 2~20자로 입력하세요.', kind: 'err' }); return false }
+    setNicknameHint({ text: '', kind: 'ok' })
+    return true
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setFormMsg(null)
+    const valid = [validateEmail(), validatePassword(), validateNickname()].every(Boolean)
+    if (!valid) { setFormMsg({ text: '입력값을 다시 확인해주세요.', type: 'error' }); return }
+
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          nickname: nickname.trim(),
+        }),
+      })
+
+      const data = await res.json().catch(() => null)
+
+      if (res.status === 409) {
+        const code = data?.error
+        const message = data?.message ?? '이미 사용 중인 값이 있습니다.'
+        if (code === 'DUPLICATE_NICKNAME') setNicknameHint({ text: message, kind: 'err' })
+        else setEmailHint({ text: message, kind: 'err' })
+        setFormMsg({ text: message, type: 'error' })
+        setSubmitting(false)
+        return
+      }
+
+      if (!res.ok) {
+        setFormMsg({ text: data?.message ?? '가입 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', type: 'error' })
+        setSubmitting(false)
+        return
+      }
+
+      setFormMsg({ text: '회원가입이 완료되었습니다! 로그인 화면으로 이동합니다.', type: 'success' })
+      setTimeout(() => { window.location.href = '/login' }, 1200)
+    } catch {
+      setFormMsg({ text: '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.', type: 'error' })
+      setSubmitting(false)
+    }
+  }
+
+  const hintClass = (kind?: string) => [styles.hint, kind ? styles[kind] : ''].filter(Boolean).join(' ')
+  const msgClass = formMsg ? [styles.formMsg, styles.show, styles[formMsg.type]].join(' ') : styles.formMsg
+
+  return (
+    <main className={styles.stage}>
+      {/* 인트로 */}
+      <div className={styles.intro}>
+        <span className={styles.badge}>🌷 우리 동네 중고거래의 시작</span>
+        <h1>Market<span style={{ color: 'var(--primary)' }}>ON</span> 회원가입</h1>
+        <p>우리 동네 거래가 가장 활발한 곳, 지금 합류하세요.</p>
+      </div>
+
+      <div className={styles.card}>
+        <div className={msgClass} role="alert">{formMsg?.text}</div>
+
+        <form onSubmit={handleSubmit} className={styles.formCol} noValidate>
+          <div className={styles.field}>
+            <label htmlFor="email">이메일<span className={styles.req}>*</span></label>
+            <input
+              type="email"
+              id="email"
+              placeholder="example@email.com"
+              autoComplete="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              onBlur={validateEmail}
+              aria-invalid={emailHint.kind === 'err' ? 'true' : 'false'}
+            />
+            <div className={hintClass(emailHint.kind)}>{emailHint.text}</div>
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor="password">비밀번호<span className={styles.req}>*</span></label>
+            <input
+              type="password"
+              id="password"
+              placeholder="8~20자, 영문·숫자 포함"
+              autoComplete="new-password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              onBlur={validatePassword}
+              aria-invalid={passwordHint.kind === 'err' ? 'true' : 'false'}
+            />
+            <div className={hintClass(passwordHint.kind)}>{passwordHint.text}</div>
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor="nickname">닉네임<span className={styles.req}>*</span></label>
+            <input
+              type="text"
+              id="nickname"
+              placeholder="닉네임을 설정하세요"
+              maxLength={20}
+              autoComplete="nickname"
+              value={nickname}
+              onChange={e => setNickname(e.target.value)}
+              onBlur={validateNickname}
+              aria-invalid={nicknameHint.kind === 'err' ? 'true' : 'false'}
+            />
+            <div className={hintClass(nicknameHint.kind)}>{nicknameHint.text}</div>
+          </div>
+
+          <button type="submit" className="btn block" disabled={submitting}>
+            {submitting ? '가입 처리 중...' : '가입하기'}
+          </button>
+        </form>
+
+        <div className={styles.foot}>이미 계정이 있으신가요? <Link href="/login">로그인</Link></div>
+        <div className={styles.apiNote}>POST /api/auth/signup</div>
+      </div>
+    </main>
+  )
+}
