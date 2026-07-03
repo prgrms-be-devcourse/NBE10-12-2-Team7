@@ -37,7 +37,9 @@ import com.dongnemarket.product.dto.ProductStatusUpdateRequest;
 import com.dongnemarket.product.dto.ProductSummaryResponse;
 import com.dongnemarket.product.dto.ProductUpdateRequest;
 import com.dongnemarket.product.entity.Product;
+import com.dongnemarket.product.entity.ProductImage;
 import com.dongnemarket.product.entity.TradeStatus;
+import com.dongnemarket.product.repository.ProductImageRepository;
 import com.dongnemarket.product.repository.ProductRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -57,6 +59,9 @@ class ProductServiceTest {
 
 	@Mock
 	ProductRepository productRepository;
+
+	@Mock
+	ProductImageRepository productImageRepository;
 
 	@InjectMocks
 	ProductService productService;
@@ -757,6 +762,263 @@ class ProductServiceTest {
 		}
 	}
 
+	@Nested
+	@DisplayName("상품 이미지")
+	class ProductImages {
+
+		@Test
+		@DisplayName("이미지 3장과 대표 인덱스로 상품을 등록하면 순서와 대표 이미지가 저장된다")
+		void createsProductWithImagesAndThumbnail() {
+			Member member = seller();
+			Category category = category("디지털기기");
+			ProductCreateRequest request = createRequest(
+					"아이폰 15",
+					BigDecimal.valueOf(800000),
+					List.of("https://example.com/1.jpg", "https://example.com/2.jpg", "https://example.com/3.jpg"),
+					1
+			);
+			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(member));
+			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category));
+			given(productRepository.save(any(Product.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+			ProductResponse response = productService.createProduct(SELLER_ID, request);
+
+			ArgumentCaptor<List<ProductImage>> imagesCaptor = imageListCaptor();
+			verify(productImageRepository).saveAll(imagesCaptor.capture());
+			List<ProductImage> images = imagesCaptor.getValue();
+			assertThat(images).hasSize(3);
+			assertThat(images).extracting(ProductImage::getImageUrl)
+					.containsExactly("https://example.com/1.jpg", "https://example.com/2.jpg", "https://example.com/3.jpg");
+			assertThat(images).extracting(ProductImage::getSortOrder)
+					.containsExactly(0, 1, 2);
+			assertThat(images).extracting(ProductImage::isRepresentative)
+					.containsExactly(false, true, false);
+			assertThat(response.getThumbnailUrl()).isEqualTo("https://example.com/2.jpg");
+		}
+
+		@Test
+		@DisplayName("상품 수정 시 기존 이미지를 모두 삭제하고 새 이미지로 교체한다")
+		void replacesProductImagesWhenUpdatingProduct() {
+			Product product = product("아이폰 15", BigDecimal.valueOf(800000));
+			Category newCategory = category("생활가전");
+			ProductUpdateRequest request = updateRequest(
+					"맥북 프로",
+					BigDecimal.valueOf(1500000),
+					List.of("https://example.com/new-1.jpg", "https://example.com/new-2.jpg"),
+					0
+			);
+			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
+			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
+
+			ProductResponse response = productService.updateProduct(SELLER_ID, PRODUCT_ID, request);
+
+			verify(productImageRepository).deleteAllByProductId(PRODUCT_ID);
+			ArgumentCaptor<List<ProductImage>> imagesCaptor = imageListCaptor();
+			verify(productImageRepository).saveAll(imagesCaptor.capture());
+			List<ProductImage> images = imagesCaptor.getValue();
+			assertThat(images).extracting(ProductImage::getImageUrl)
+					.containsExactly("https://example.com/new-1.jpg", "https://example.com/new-2.jpg");
+			assertThat(images).extracting(ProductImage::isRepresentative)
+					.containsExactly(true, false);
+			assertThat(response.getThumbnailUrl()).isEqualTo("https://example.com/new-1.jpg");
+		}
+
+		@Test
+		@DisplayName("상품 수정 시 대표 인덱스를 바꾸면 대표 이미지를 재선택한다")
+		void reselectsThumbnailWhenUpdatingProduct() {
+			Product product = product("아이폰 15", BigDecimal.valueOf(800000));
+			Category newCategory = category("생활가전");
+			ProductUpdateRequest request = updateRequest(
+					"맥북 프로",
+					BigDecimal.valueOf(1500000),
+					List.of("https://example.com/same-1.jpg", "https://example.com/same-2.jpg"),
+					1
+			);
+			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
+			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
+
+			ProductResponse response = productService.updateProduct(SELLER_ID, PRODUCT_ID, request);
+
+			ArgumentCaptor<List<ProductImage>> imagesCaptor = imageListCaptor();
+			verify(productImageRepository).saveAll(imagesCaptor.capture());
+			assertThat(imagesCaptor.getValue()).extracting(ProductImage::isRepresentative)
+					.containsExactly(false, true);
+			assertThat(response.getThumbnailUrl()).isEqualTo("https://example.com/same-2.jpg");
+		}
+
+		@Test
+		@DisplayName("이미지 5장까지 상품을 등록할 수 있다")
+		void createsProductWithFiveImages() {
+			ProductCreateRequest request = createRequest(
+					"아이폰 15",
+					BigDecimal.valueOf(800000),
+					List.of(
+							"https://example.com/1.jpg",
+							"https://example.com/2.jpg",
+							"https://example.com/3.jpg",
+							"https://example.com/4.jpg",
+							"https://example.com/5.jpg"
+					),
+					0
+			);
+			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(seller()));
+			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category("디지털기기")));
+			given(productRepository.save(any(Product.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+			productService.createProduct(SELLER_ID, request);
+
+			ArgumentCaptor<List<ProductImage>> imagesCaptor = imageListCaptor();
+			verify(productImageRepository).saveAll(imagesCaptor.capture());
+			assertThat(imagesCaptor.getValue()).hasSize(5);
+		}
+
+		@Test
+		@DisplayName("이미지 1장으로 상품을 등록하면 그 이미지가 대표가 된다")
+		void createsProductWithOneImage() {
+			ProductCreateRequest request = createRequest(
+					"아이폰 15",
+					BigDecimal.valueOf(800000),
+					List.of("https://example.com/only.jpg"),
+					0
+			);
+			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(seller()));
+			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category("디지털기기")));
+			given(productRepository.save(any(Product.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+			ProductResponse response = productService.createProduct(SELLER_ID, request);
+
+			ArgumentCaptor<List<ProductImage>> imagesCaptor = imageListCaptor();
+			verify(productImageRepository).saveAll(imagesCaptor.capture());
+			assertThat(imagesCaptor.getValue()).extracting(ProductImage::isRepresentative)
+					.containsExactly(true);
+			assertThat(response.getThumbnailUrl()).isEqualTo("https://example.com/only.jpg");
+		}
+
+		@Test
+		@DisplayName("대표 인덱스가 마지막 이미지이면 마지막 이미지를 대표로 등록한다")
+		void createsProductWithLastThumbnailIndex() {
+			ProductCreateRequest request = createRequest(
+					"아이폰 15",
+					BigDecimal.valueOf(800000),
+					List.of("https://example.com/1.jpg", "https://example.com/2.jpg", "https://example.com/3.jpg"),
+					2
+			);
+			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(seller()));
+			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category("디지털기기")));
+			given(productRepository.save(any(Product.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+			ProductResponse response = productService.createProduct(SELLER_ID, request);
+
+			assertThat(response.getThumbnailUrl()).isEqualTo("https://example.com/3.jpg");
+		}
+
+		@Test
+		@DisplayName("이미지 목록이 null이면 상품을 등록할 수 없다")
+		void throwsInvalidInputWhenImageUrlsAreNull() {
+			ProductCreateRequest request = createRequest("아이폰 15", BigDecimal.valueOf(800000), null, 0);
+
+			assertBusinessException(
+					() -> productService.createProduct(SELLER_ID, request),
+					ErrorCode.INVALID_INPUT_VALUE
+			);
+		}
+
+		@Test
+		@DisplayName("이미지 목록이 비어 있으면 상품을 등록할 수 없다")
+		void throwsInvalidInputWhenImageUrlsAreEmpty() {
+			ProductCreateRequest request = createRequest("아이폰 15", BigDecimal.valueOf(800000), List.of(), 0);
+
+			assertBusinessException(
+					() -> productService.createProduct(SELLER_ID, request),
+					ErrorCode.INVALID_INPUT_VALUE
+			);
+		}
+
+		@Test
+		@DisplayName("이미지가 6장이면 상품을 등록할 수 없다")
+		void throwsInvalidInputWhenImageUrlsSizeIsGreaterThanFive() {
+			ProductCreateRequest request = createRequest(
+					"아이폰 15",
+					BigDecimal.valueOf(800000),
+					List.of(
+							"https://example.com/1.jpg",
+							"https://example.com/2.jpg",
+							"https://example.com/3.jpg",
+							"https://example.com/4.jpg",
+							"https://example.com/5.jpg",
+							"https://example.com/6.jpg"
+					),
+					0
+			);
+
+			assertBusinessException(
+					() -> productService.createProduct(SELLER_ID, request),
+					ErrorCode.INVALID_INPUT_VALUE
+			);
+		}
+
+		@Test
+		@DisplayName("이미지 URL이 공백이면 상품을 등록할 수 없다")
+		void throwsInvalidInputWhenImageUrlIsBlank() {
+			ProductCreateRequest request = createRequest(
+					"아이폰 15",
+					BigDecimal.valueOf(800000),
+					List.of("https://example.com/1.jpg", " "),
+					0
+			);
+
+			assertBusinessException(
+					() -> productService.createProduct(SELLER_ID, request),
+					ErrorCode.INVALID_INPUT_VALUE
+			);
+		}
+
+		@Test
+		@DisplayName("대표 인덱스가 음수이면 상품을 등록할 수 없다")
+		void throwsInvalidInputWhenThumbnailIndexIsNegative() {
+			ProductCreateRequest request = createRequest(
+					"아이폰 15",
+					BigDecimal.valueOf(800000),
+					List.of("https://example.com/1.jpg"),
+					-1
+			);
+
+			assertBusinessException(
+					() -> productService.createProduct(SELLER_ID, request),
+					ErrorCode.INVALID_INPUT_VALUE
+			);
+		}
+
+		@Test
+		@DisplayName("대표 인덱스가 이미지 크기와 같으면 상품을 등록할 수 없다")
+		void throwsInvalidInputWhenThumbnailIndexIsSameAsImageSize() {
+			ProductCreateRequest request = createRequest(
+					"아이폰 15",
+					BigDecimal.valueOf(800000),
+					List.of("https://example.com/1.jpg"),
+					1
+			);
+
+			assertBusinessException(
+					() -> productService.createProduct(SELLER_ID, request),
+					ErrorCode.INVALID_INPUT_VALUE
+			);
+		}
+
+		@Test
+		@DisplayName("이미지 없는 기존 상품을 상세 조회하면 썸네일은 null이고 이미지 목록은 빈 배열이다")
+		void getsExistingProductWithoutImages() {
+			Product product = product("이미지 없는 상품", BigDecimal.valueOf(10000));
+			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
+			given(productImageRepository.findAllByProductIdOrderBySortOrderAsc(PRODUCT_ID)).willReturn(List.of());
+
+			ProductResponse response = productService.getProduct(PRODUCT_ID);
+
+			assertThat(response.getThumbnailUrl()).isNull();
+			assertThat(response.getImageUrls()).isEmpty();
+		}
+	}
+
 	private Member seller() {
 		return member(SELLER_ID, "seller@example.com", "판매자");
 	}
@@ -801,22 +1063,44 @@ class ProductServiceTest {
 	}
 
 	private ProductCreateRequest createRequest(String title, BigDecimal price) {
+		return createRequest(
+				title,
+				price,
+				List.of("https://example.com/default.jpg"),
+				0
+		);
+	}
+
+	private ProductCreateRequest createRequest(String title, BigDecimal price, List<String> imageUrls, int thumbnailIndex) {
 		return new ProductCreateRequest(
 				CATEGORY_ID,
 				title,
 				"상태 좋은 아이폰입니다.",
 				price,
-				"서울 강남구"
+				"서울 강남구",
+				imageUrls,
+				thumbnailIndex
 		);
 	}
 
 	private ProductUpdateRequest updateRequest(String title, BigDecimal price) {
+		return updateRequest(
+				title,
+				price,
+				List.of("https://example.com/update-default.jpg"),
+				0
+		);
+	}
+
+	private ProductUpdateRequest updateRequest(String title, BigDecimal price, List<String> imageUrls, int thumbnailIndex) {
 		return new ProductUpdateRequest(
 				UPDATE_CATEGORY_ID,
 				title,
 				"수정된 상품 설명입니다.",
 				price,
-				"서울 서초구"
+				"서울 서초구",
+				imageUrls,
+				thumbnailIndex
 		);
 	}
 
@@ -854,5 +1138,10 @@ class ProductServiceTest {
 
 	private Specification<Product> anyProductSpecification() {
 		return org.mockito.ArgumentMatchers.any();
+	}
+
+	@SuppressWarnings("unchecked")
+	private ArgumentCaptor<List<ProductImage>> imageListCaptor() {
+		return ArgumentCaptor.forClass(List.class);
 	}
 }

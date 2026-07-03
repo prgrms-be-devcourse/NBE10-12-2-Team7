@@ -13,7 +13,9 @@ import com.dongnemarket.product.dto.ProductStatusUpdateRequest;
 import com.dongnemarket.product.dto.ProductSummaryResponse;
 import com.dongnemarket.product.dto.ProductUpdateRequest;
 import com.dongnemarket.product.entity.Product;
+import com.dongnemarket.product.entity.ProductImage;
 import com.dongnemarket.product.entity.TradeStatus;
+import com.dongnemarket.product.repository.ProductImageRepository;
 import com.dongnemarket.product.repository.ProductRepository;
 import com.dongnemarket.product.repository.spec.ProductSpecification;
 import org.springframework.data.domain.Sort;
@@ -29,13 +31,16 @@ import java.util.List;
 public class ProductService {
 
 	private final ProductRepository productRepository;
+	private final ProductImageRepository productImageRepository;
 	private final MemberRepository memberRepository;
 	private final CategoryRepository categoryRepository;
 
 	public ProductService(ProductRepository productRepository,
+						  ProductImageRepository productImageRepository,
 						  MemberRepository memberRepository,
 						  CategoryRepository categoryRepository) {
 		this.productRepository = productRepository;
+		this.productImageRepository = productImageRepository;
 		this.memberRepository = memberRepository;
 		this.categoryRepository = categoryRepository;
 	}
@@ -57,7 +62,8 @@ public class ProductService {
 				request.getRegion()
 		);
 		Product savedProduct = productRepository.save(product);
-		return ProductResponse.from(savedProduct);
+		saveProductImages(savedProduct, request.getImageUrls(), request.getThumbnailIndex());
+		return ProductResponse.from(savedProduct, request.getImageUrls());
 	}
 
 	public List<ProductSummaryResponse> getProducts() {
@@ -118,7 +124,8 @@ public class ProductService {
 		}
 
 		product.increaseViewCount();
-		return ProductResponse.from(product);
+		List<String> imageUrls = getImageUrls(productId);
+		return ProductResponse.from(product, imageUrls);
 	}
 
 	@Transactional
@@ -145,7 +152,9 @@ public class ProductService {
 				request.getPrice(),
 				request.getRegion()
 		);
-		return ProductResponse.from(product);
+		productImageRepository.deleteAllByProductId(productId);
+		saveProductImages(product, request.getImageUrls(), request.getThumbnailIndex());
+		return ProductResponse.from(product, request.getImageUrls());
 	}
 
 	@Transactional
@@ -180,7 +189,8 @@ public class ProductService {
 		if (product.getTradeStatus() != requestedStatus) {
 			product.changeTradeStatus(requestedStatus);
 		}
-		return ProductResponse.from(product);
+		List<String> imageUrls = getImageUrls(productId);
+		return ProductResponse.from(product, imageUrls);
 	}
 
 	public void validateAccessibleProduct(Long productId) {
@@ -197,10 +207,12 @@ public class ProductService {
 
 	private void validateRequest(ProductCreateRequest request) {
 		validateProductFields(request.getTitle(), request.getPrice());
+		validateProductImages(request.getImageUrls(), request.getThumbnailIndex());
 	}
 
 	private void validateRequest(ProductUpdateRequest request) {
 		validateProductFields(request.getTitle(), request.getPrice());
+		validateProductImages(request.getImageUrls(), request.getThumbnailIndex());
 	}
 
 	private void validateProductFields(String title, BigDecimal price) {
@@ -210,6 +222,38 @@ public class ProductService {
 		if (price == null || price.signum() < 0) {
 			throw new BusinessException(ErrorCode.INVALID_PRODUCT_PRICE);
 		}
+	}
+
+	private void validateProductImages(List<String> imageUrls, int thumbnailIndex) {
+		if (imageUrls == null || imageUrls.isEmpty() || imageUrls.size() > 5) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+		}
+		if (imageUrls.stream().anyMatch(imageUrl -> !StringUtils.hasText(imageUrl))) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+		}
+		if (thumbnailIndex < 0 || thumbnailIndex >= imageUrls.size()) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+		}
+	}
+
+	private void saveProductImages(Product product, List<String> imageUrls, int thumbnailIndex) {
+		product.changeThumbnailUrl(imageUrls.get(thumbnailIndex));
+		List<ProductImage> productImages = java.util.stream.IntStream.range(0, imageUrls.size())
+				.mapToObj(index -> ProductImage.create(
+						product,
+						imageUrls.get(index),
+						index,
+						index == thumbnailIndex
+				))
+				.toList();
+		productImageRepository.saveAll(productImages);
+	}
+
+	private List<String> getImageUrls(Long productId) {
+		return productImageRepository.findAllByProductIdOrderBySortOrderAsc(productId)
+				.stream()
+				.map(ProductImage::getImageUrl)
+				.toList();
 	}
 
 	private TradeStatus parseTradeStatus(ProductStatusUpdateRequest request) {

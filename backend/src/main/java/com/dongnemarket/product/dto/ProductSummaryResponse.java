@@ -16,11 +16,12 @@ public class ProductSummaryResponse {
 	private final String region;
 	private final long viewCount;
 	private final int favoriteCount;
+	private final String thumbnailUrl;
 	private final boolean hidden;
 
 	private ProductSummaryResponse(Long productId, Long memberId, Long categoryId, String title,
 								   BigDecimal price, TradeStatus tradeStatus, String region,
-								   long viewCount, int favoriteCount, boolean hidden) {
+								   long viewCount, int favoriteCount, String thumbnailUrl, boolean hidden) {
 		this.productId = productId;
 		this.memberId = memberId;
 		this.categoryId = categoryId;
@@ -30,6 +31,7 @@ public class ProductSummaryResponse {
 		this.region = region;
 		this.viewCount = viewCount;
 		this.favoriteCount = favoriteCount;
+		this.thumbnailUrl = thumbnailUrl;
 		this.hidden = hidden;
 	}
 
@@ -44,6 +46,7 @@ public class ProductSummaryResponse {
 				product.getRegion(),
 				product.getViewCount(),
 				product.getFavoriteCount(),
+				product.getThumbnailUrl(),
 				product.isHidden()
 		);
 	}
@@ -82,6 +85,10 @@ public class ProductSummaryResponse {
 
 	public int getFavoriteCount() {
 		return favoriteCount;
+	}
+
+	public String getThumbnailUrl() {
+		return thumbnailUrl;
 	}
 
 	public boolean isHidden() {
