@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { href: '/products/new', label: '상품등록' },
   { href: '/my-products',  label: '내상품' },
   { href: '/favorites',    label: '관심상품' },
+  { href: '/chat',         label: '채팅' },
   { href: '/my-reports',   label: '내신고내역' },
   { href: '/my-profile',   label: '내정보' },
 ]

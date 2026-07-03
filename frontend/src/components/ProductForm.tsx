@@ -7,6 +7,7 @@ import { getAccessToken, getCurrentMemberId } from '@/lib/auth'
 import styles from './ProductForm.module.css'
 
 interface Category { id: number; name: string }
+interface Region { regionId: number; name: string }
 
 interface Props {
   editId?: string
@@ -19,6 +20,7 @@ export default function ProductForm({ editId }: Props) {
 
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('loading')
   const [categories, setCategories] = useState<Category[]>([])
+  const [regions, setRegions] = useState<Region[]>([])
 
   /* ── 폼 상태 ── */
   const [title,      setTitle]      = useState('')
@@ -54,16 +56,21 @@ export default function ProductForm({ editId }: Props) {
     }
 
     async function loadFormData() {
-      const requests: Promise<unknown>[] = [fetch('/api/categories').then(r => r.json())]
+      const requests: Promise<unknown>[] = [
+        fetch('/api/categories').then(r => r.json()),
+        fetch('/api/regions').then(r => r.json()),
+      ]
       if (isEdit) requests.push(fetch(`/api/products/${editId}`).then(async r => ({ ok: r.ok, data: await r.json().catch(() => null) })))
 
       await Promise.all(requests).then(results => {
         if (cancelled) return
         const categoriesRes = results[0] as { data?: Category[] }
         setCategories(categoriesRes?.data ?? [])
+        const regionsRes = results[1] as { data?: Region[] }
+        setRegions(regionsRes?.data ?? [])
 
         if (isEdit) {
-          const productRes = results[1] as { ok: boolean; data: { data?: {
+          const productRes = results[2] as { ok: boolean; data: { data?: {
             memberId: number; categoryId: number; title: string; description: string; price: number; region: string
             thumbnailUrl?: string; imageUrls?: string[]
           } } }
@@ -149,7 +156,7 @@ export default function ProductForm({ editId }: Props) {
       setCategoryHint({ text: '' })
     }
     if (!region.trim()) {
-      setRegionHint({ text: '거래 지역을 입력하세요.', err: true }); ok = false
+      setRegionHint({ text: '거래 지역을 선택하세요.', err: true }); ok = false
     } else {
       setRegionHint({ text: '' })
     }
@@ -340,12 +347,17 @@ export default function ProductForm({ editId }: Props) {
             </div>
             <div className={styles.field}>
               <label htmlFor="region">거래 지역<span className={styles.req}>*</span></label>
-              <input
-                id="region" type="text" className={styles.input}
-                placeholder="예: 서울 강남구 역삼동"
+              <select
+                id="region" className={styles.select}
                 value={region} onChange={e => setRegion(e.target.value)}
                 aria-invalid={regionHint.err ? 'true' : 'false'}
-              />
+              >
+                <option value="">지역 선택</option>
+                {region && !regions.some(r => r.name === region) && (
+                  <option value={region}>{region}</option>
+                )}
+                {regions.map(r => <option key={r.regionId} value={r.name}>{r.name}</option>)}
+              </select>
               <div className={hintCls(regionHint)}>{regionHint.text}</div>
             </div>
           </div>

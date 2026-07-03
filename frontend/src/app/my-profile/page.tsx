@@ -17,6 +17,17 @@ interface Member {
   createdAt: string
 }
 
+interface MemberLocation {
+  region: string
+  sortOrder: number
+  active: boolean
+}
+
+interface RegionOption {
+  regionId: number
+  name: string
+}
+
 export default function MyProfilePage() {
   const [status, setStatus] = useState<PageStatus>('loading')
   const [errorMsg, setErrorMsg] = useState('')
@@ -28,6 +39,12 @@ export default function MyProfilePage() {
   const [formMsg, setFormMsg] = useState<{ text: string; type: MsgType } | null>(null)
   const [saving, setSaving] = useState(false)
   const [withdrawing, setWithdrawing] = useState(false)
+
+  const [regionOptions, setRegionOptions] = useState<RegionOption[]>([])
+  const [selectedRegions, setSelectedRegions] = useState<string[]>([])
+  const [addRegion, setAddRegion] = useState('')
+  const [locMsg, setLocMsg] = useState<{ text: string; type: MsgType } | null>(null)
+  const [locSaving, setLocSaving] = useState(false)
 
   const [toastText, setToastText]       = useState('')
   const [toastVisible, setToastVisible] = useState(false)
@@ -59,6 +76,66 @@ export default function MyProfilePage() {
       })
     return () => { cancelled = true }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      apiFetch('/api/members/me/locations').then(async r => ({ ok: r.ok, data: await r.json().catch(() => null) })),
+      fetch('/api/regions').then(r => r.json()).catch(() => null),
+    ]).then(([locRes, regionsRes]) => {
+      if (cancelled) return
+      if (locRes.ok) {
+        const list: MemberLocation[] = locRes.data?.data ?? []
+        setSelectedRegions(list.slice().sort((a, b) => a.sortOrder - b.sortOrder).map(l => l.region))
+      }
+      setRegionOptions(regionsRes?.data ?? [])
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  function addSelectedRegion() {
+    if (!addRegion) return
+    if (selectedRegions.length >= 2) { showToast('동네는 최대 2개까지 설정할 수 있어요'); return }
+    if (selectedRegions.includes(addRegion)) { showToast('이미 추가된 동네예요'); return }
+    setSelectedRegions(prev => [...prev, addRegion])
+    setAddRegion('')
+  }
+
+  function removeSelectedRegion(region: string) {
+    setSelectedRegions(prev => prev.filter(r => r !== region))
+  }
+
+  function makePrimary(region: string) {
+    setSelectedRegions(prev => [region, ...prev.filter(r => r !== region)])
+  }
+
+  async function saveLocations() {
+    setLocMsg(null)
+    if (selectedRegions.length === 0) {
+      setLocMsg({ text: '동네를 1개 이상 설정해주세요.', type: 'error' })
+      return
+    }
+    setLocSaving(true)
+    try {
+      const res = await apiFetch('/api/members/me/locations', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ regions: selectedRegions }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        setLocMsg({ text: data?.message ?? '동네 설정 중 오류가 발생했습니다.', type: 'error' })
+        return
+      }
+      const list: MemberLocation[] = data?.data ?? []
+      setSelectedRegions(list.slice().sort((a, b) => a.sortOrder - b.sortOrder).map(l => l.region))
+      showToast('동네를 설정했어요')
+    } catch {
+      setLocMsg({ text: '서버에 연결할 수 없습니다.', type: 'error' })
+    } finally {
+      setLocSaving(false)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -201,6 +278,74 @@ export default function MyProfilePage() {
           </button>
           <div className={styles.apiNote}>GET /api/members/me · PATCH /api/members/me</div>
         </form>
+      </div>
+
+      {/* 내 동네 설정 카드 */}
+      <div className={styles.card}>
+        <h2>내 동네 설정</h2>
+        <p className={styles.withdraw}>최대 2개까지 설정할 수 있어요. 첫 번째 동네가 대표 동네가 돼요.</p>
+
+        {locMsg && (
+          <div className={[styles.formMsg, styles.show, styles[locMsg.type]].join(' ')} role="alert">
+            {locMsg.text}
+          </div>
+        )}
+
+        {selectedRegions.length > 0 ? (
+          <div className={styles.locList}>
+            {selectedRegions.map((region, i) => (
+              <div key={region} className={styles.locChip}>
+                {i === 0 && <span className={styles.locPrimary}>대표</span>}
+                <span className={styles.locName}>{region}</span>
+                {i !== 0 && (
+                  <button type="button" className={styles.locAction} onClick={() => makePrimary(region)}>
+                    대표로
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={styles.locRemove}
+                  onClick={() => removeSelectedRegion(region)}
+                  aria-label={`${region} 삭제`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className={styles.locEmpty}>설정된 동네가 없어요.</p>
+        )}
+
+        {selectedRegions.length < 2 && (
+          <div className={styles.locAddRow}>
+            <select
+              value={addRegion}
+              onChange={e => setAddRegion(e.target.value)}
+              className={styles.locSelect}
+              aria-label="동네 선택"
+            >
+              <option value="">동네 선택</option>
+              {regionOptions.filter(r => !selectedRegions.includes(r.name)).map(r => (
+                <option key={r.regionId} value={r.name}>{r.name}</option>
+              ))}
+            </select>
+            <button type="button" className="btn ghost" onClick={addSelectedRegion} disabled={!addRegion}>
+              추가
+            </button>
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="btn block"
+          onClick={saveLocations}
+          disabled={locSaving}
+          style={{ marginTop: 14 }}
+        >
+          {locSaving ? '저장 중...' : '동네 저장'}
+        </button>
+        <div className={styles.apiNote}>GET/PUT /api/members/me/locations · GET /api/regions</div>
       </div>
 
       {/* 계정 관리 카드 */}
