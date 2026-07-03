@@ -54,6 +54,11 @@ public enum ErrorCode {
 	COMMENT_NOT_FOUND(404, "COMMENT_001", "댓글을 찾을 수 없습니다."),
 	COMMENT_OWNER_ONLY(403, "COMMENT_002", "댓글 작성자만 처리할 수 있습니다."),
 
+	// ===== CHAT ERROR (권건우) =====
+	CHAT_ROOM_NOT_FOUND(404, "CHAT_001", "채팅방을 찾을 수 없습니다."),
+	CHAT_ACCESS_DENIED(403, "CHAT_002", "채팅방 참여자만 접근할 수 있습니다."),
+	CANNOT_CHAT_WITH_SELF(400, "CHAT_003", "자신의 상품에는 채팅을 시작할 수 없습니다."),
+
 	// ===== REPORT ERROR (서유진) =====
 	REPORT_NOT_FOUND(404, "REPORT_001", "신고 내역을 찾을 수 없습니다."),
 	CANNOT_REPORT_OWN_PRODUCT(400, "REPORT_002", "본인이 등록한 상품은 신고할 수 없습니다."),
