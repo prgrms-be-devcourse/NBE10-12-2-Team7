@@ -30,4 +30,14 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "WHERE r.buyer.id = :memberId OR r.seller.id = :memberId " +
             "ORDER BY r.id DESC")
     List<ChatRoom> findMyChatRooms(@Param("memberId") Long memberId);
+
+    /**
+     * (상품, 구매자)로 방을 입장 상세와 함께 조회한다. 입장 응답(상품 상세·판매자)에 필요한 product·seller를 fetch join.
+     * get-or-create 직후 반환용.
+     */
+    @Query("SELECT r FROM ChatRoom r " +
+            "JOIN FETCH r.product " +
+            "JOIN FETCH r.seller " +
+            "WHERE r.product.id = :productId AND r.buyer.id = :buyerId")
+    Optional<ChatRoom> findDetailByProductAndBuyer(@Param("productId") Long productId, @Param("buyerId") Long buyerId);
 }

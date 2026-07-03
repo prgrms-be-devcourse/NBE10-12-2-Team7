@@ -27,4 +27,14 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
     List<ChatMessage> findPageByRoom(@Param("roomId") Long roomId,
                                      @Param("cursor") Long cursor,
                                      Limit limit);
+
+    /**
+     * 여러 방의 <b>마지막 메시지</b>를 한 번에 조회한다(방 목록 미리보기용). 방별 최대 id = 최신 메시지(id 단조증가).
+     * 방 하나당 최대 한 건이라 N+1 없이 목록의 마지막 메시지를 채운다.
+     */
+    @Query("SELECT m FROM ChatMessage m " +
+            "JOIN FETCH m.sender " +
+            "WHERE m.id IN (SELECT MAX(m2.id) FROM ChatMessage m2 " +
+            "WHERE m2.chatRoom.id IN :roomIds GROUP BY m2.chatRoom.id)")
+    List<ChatMessage> findLatestPerRoom(@Param("roomIds") List<Long> roomIds);
 }

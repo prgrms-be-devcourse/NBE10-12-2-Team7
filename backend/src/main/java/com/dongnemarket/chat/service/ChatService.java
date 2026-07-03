@@ -1,0 +1,130 @@
+package com.dongnemarket.chat.service;
+
+import com.dongnemarket.chat.dto.ChatMessagePageResponse;
+import com.dongnemarket.chat.dto.ChatMessageResponse;
+import com.dongnemarket.chat.dto.ChatRoomDetailResponse;
+import com.dongnemarket.chat.dto.ChatRoomListResponse;
+import com.dongnemarket.chat.entity.ChatMessage;
+import com.dongnemarket.chat.entity.ChatRoom;
+import com.dongnemarket.chat.repository.ChatMessageRepository;
+import com.dongnemarket.chat.repository.ChatRoomRepository;
+import com.dongnemarket.global.exception.BusinessException;
+import com.dongnemarket.global.exception.ErrorCode;
+import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.product.service.ProductService;
+import jakarta.persistence.EntityManager;
+import org.springframework.data.domain.Limit;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+@Service
+public class ChatService {
+
+    private static final int DEFAULT_PAGE_SIZE = 30;
+    private static final int MAX_PAGE_SIZE = 100;
+
+    private final ChatRoomCreator chatRoomCreator;
+    private final ChatRoomRepository chatRoomRepository;
+    private final ChatMessageRepository chatMessageRepository;
+    private final ProductService productService;
+    private final EntityManager entityManager;
+
+    public ChatService(ChatRoomCreator chatRoomCreator,
+                       ChatRoomRepository chatRoomRepository,
+                       ChatMessageRepository chatMessageRepository,
+                       ProductService productService,
+                       EntityManager entityManager) {
+        this.chatRoomCreator = chatRoomCreator;
+        this.chatRoomRepository = chatRoomRepository;
+        this.chatMessageRepository = chatMessageRepository;
+        this.productService = productService;
+        this.entityManager = entityManager;
+    }
+
+    /**
+     * 상품에 대한 채팅방을 get-or-create 한다(멱등). 접근 불가 상품·자기 상품은 차단.
+     * <p>쓰기는 {@link ChatRoomCreator}(독립 트랜잭션)에 위임하고, 동시 최초 생성 경쟁으로 INSERT가 실패하면
+     * 그 트랜잭션 <b>바깥</b>에서(여기서) 이긴 방을 재조회한다 — rollback-only 트랜잭션 재사용을 피한다.
+     * 메서드 자체엔 트랜잭션을 걸지 않아 위임 쓰기와 복구 조회가 서로 다른 트랜잭션에서 실행된다.
+     */
+    public ChatRoomDetailResponse createRoom(Long memberId, Long productId) {
+        productService.validateAccessibleProduct(productId);
+        try {
+            chatRoomCreator.createIfAbsent(memberId, productId);
+        } catch (DataIntegrityViolationException race) {
+            // 경쟁에서 진 INSERT는 롤백됨. 이긴 방이 이미 존재하므로 아래 조회에서 가져온다.
+        }
+        ChatRoom room = chatRoomRepository.findDetailByProductAndBuyer(productId, memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND));
+        return ChatRoomDetailResponse.of(room);
+    }
+
+    /** 내가 참여한 방 목록(최근순). 상품 요약·상대방·방별 마지막 메시지를 함께 담는다. */
+    @Transactional(readOnly = true)
+    public List<ChatRoomListResponse> getMyRooms(Long memberId) {
+        List<ChatRoom> rooms = chatRoomRepository.findMyChatRooms(memberId);
+        if (rooms.isEmpty()) {
+            return List.of();
+        }
+        List<Long> roomIds = rooms.stream().map(ChatRoom::getId).toList();
+        Map<Long, ChatMessage> lastByRoom = chatMessageRepository.findLatestPerRoom(roomIds).stream()
+                .collect(Collectors.toMap(ChatMessage::getChatRoomId, Function.identity()));
+
+        return rooms.stream()
+                .map(room -> ChatRoomListResponse.of(room, opponentOf(room, memberId), lastByRoom.get(room.getId())))
+                .toList();
+    }
+
+    /** 방의 메시지를 최신순 커서 페이지네이션으로 조회한다. 참여자만 접근 가능. */
+    @Transactional(readOnly = true)
+    public ChatMessagePageResponse getMessages(Long memberId, Long roomId, Long cursor, int size) {
+        ChatRoom room = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND));
+        validateParticipant(room, memberId);
+
+        int limit = clampSize(size);
+        // 다음 페이지 존재 여부 판별을 위해 한 건 더 조회한다.
+        List<ChatMessage> rows = chatMessageRepository.findPageByRoom(roomId, cursor, Limit.of(limit + 1));
+        boolean hasNext = rows.size() > limit;
+        List<ChatMessage> page = hasNext ? rows.subList(0, limit) : rows;
+        Long nextCursor = hasNext ? page.get(page.size() - 1).getId() : null;
+
+        List<ChatMessageResponse> messages = page.stream().map(ChatMessageResponse::from).toList();
+        return ChatMessagePageResponse.of(messages, nextCursor, hasNext);
+    }
+
+    /** 메시지를 전송한다. 참여자만 가능. */
+    @Transactional
+    public ChatMessageResponse sendMessage(Long memberId, Long roomId, String content) {
+        ChatRoom room = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND));
+        validateParticipant(room, memberId);
+
+        Member sender = entityManager.getReference(Member.class, memberId);
+        ChatMessage saved = chatMessageRepository.save(ChatMessage.of(room, sender, content));
+        return ChatMessageResponse.from(saved);
+    }
+
+    private void validateParticipant(ChatRoom room, Long memberId) {
+        if (!room.isParticipant(memberId)) {
+            throw new BusinessException(ErrorCode.CHAT_ACCESS_DENIED);
+        }
+    }
+
+    private Member opponentOf(ChatRoom room, Long memberId) {
+        return room.getBuyerId().equals(memberId) ? room.getSeller() : room.getBuyer();
+    }
+
+    private int clampSize(int size) {
+        if (size <= 0) {
+            return DEFAULT_PAGE_SIZE;
+        }
+        return Math.min(size, MAX_PAGE_SIZE);
+    }
+}
