@@ -116,3 +116,72 @@
 - 설계 AI는 작은 PR 단위, SOLID 관점, Kotlin 전환 친화성을 검토한다.
 - 구현 AI는 승인된 범위 안에서 TDD로 코드를 작성한다.
 - 검증 AI는 구현 후 요구사항 누락, 테스트 갭, 문서 누락을 확인한다.
+
+## Product 작업 인수인계 규칙
+
+### 대화와 진행 방식
+- 사용자와의 모든 질의응답은 한국어로 한다.
+- 사용자는 코드 작성 전 설계, 예외 분석, 파일 목록, 작업 단위 분리를 먼저 확인받는 방식을 선호한다.
+- 기능 구현 요청을 받아도 바로 구현하지 말고, 먼저 현재 코드와 문서를 읽고 현황을 요약한다.
+- 사용자가 "진행" 또는 명시적으로 승인한 뒤에 테스트 작성과 구현을 시작한다.
+- 커밋, 푸시, PR 생성은 사용자의 명시적 승인 이후에만 진행한다.
+- PR 생성은 사용자가 직접 확인 후 진행하는 것을 선호하므로, 기본적으로는 PR 본문 초안까지만 작성하고 대기한다.
+
+### 브랜치와 최신화
+- 새 작업은 `develop`을 원격 최신 상태로 맞춘 뒤 새 브랜치를 만들어 시작한다.
+- 이전 작업 브랜치가 이미 머지되었는지 확인하고, 사용자가 승인하지 않으면 원격 브랜치는 삭제하지 않는다.
+- PR 승인 후에는 `develop`으로 돌아와 원격 최신화를 진행하고 워킹트리가 깨끗한지 확인한다.
+- 이미 push된 커밋 메시지를 수정해야 할 때는 `git commit --amend` 후 `git push --force-with-lease`를 사용한다.
+
+### 테스트와 검증
+- 기능 구현은 테스트 먼저 작성하고 실패를 확인한 뒤 구현한다.
+- 단위 테스트와 통합 테스트는 병렬 실행하지 않는다. Gradle `build` 디렉토리 경합을 피하기 위해 반드시 순차 실행한다.
+- Product 관련 주요 변경 후에는 변경 범위 테스트를 먼저 실행하고, 필요하면 전체 `./gradlew test`를 실행한다.
+- 전체 테스트가 실패하면 구현을 고치지 말고, 실패 클래스와 원인을 먼저 보고하고 사용자의 판단을 기다린다.
+- 통합 테스트는 필요한 대상만 좁게 실행한다. 전체 `integrationTest`는 다른 도메인 알려진 실패가 있으면 임의로 돌리지 않는다.
+
+### 타 도메인과 공유
+- Product 작업 중 다른 담당자의 패키지나 테스트를 수정해야 하면, 수정 전에 이유와 파일 목록을 보고한다.
+- 다른 담당자 코드 변경이 실제로 필요하면 답변과 PR 본문에 팀원 공유 사항으로 따로 명시한다.
+- `global`, `member`, `favorite`, `comment`, `report`, `admin` 영역은 임의 수정하지 않는다. 필요한 변경은 요청사항으로 정리한다.
+- `BaseInitDataInitializer`처럼 global 영역이지만 Product 기능 정합성에 영향을 받는 파일은 바로 수정하지 말고 팀 공유 후 진행한다.
+
+### Product 이미지 기능 결정사항
+- 상품 이미지는 URL 문자열로 저장한다. 파일 업로드, multipart, 스토리지 SDK 연동은 별도 후속 기능이다.
+- 상품 등록과 수정 요청은 `imageUrls` 1장 이상 5장 이하를 요구한다.
+- 대표이미지는 `thumbnailIndex`로 지정하며, `Product.thumbnailUrl`에 비정규화해 목록 조회에서 사용한다.
+- 상세 응답은 `thumbnailUrl`과 `imageUrls` 전체 목록을 함께 반환한다.
+- 목록, 검색, 내 상품 응답은 `thumbnailUrl`만 반환한다.
+- 이미지 수정은 전체 교체 방식이다. 기존 이미지 row를 productId 기준으로 삭제한 뒤 새 목록을 저장한다.
+- `Product`에는 `@OneToMany` 컬렉션을 만들지 않고, `ProductImage -> Product` 단방향 `@ManyToOne(fetch = LAZY)`만 사용한다.
+- 기존 이미지 없는 상품은 호환을 위해 `thumbnailUrl = null`, `imageUrls = []`로 응답한다.
+- 정식 이미지 저장소가 정해지기 전에는 init 데이터에 개인 저장소나 로컬 이미지 URL을 넣지 않는다.
+- init 데이터의 이미지 추가는 결함 수정이 아니라 스토리지 결정 이후 후속 기능으로 본다.
+
+### Product favoriteCount 기능 결정사항
+- Favorite와 Product의 순환참조는 Spring Event 기반으로 끊는다.
+- Product 도메인은 favoriteCount 수신 측만 담당한다.
+- 리스너는 `@EventListener` 동기 same-transaction 방식으로 동작한다.
+- 리스너는 `ProductRepository`만 주입받고 FavoriteService, FavoriteRepository, Favorite 엔티티를 참조하지 않는다.
+- favoriteCount 증감은 엔티티 로드 후 setter가 아니라 Repository 원자 UPDATE로 처리한다.
+- 감소는 `favoriteCount > 0` 조건으로 음수 방지한다.
+
+### 현재 Product API 기준
+- `POST /api/products`: 상품 등록, 이미지 1~5장 필수, 대표 이미지 지정.
+- `GET /api/products`: 삭제·숨김 제외 목록, 최신순, `thumbnailUrl` 포함.
+- `GET /api/products/search`: Specification 기반 검색, 삭제·숨김 제외, 최신순, `thumbnailUrl` 포함.
+- `GET /api/products/{productId}`: 상세 조회, 조회수 증가, `thumbnailUrl`과 `imageUrls` 포함.
+- `PATCH /api/products/{productId}`: 작성자 수정, 거래완료 수정 금지, 이미지 전체 교체.
+- `DELETE /api/products/{productId}`: 작성자 논리 삭제, 거래완료 상품도 삭제 가능.
+- `PATCH /api/products/{productId}/status`: 작성자 거래 상태 변경, COMPLETED 되돌리기 금지.
+- `GET /api/products/me`: 내 상품 조회, 삭제 제외, 숨김 포함, 최신순.
+- `GET /api/categories`: 카테고리 목록 조회.
+- `GET /api/categories/{categoryId}/products`: 카테고리별 상품 목록 조회.
+
+### 다음 기능 후보: 위치 기반 상품 조회
+- 당근마켓의 "내 동네 2곳"과 유사한 기능은 Product 단독 조회 조건만으로 끝나지 않는다.
+- 현재 `Product.region`은 문자열 1개이고, `Member`에는 위치/동네 정보가 없다.
+- "내 동네 2곳"을 제대로 구현하려면 회원이 선택한 동네 목록 저장 구조가 필요하다.
+- 권장 설계는 `member_locations` 같은 별도 테이블로 회원 1명당 최대 2개 동네를 저장하는 방식이다.
+- 다만 이 방식은 Member 영역과 연결되므로 member 담당자 및 팀장과 협의가 필요하다.
+- Product 단독으로 작게 시작하려면 요청 파라미터로 지역 목록을 받아 상품을 필터링하는 방식도 가능하지만, 이는 진짜 "내 동네" 기능은 아니다.
