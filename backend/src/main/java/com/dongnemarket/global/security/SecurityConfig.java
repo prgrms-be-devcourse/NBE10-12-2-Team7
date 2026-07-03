@@ -52,11 +52,14 @@ public class SecurityConfig {
 						.requestMatchers(SWAGGER_WHITELIST).permitAll()
 						// 헬스체크(배포/모니터링용,인증 불필요)
 						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+						// Prometheus 메트릭 스크레이프 (로컬 모니터링용, 인증 불필요 — 운영 반영 시 접근 제한 필요)
+						.requestMatchers("/actuator/prometheus").permitAll()
 						// 인증 불필요 (회원가입/로그인, 공개 조회)
 						.requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/products", "/api/products/{productId}").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/products/{productId}/comments").permitAll()
+
 						// 관리자 전용
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
 						// 그 외 모든 요청은 인증 필요
