@@ -1,0 +1,146 @@
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 34px 24px 90px;
+}
+
+/* 인트로 */
+.intro {
+  margin-bottom: 24px;
+  animation: mo-rise .5s cubic-bezier(.2,.7,.3,1) backwards;
+}
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 700;
+  color: var(--primary); background: var(--primary-soft);
+  padding: 5px 12px; border-radius: 999px;
+}
+.intro h1 { margin: 12px 0 5px; font-size: 24px; font-weight: 800; letter-spacing: -.03em; }
+.intro p  { margin: 0; color: var(--text-muted); font-size: 14px; }
+
+/* 카드 */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 28px 30px;
+  animation: mo-rise .6s cubic-bezier(.2,.7,.3,1) backwards;
+  animation-delay: .1s;
+}
+
+/* 폼 메시지 */
+.formMsg { display: none; margin-bottom: 20px; padding: 12px 14px; border-radius: 12px; font-size: 13.5px; font-weight: 600; }
+.formMsg.show    { display: block; }
+.formMsg.error   { background: var(--danger-soft); color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); }
+.formMsg.success { background: var(--ok-soft);     color: var(--ok);     border: 1px solid color-mix(in srgb, var(--ok)     30%, transparent); }
+
+/* 이미지 업로더 */
+.photos { display: flex; gap: 12px; flex-wrap: wrap; }
+.addPhoto {
+  width: 96px; height: 96px;
+  border: 1.5px dashed var(--border); border-radius: 14px;
+  background: var(--bg); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 5px;
+  cursor: pointer; color: var(--text-muted); font-size: 12px;
+  font-weight: 600; font-family: inherit; transition: border-color .15s, color .15s, background .15s;
+}
+.addPhoto:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+.addPhoto.has   { border-style: solid; }
+.photoCnt { font-size: 11px; }
+.photoThumb {
+  position: relative; width: 96px; height: 96px;
+  border-radius: 14px; border: 1px solid var(--border);
+  background-color: var(--surface-2);
+  background-image: repeating-linear-gradient(
+    135deg, transparent, transparent 9px,
+    color-mix(in srgb, var(--text) 5%, transparent) 9px,
+    color-mix(in srgb, var(--text) 5%, transparent) 18px
+  );
+}
+.rmBtn {
+  position: absolute; top: -7px; right: -7px;
+  width: 22px; height: 22px; border-radius: 50%; border: none;
+  background: var(--text); color: var(--bg); font-size: 12px;
+  cursor: pointer; display: grid; place-items: center;
+}
+.coverBadge {
+  position: absolute; bottom: 5px; left: 5px;
+  font-size: 10px; font-weight: 700; color: #fff;
+  background: var(--primary); padding: 2px 7px; border-radius: 999px;
+}
+
+/* 필드 */
+.field { margin-bottom: 20px; }
+.field label { display: block; font-size: 13.5px; font-weight: 700; margin-bottom: 8px; }
+.req { color: var(--primary); margin-left: 3px; }
+.sub { font-size: 12px; color: var(--text-muted); font-weight: 500; margin-left: 6px; }
+
+.input, .select, .textarea {
+  width: 100%; padding: 12px 14px; border: 1px solid var(--border);
+  border-radius: 12px; font-size: 14.5px; font-family: inherit;
+  background: var(--bg); color: var(--text); outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.input::placeholder, .textarea::placeholder { color: var(--text-muted); opacity: .8; }
+.input:focus, .select:focus, .textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.input[aria-invalid="true"], .textarea[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+.input:disabled { opacity: .6; cursor: not-allowed; }
+.select { cursor: pointer; }
+.textarea { resize: vertical; min-height: 130px; line-height: 1.6; }
+
+.hint     { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
+.hint.err { color: var(--danger); }
+
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+@media (max-width: 520px) { .row2 { grid-template-columns: 1fr; } }
+
+/* 가격 */
+.priceIn { position: relative; }
+.priceIn .input { padding-right: 38px; }
+.won { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 14px; font-weight: 600; }
+.freeRow { display: flex; align-items: center; gap: 9px; margin-top: 10px; }
+.freeRow input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
+.freeRow label { margin: 0; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+
+/* 거래 상태 세그먼트 */
+.seg { display: flex; gap: 8px; flex-wrap: wrap; }
+.opt {
+  flex: 1; min-width: 90px; text-align: center; padding: 11px 12px;
+  border: 1px solid var(--border); border-radius: 11px;
+  background: var(--bg); color: var(--text-muted);
+  font-size: 14px; font-weight: 700; cursor: pointer; transition: all .15s;
+  user-select: none;
+}
+.opt:hover { border-color: var(--primary); color: var(--primary); }
+.opt.sel   { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+
+/* 액션 */
+.actions { display: flex; gap: 10px; margin-top: 6px; }
+.btnSubmit {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 14px 18px; border: 1px solid var(--primary); background: var(--primary);
+  color: #fff; border-radius: 13px; font-size: 15px; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--primary) 30%, transparent);
+  transition: background .15s, transform .1s;
+}
+.btnSubmit:hover    { background: var(--primary-d); }
+.btnSubmit:active   { transform: translateY(1px); }
+.btnSubmit:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
+.btnGhost {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  padding: 14px 18px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); border-radius: 13px; font-size: 15px; font-weight: 600;
+  font-family: inherit; cursor: pointer; text-decoration: none;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.btnGhost:hover { background: var(--primary-soft); border-color: var(--primary-soft); color: var(--primary); }
+
+.apiNote { margin-top: 16px; font-size: 11.5px; color: var(--text-muted); text-align: center; font-family: ui-monospace, Menlo, monospace; opacity: .7; }
+
+.notice {
+  text-align: center;
+  padding: 70px 20px;
+  color: var(--text-muted);
+}
+.notice p { margin: 0 0 4px; font-size: 14px; }
+.noticeBtn { margin-top: 16px; }

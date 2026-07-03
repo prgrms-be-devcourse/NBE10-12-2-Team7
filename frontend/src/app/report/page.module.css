@@ -1,0 +1,159 @@
+.wrap {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 34px 24px 90px;
+}
+
+/* 인트로 */
+.intro {
+  margin-bottom: 22px;
+  animation: mo-rise .5s cubic-bezier(.2,.7,.3,1) backwards;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--danger);
+  background: var(--danger-soft);
+  padding: 5px 12px;
+  border-radius: 999px;
+}
+.intro h1 {
+  margin: 12px 0 5px;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -.03em;
+}
+.intro p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* 카드 */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 26px 28px;
+  animation: mo-rise .6s cubic-bezier(.2,.7,.3,1) backwards;
+  animation-delay: .1s;
+}
+
+/* 신고 대상 */
+.target {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  margin-bottom: 22px;
+}
+.targetIc {
+  width: 42px; height: 42px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+}
+.targetInfo { flex: 1; min-width: 0; }
+.targetKind { font-size: 11.5px; font-weight: 700; color: var(--danger); }
+.targetNm   { font-size: 14.5px; font-weight: 700; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.targetSub  { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+.loginNotice { font-size: 14px; color: var(--text-muted); margin: 0 0 16px; text-align: center; }
+
+/* 필드 */
+.field { margin-bottom: 20px; }
+.field label { display: block; font-size: 13.5px; font-weight: 700; margin-bottom: 9px; }
+.req { color: var(--danger); margin-left: 3px; }
+
+/* 신고 사유 선택 */
+.reasons { display: flex; flex-direction: column; gap: 8px; }
+.reason {
+  display: flex; align-items: center; gap: 11px;
+  padding: 13px 15px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--bg); cursor: pointer; transition: border-color .15s, background .15s;
+}
+.reason:hover { border-color: var(--primary); }
+.reason.sel { border-color: var(--danger); background: var(--danger-soft); }
+.radio {
+  width: 19px; height: 19px; border-radius: 50%;
+  border: 2px solid var(--border); flex-shrink: 0;
+  display: grid; place-items: center; transition: border-color .15s;
+}
+.reason.sel .radio { border-color: var(--danger); }
+.radioInner { width: 9px; height: 9px; border-radius: 50%; background: var(--danger); }
+.reasonTxt { font-size: 14px; font-weight: 600; }
+
+/* 텍스트에리어 */
+.textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  resize: vertical;
+  min-height: 130px;
+  line-height: 1.6;
+  transition: border-color .15s, box-shadow .15s;
+}
+.textarea::placeholder { color: var(--text-muted); opacity: .8; }
+.textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.textarea[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+.counter { text-align: right; font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+.hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
+.hint.err { color: var(--danger); }
+
+/* 안내 */
+.notice {
+  display: flex; gap: 9px; padding: 13px 15px;
+  border-radius: 12px; background: var(--surface-2);
+  font-size: 12.5px; color: var(--text-muted); line-height: 1.55;
+  margin-bottom: 22px;
+}
+.notice svg { flex-shrink: 0; color: var(--text-muted); margin-top: 1px; }
+
+/* 폼 메시지 */
+.formMsg { display: none; margin-bottom: 20px; padding: 12px 14px; border-radius: 12px; font-size: 13.5px; font-weight: 600; }
+.formMsg.show { display: block; }
+.formMsg.error   { background: var(--danger-soft); color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); }
+.formMsg.success { background: var(--ok-soft);     color: var(--ok);     border: 1px solid color-mix(in srgb, var(--ok)     30%, transparent); }
+
+/* 버튼 */
+.actions { display: flex; gap: 10px; margin-top: 4px; }
+.btnSubmit {
+  flex: 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 14px 18px; border: 1px solid var(--danger); background: var(--danger);
+  color: #fff; border-radius: 13px; font-size: 15px; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--danger) 28%, transparent);
+  transition: background .15s, transform .1s;
+}
+.btnSubmit:hover    { background: color-mix(in srgb, var(--danger) 85%, black); }
+.btnSubmit:active   { transform: translateY(1px); }
+.btnSubmit:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
+.btnGhost {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 14px 18px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); border-radius: 13px; font-size: 15px; font-weight: 600;
+  font-family: inherit; cursor: pointer; text-decoration: none; transition: background .15s, border-color .15s, color .15s;
+}
+.btnGhost:hover { background: var(--primary-soft); border-color: var(--primary-soft); color: var(--primary); }
+
+.apiNote { margin-top: 16px; font-size: 11.5px; color: var(--text-muted); text-align: center; font-family: ui-monospace, Menlo, monospace; opacity: .7; }

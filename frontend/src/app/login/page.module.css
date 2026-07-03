@@ -1,0 +1,82 @@
+.stage {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 60px 24px 90px;
+}
+
+/* 인트로 */
+.intro {
+  text-align: center;
+  margin-bottom: 26px;
+  animation: mo-rise .6s cubic-bezier(.2,.7,.3,1) backwards;
+  animation-delay: .08s;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-soft);
+  padding: 5px 12px;
+  border-radius: 999px;
+}
+.intro h1 {
+  margin: 14px 0 6px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -.03em;
+}
+.intro p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* 카드 */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 34px 32px;
+  animation: mo-rise .65s cubic-bezier(.2,.7,.3,1) backwards;
+  animation-delay: .16s;
+}
+
+.formCol { display: flex; flex-direction: column; }
+
+.field { margin-bottom: 18px; }
+.field label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.req { color: var(--primary); margin-left: 3px; }
+
+.field input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.field input::placeholder { color: var(--text-muted); opacity: .8; }
+.field input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.field input[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+
+.hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
+.hint.err { color: var(--danger); }
+.hint.ok { color: var(--ok); }
+
+/* 폼 메시지 */
+.formMsg { display: none; margin-bottom: 18px; padding: 12px 14px; border-radius: 12px; font-size: 13.5px; font-weight: 600; }
+.formMsg.show { display: block; }
+.formMsg.error   { background: var(--danger-soft); color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); }
+.formMsg.success { background: var(--ok-soft);     color: var(--ok);     border: 1px solid color-mix(in srgb, var(--ok)     30%, transparent); }
+
+.foot { text-align: center; margin-top: 22px; font-size: 13.5px; color: var(--text-muted); }
+.foot a { color: var(--primary); font-weight: 700; }
+.apiNote { margin-top: 22px; font-size: 11.5px; color: var(--text-muted); text-align: center; font-family: ui-monospace, Menlo, monospace; opacity: .7; }

@@ -1,0 +1,238 @@
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 24px 90px;
+}
+
+/* 브레드크럼 */
+.crumb {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; color: var(--text-muted); margin-bottom: 18px;
+  animation: mo-rise .5s cubic-bezier(.2,.7,.3,1) backwards;
+}
+.crumb a:hover { color: var(--primary); }
+.crumbSep { opacity: .5; }
+
+/* 상단 2-컬럼 레이아웃 */
+.top {
+  display: grid;
+  grid-template-columns: minmax(0, 440px) 1fr;
+  gap: 34px;
+  align-items: start;
+  animation: mo-rise .6s cubic-bezier(.2,.7,.3,1) backwards;
+  animation-delay: .06s;
+}
+@media (max-width: 820px) { .top { grid-template-columns: 1fr; gap: 24px; } }
+
+/* 갤러리 */
+.gallery { display: flex; flex-direction: column; gap: 12px; }
+.photo {
+  position: relative; aspect-ratio: 1 / 1;
+  border-radius: var(--radius); border: 1px solid var(--border);
+  background-color: var(--surface-2);
+  background-image: repeating-linear-gradient(
+    135deg, transparent, transparent 14px,
+    color-mix(in srgb, var(--text) 4%, transparent) 14px,
+    color-mix(in srgb, var(--text) 4%, transparent) 28px
+  );
+  display: grid; place-items: center;
+}
+.photoPh {
+  font-size: 12px; color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  padding: 6px 12px; border-radius: 999px;
+}
+.statusBadge {
+  position: absolute; top: 14px; left: 14px;
+  font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+}
+.statusSale     { background: var(--ok-soft);      color: var(--ok); }
+.statusReserved { background: var(--blue-soft);    color: var(--blue); }
+.statusDone     { background: var(--neutral-soft); color: var(--neutral); }
+
+.thumbs { display: flex; gap: 10px; }
+.thumb {
+  flex: 1; aspect-ratio: 1 / 1; border-radius: 12px;
+  border: 1px solid var(--border); background-color: var(--surface-2);
+  background-image: repeating-linear-gradient(
+    135deg, transparent, transparent 9px,
+    color-mix(in srgb, var(--text) 4%, transparent) 9px,
+    color-mix(in srgb, var(--text) 4%, transparent) 18px
+  );
+  cursor: pointer;
+}
+.thumb.sel { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+
+/* 상품 정보 */
+.info h1  { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.03em; line-height: 1.3; }
+.price    { margin: 10px 0 4px; font-size: 28px; font-weight: 800; letter-spacing: -.03em; color: var(--primary); }
+.meta     { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+.metaDot  { width: 3px; height: 3px; border-radius: 50%; background: var(--text-muted); }
+
+/* 판매자 카드 */
+.seller {
+  display: flex; align-items: center; gap: 12px;
+  padding: 15px 16px; border: 1px solid var(--border);
+  border-radius: 14px; background: var(--surface); margin-bottom: 18px;
+}
+.sellerAvatar {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--primary-soft); color: var(--primary);
+  display: grid; place-items: center; font-weight: 800; font-size: 16px; flex-shrink: 0;
+}
+.sellerWho { flex: 1; min-width: 0; }
+.sellerNm  { font-weight: 700; font-size: 14.5px; }
+.sellerLoc { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+.sellerMann { text-align: right; }
+.mannV { font-weight: 800; color: var(--ok); font-size: 15px; }
+.mannL { font-size: 11px; color: var(--text-muted); }
+
+.sellerReport {
+  display: inline-flex; align-items: center; gap: 4px;
+  flex-shrink: 0; padding: 6px 10px; border: 1px solid var(--border);
+  border-radius: 999px; background: var(--bg); color: var(--text-muted);
+  font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.sellerReport:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 32%, var(--border)); background: var(--danger-soft); }
+
+/* 통계 행 */
+.statsRow {
+  display: flex; gap: 22px;
+  padding: 14px 2px 18px;
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+}
+.stat .statV { font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+.stat .statL { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* 액션 버튼 */
+.actions { display: flex; gap: 10px; }
+.btnPrimary {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 14px 18px; border: 1px solid var(--primary); background: var(--primary);
+  color: #fff; border-radius: 13px; font-size: 15px; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--primary) 30%, transparent);
+  transition: background .15s, transform .1s;
+}
+.btnPrimary:hover  { background: var(--primary-d); }
+.btnPrimary:active { transform: translateY(1px); }
+.btnFav {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 14px 16px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text);
+  border-radius: 13px; font-size: 15px; font-family: inherit; cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.btnFav .heart { transition: fill .15s, stroke .15s; fill: none; stroke: currentColor; }
+.btnFav.on .heart { fill: var(--primary); stroke: var(--primary); }
+.btnReport {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 14px 16px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-muted);
+  border-radius: 13px; cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.btnReport:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 32%, var(--border)); }
+
+/* 섹션 */
+.section { max-width: 760px; margin: 34px 0 0; animation: mo-rise .6s cubic-bezier(.2,.7,.3,1) backwards; animation-delay: .12s; }
+.section h2 { font-size: 17px; font-weight: 800; letter-spacing: -.02em; margin: 0 0 12px; }
+.desc { font-size: 14.5px; line-height: 1.7; color: var(--text); white-space: pre-line; }
+.kv   { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 16px; font-size: 13px; color: var(--text-muted); }
+.kv b { color: var(--text); font-weight: 700; }
+
+/* 판매자 전용 패널 */
+.panel { border: 1px solid var(--border); border-radius: 16px; background: var(--surface); padding: 20px; }
+.ownerNote {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 700; color: var(--primary);
+  background: var(--primary-soft); padding: 4px 11px; border-radius: 999px; margin-bottom: 14px;
+}
+.ownerRow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btnGhost {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 12px 16px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); border-radius: 12px; font-size: 14px; font-weight: 600;
+  cursor: pointer; text-decoration: none; transition: background .15s, border-color .15s, color .15s;
+}
+.btnGhost:hover { background: var(--primary-soft); border-color: var(--primary-soft); color: var(--primary); }
+.btnDanger {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 12px 16px; border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--border));
+  background: var(--surface); color: var(--danger);
+  border-radius: 12px; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: background .15s;
+}
+.btnDanger:hover { background: var(--danger-soft); }
+.btnStatus {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 12px 16px; border: 1px solid var(--primary); background: var(--primary);
+  color: #fff; border-radius: 12px; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: background .15s;
+}
+.btnStatus:hover { background: var(--primary-d); }
+.statusSelect {
+  padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px;
+  font-size: 14px; font-family: inherit; background: var(--bg); color: var(--text);
+  outline: none; cursor: pointer;
+}
+.statusSelect:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.grow { flex: 1; }
+
+/* 댓글 */
+.cbox { display: flex; gap: 10px; margin-bottom: 20px; }
+.cTextarea {
+  flex: 1; padding: 12px 14px; border: 1px solid var(--border);
+  border-radius: 12px; font-size: 14px; font-family: inherit;
+  background: var(--bg); color: var(--text); outline: none; resize: vertical; min-height: 46px;
+}
+.cTextarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.cSubmitBtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  align-self: stretch; padding: 0 16px; border: 1px solid var(--primary);
+  background: var(--primary); color: #fff; border-radius: 12px;
+  font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer;
+  transition: background .15s;
+}
+.cSubmitBtn:hover { background: var(--primary-d); }
+
+.comment { display: flex; gap: 12px; padding: 16px 0; border-top: 1px solid var(--border); }
+.cAvatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--surface-2); color: var(--text-muted);
+  display: grid; place-items: center; font-weight: 800; font-size: 14px; flex-shrink: 0;
+}
+.cAvatarMine { background: var(--primary-soft); color: var(--primary); }
+.cBody { flex: 1; min-width: 0; }
+.cHead { display: flex; align-items: center; gap: 8px; }
+.cWho  { font-weight: 700; font-size: 13.5px; }
+.cMine { font-size: 11px; font-weight: 700; color: var(--primary); background: var(--primary-soft); padding: 2px 7px; border-radius: 999px; }
+.cSeller { font-size: 11px; font-weight: 700; color: var(--ok); background: var(--ok-soft); padding: 2px 7px; border-radius: 999px; }
+.cWhen { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+.cText { margin-top: 5px; font-size: 14px; line-height: 1.55; }
+.cEditBox { margin-top: 7px; }
+.cEditBox .cTextarea { min-height: 40px; margin-bottom: 7px; }
+.cCtrl { margin-top: 7px; display: flex; gap: 12px; }
+.cCtrl button {
+  border: none; background: transparent; font-family: inherit;
+  font-size: 12.5px; font-weight: 600; color: var(--text-muted); cursor: pointer; padding: 0;
+}
+.cCtrl button:hover { color: var(--danger); }
+
+.apiNote { margin-top: 12px; font-size: 11.5px; color: var(--text-muted); font-family: ui-monospace, Menlo, monospace; opacity: .7; }
+.cCountAccent { color: var(--primary); }
+
+.notice {
+  text-align: center;
+  padding: 90px 20px;
+  color: var(--text-muted);
+}
+.notice p { margin: 0 0 14px; font-size: 14px; }
+
+.loginNotice {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin: 0 0 20px;
+}
