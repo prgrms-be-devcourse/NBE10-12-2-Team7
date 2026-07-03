@@ -8,6 +8,7 @@ import com.dongnemarket.global.security.jwt.JwtTokenProvider;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
+import com.dongnemarket.product.repository.ProductImageRepository;
 import com.dongnemarket.product.repository.ProductRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,8 +47,12 @@ class ProductControllerTest {
 	@Autowired
 	ProductRepository productRepository;
 
+	@Autowired
+	ProductImageRepository productImageRepository;
+
 	@AfterEach
 	void cleanUp() {
+		productImageRepository.deleteAll();
 		productRepository.deleteAll();
 		categoryRepository.deleteAll();
 		memberRepository.deleteAll();
@@ -85,7 +90,9 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구"
+				  "region": "서울 강남구",
+				  "imageUrls": ["https://example.com/product-1.jpg"],
+				  "thumbnailIndex": 0
 				}
 				""".formatted(category.getId());
 
@@ -118,7 +125,9 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구"
+				  "region": "서울 강남구",
+				  "imageUrls": ["https://example.com/product-1.jpg"],
+				  "thumbnailIndex": 0
 				}
 				""";
 
@@ -142,7 +151,9 @@ class ProductControllerTest {
 				  "title": " ",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구"
+				  "region": "서울 강남구",
+				  "imageUrls": ["https://example.com/product-1.jpg"],
+				  "thumbnailIndex": 0
 				}
 				""".formatted(category.getId());
 
@@ -166,7 +177,9 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": -1,
-				  "region": "서울 강남구"
+				  "region": "서울 강남구",
+				  "imageUrls": ["https://example.com/product-1.jpg"],
+				  "thumbnailIndex": 0
 				}
 				""".formatted(category.getId());
 
@@ -176,6 +189,32 @@ class ProductControllerTest {
 						.content(body))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("INVALID_PRODUCT_PRICE"));
+	}
+
+	@Test
+	@DisplayName("이미지 URL이 공백이면 INVALID_INPUT_VALUE를 반환한다")
+	void returnsInvalidInputValueWhenImageUrlIsBlank() throws Exception {
+		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리이미지"));
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "categoryId": %d,
+				  "title": "아이폰 15",
+				  "description": "상태 좋은 아이폰입니다.",
+				  "price": 800000,
+				  "region": "서울 강남구",
+				  "imageUrls": ["https://example.com/1.jpg", " "],
+				  "thumbnailIndex": 0
+				}
+				""".formatted(category.getId());
+
+		mockMvc.perform(post("/api/products")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
 	}
 
 	@Test
@@ -467,7 +506,9 @@ class ProductControllerTest {
 				  "title": "맥북 프로",
 				  "description": "수정된 상품 설명입니다.",
 				  "price": 1500000,
-				  "region": "서울 서초구"
+				  "region": "서울 서초구",
+				  "imageUrls": ["https://example.com/update-1.jpg"],
+				  "thumbnailIndex": 0
 				}
 				""".formatted(newCategory.getId());
 
@@ -494,7 +535,9 @@ class ProductControllerTest {
 				  "title": "맥북 프로",
 				  "description": "수정된 상품 설명입니다.",
 				  "price": 1500000,
-				  "region": "서울 서초구"
+				  "region": "서울 서초구",
+				  "imageUrls": ["https://example.com/update-1.jpg"],
+				  "thumbnailIndex": 0
 				}
 				""";
 
@@ -526,7 +569,9 @@ class ProductControllerTest {
 				  "title": "맥북 프로",
 				  "description": "수정된 상품 설명입니다.",
 				  "price": 1500000,
-				  "region": "서울 서초구"
+				  "region": "서울 서초구",
+				  "imageUrls": ["https://example.com/update-1.jpg"],
+				  "thumbnailIndex": 0
 				}
 				""".formatted(category.getId());
 
@@ -553,7 +598,9 @@ class ProductControllerTest {
 				  "title": "맥북 프로",
 				  "description": "수정된 상품 설명입니다.",
 				  "price": 1500000,
-				  "region": "서울 서초구"
+				  "region": "서울 서초구",
+				  "imageUrls": ["https://example.com/update-1.jpg"],
+				  "thumbnailIndex": 0
 				}
 				""".formatted(category.getId());
 

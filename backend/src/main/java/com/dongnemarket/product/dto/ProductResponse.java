@@ -4,6 +4,7 @@ import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public class ProductResponse {
 
@@ -17,11 +18,13 @@ public class ProductResponse {
 	private final String region;
 	private final long viewCount;
 	private final int favoriteCount;
+	private final String thumbnailUrl;
+	private final List<String> imageUrls;
 	private final boolean hidden;
 
 	private ProductResponse(Long productId, Long memberId, Long categoryId, String title, String description,
 							BigDecimal price, TradeStatus tradeStatus, String region, long viewCount,
-							int favoriteCount, boolean hidden) {
+							int favoriteCount, String thumbnailUrl, List<String> imageUrls, boolean hidden) {
 		this.productId = productId;
 		this.memberId = memberId;
 		this.categoryId = categoryId;
@@ -32,10 +35,16 @@ public class ProductResponse {
 		this.region = region;
 		this.viewCount = viewCount;
 		this.favoriteCount = favoriteCount;
+		this.thumbnailUrl = thumbnailUrl;
+		this.imageUrls = imageUrls;
 		this.hidden = hidden;
 	}
 
 	public static ProductResponse from(Product product) {
+		return from(product, List.of());
+	}
+
+	public static ProductResponse from(Product product, List<String> imageUrls) {
 		return new ProductResponse(
 				product.getId(),
 				product.getMember().getId(),
@@ -47,6 +56,8 @@ public class ProductResponse {
 				product.getRegion(),
 				product.getViewCount(),
 				product.getFavoriteCount(),
+				product.getThumbnailUrl(),
+				imageUrls,
 				product.isHidden()
 		);
 	}
@@ -89,6 +100,14 @@ public class ProductResponse {
 
 	public int getFavoriteCount() {
 		return favoriteCount;
+	}
+
+	public String getThumbnailUrl() {
+		return thumbnailUrl;
+	}
+
+	public List<String> getImageUrls() {
+		return imageUrls;
 	}
 
 	public boolean isHidden() {

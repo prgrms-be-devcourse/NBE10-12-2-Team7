@@ -56,6 +56,9 @@ public class Product extends BaseTimeEntity {
 	@Column(nullable = false)
 	private int favoriteCount;
 
+	@Column(length = 1000)
+	private String thumbnailUrl;
+
 	@Column(nullable = false)
 	private boolean hidden;
 
@@ -108,6 +111,10 @@ public class Product extends BaseTimeEntity {
 		this.tradeStatus = tradeStatus;
 	}
 
+	public void changeThumbnailUrl(String thumbnailUrl) {
+		this.thumbnailUrl = thumbnailUrl;
+	}
+
 	public void complete() {
 		this.tradeStatus = TradeStatus.COMPLETED;
 	}
@@ -158,6 +165,10 @@ public class Product extends BaseTimeEntity {
 
 	public int getFavoriteCount() {
 		return favoriteCount;
+	}
+
+	public String getThumbnailUrl() {
+		return thumbnailUrl;
 	}
 
 	public boolean isHidden() {

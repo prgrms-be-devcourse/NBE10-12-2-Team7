@@ -10,6 +10,7 @@ import com.dongnemarket.product.dto.ProductUpdateRequest;
 import com.dongnemarket.product.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -41,7 +42,7 @@ public class ProductController {
 	@PostMapping
 	public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
 			@AuthenticationPrincipal Long memberId,
-			@RequestBody ProductCreateRequest request) {
+			@Valid @RequestBody ProductCreateRequest request) {
 		ProductResponse response = productService.createProduct(memberId, request);
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(ApiResponse.success(HttpStatus.CREATED.value(), "상품이 등록되었습니다.", response));
@@ -76,7 +77,7 @@ public class ProductController {
 	public ApiResponse<ProductResponse> updateProduct(
 			@AuthenticationPrincipal Long memberId,
 			@PathVariable Long productId,
-			@RequestBody ProductUpdateRequest request) {
+			@Valid @RequestBody ProductUpdateRequest request) {
 		return ApiResponse.success(productService.updateProduct(memberId, productId, request));
 	}
 
