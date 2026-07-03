@@ -1,5 +1,8 @@
-# 로컬 개발용 MySQL 8 (application.yml 기본값과 일치)
-# 사용: docker compose up -d
+name: dongnemarket
+
+# 로컬 실행 2모드:
+#   dev  : MySQL만  →  docker compose up -d --wait                     (앱은 호스트 bootRun)
+#   full : 전부     →  docker compose --profile full up -d --build     (앱까지 컨테이너)
 services:
   mysql:
     image: mysql:8.0
@@ -7,16 +10,74 @@ services:
     ports:
       - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: root1234
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root1234}
       MYSQL_DATABASE: dongne_market
-      MYSQL_USER: dongne
-      MYSQL_PASSWORD: dongne1234
+      MYSQL_USER: ${DB_USERNAME:-dongne}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-dongne1234}
       TZ: Asia/Seoul
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
     volumes:
       - dongne-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-root1234}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── 이하 profile "full" 일 때만 기동 ──────────────────────
+  app:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dongnemarket-app:latest
+    container_name: dongne-app
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: operate
+      DB_URL: jdbc:mysql://mysql:3306/dongne_market?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      DB_USERNAME: ${DB_USERNAME:-dongne}
+      DB_PASSWORD: ${DB_PASSWORD:-dongne1234}
+      JWT_SECRET: ${JWT_SECRET:-dongne-market-local-dev-secret-please-change-0123456789}
+    ports:
+      - "8080:8080"
+
+  prometheus:
+    profiles: ["full"]
+    image: prom/prometheus:v2.53.2
+    container_name: dongne-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+    depends_on:
+      - app
+
+  grafana:
+    profiles: ["full"]
+    image: grafana/grafana:11.1.4
+    container_name: dongne-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
 
 volumes:
   dongne-mysql-data:
+  prometheus-data:
+  grafana-data:

@@ -49,3 +49,14 @@ springdoc:
 logging:
   level:
     org.hibernate.SQL: debug
+
+
+# Actuator: 모니터링 엔드포인트 노출 (로컬 학습용 — 운영에선 노출 범위 좁혀야 함)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus   # 딱 필요한 것만 공개
+  metrics:
+    tags:
+      application: ${spring.application.name}   # 모든 지표에 app 라벨 부착
