@@ -172,6 +172,25 @@ class AuthControllerTest {
 	}
 
 	@Test
+	@DisplayName("Access Token으로 재발급을 시도하면 401과 INVALID_REFRESH_TOKEN을 반환한다")
+	void reissue_withAccessToken_returnsInvalidRefreshToken() throws Exception {
+		String signup = "{ \"email\": \"reissue-access@example.com\", \"password\": \"password123\", \"nickname\": \"reissueAccess\" }";
+		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
+				.andExpect(status().isCreated());
+
+		String login = "{ \"email\": \"reissue-access@example.com\", \"password\": \"password123\" }";
+		MvcResult loginResult = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
+				.andReturn();
+		String accessToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
+				.path("data").path("accessToken").asText();
+
+		String reissueBody = String.format("{ \"refreshToken\": \"%s\" }", accessToken);
+		mockMvc.perform(post("/api/auth/reissue").contentType(MediaType.APPLICATION_JSON).content(reissueBody))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("INVALID_REFRESH_TOKEN"));
+	}
+
+	@Test
 	@DisplayName("Refresh Token이 빈 값이면 400과 INVALID_INPUT_VALUE를 반환한다")
 	void reissue_blankRefreshToken() throws Exception {
 		String body = "{ \"refreshToken\": \"\" }";

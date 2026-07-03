@@ -124,4 +124,14 @@ class RefreshTokenServiceTest {
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REFRESH_TOKEN);
 	}
+
+	@Test
+	@DisplayName("Access Token을 Refresh Token 자리에 제시하면 INVALID_REFRESH_TOKEN 예외가 발생한다")
+	void validateAndGetMemberId_accessTokenPresented_throwsInvalidRefreshToken() {
+		String accessToken = jwtTokenProvider.createAccessToken(1L, "ROLE_USER");
+
+		assertThatThrownBy(() -> refreshTokenService.validateAndGetMemberId(accessToken))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REFRESH_TOKEN);
+	}
 }

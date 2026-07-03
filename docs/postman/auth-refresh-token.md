@@ -13,6 +13,40 @@
 ## 공통
 - Access Token 만료: 15분(900초), Refresh Token 만료: 7일(604800초)
 - Refresh Token은 회원당 1개만 DB에 저장되며, 재로그인 시 기존 값을 교체한다(회전 없음 — 재발급 시에도 그대로 유지)
+- Access Token과 Refresh Token은 JWT `type` 클레임(`access`/`refresh`)으로 구분되며, 서로 용도를 바꿔 쓸 수 없다(코드 리뷰 후 보강 — 아래 "보안 보강 사항" 참고)
+- `reissue()`도 `login()`과 동일하게 SUSPENDED/DELETED 회원을 차단한다(코드 리뷰 후 보강)
+
+## 보안 보강 사항 (코드 리뷰 반영, 2026-07-03)
+
+최초 구현 커밋(`ce5e477`) 리뷰에서 발견된 아래 항목을 같은 브랜치에서 수정했다. 실제 curl 재검증 대신 단위/통합 테스트로 검증했다 — 테스트 파일 참고.
+
+1. **Refresh Token으로 보호 API 인증 우회 가능했던 문제**: Refresh Token에는 `role` 클레임이 없다는 점 외에는 Access Token과 구분할 방법이 없어, 탈취된 Refresh Token을 `Authorization: Bearer`로 그대로 사용하면 `/api/members/me` 같은 일반 보호 API 인증에 통과했다. `JwtTokenProvider.createAccessToken`/`createRefreshToken`에 `type=access`/`type=refresh` 클레임을 추가하고, `getAuthentication()`은 `type=access`가 아니면 인증을 거부하도록 수정했다(위반 시 기존 `JwtAuthenticationFilter`의 `INVALID_TOKEN` 처리 경로를 그대로 탄다). 검증: `SecurityPolicyTest#protectedApi_withRefreshToken_returns401InvalidToken`.
+2. **`/api/auth/reissue`에 Access Token을 넣어도 통과하던 문제**: `RefreshTokenService.validateAndGetMemberId()`에 `jwtTokenProvider.isRefreshToken()` 체크를 추가해, Refresh Token이 아닌 토큰(Access Token 포함)은 `INVALID_REFRESH_TOKEN`으로 거부한다. 검증: `RefreshTokenServiceTest#validateAndGetMemberId_accessTokenPresented_throwsInvalidRefreshToken`, `AuthServiceTest#reissue_accessTokenPresented_throwsInvalidRefreshToken`.
+3. **`reissue()`가 회원 상태를 재검증하지 않던 문제**: `login()`에 이미 있던 DELETED/SUSPENDED 차단 로직을 `AuthService.validateActiveStatus()`로 추출해 `reissue()`에서도 동일하게 적용했다 — 정지/탈퇴된 회원은 기존 Refresh Token으로도 더 이상 Access Token을 재발급받을 수 없다. 검증: `AuthServiceTest#reissue_deletedMember_throwsException`, `#reissue_suspendedMember_throwsException`.
+
+## 운영 배포 참고사항 — `refresh_tokens` 테이블 마이그레이션 필요
+
+이 프로젝트는 Flyway/Liquibase 등 스키마 마이그레이션 도구를 사용하지 않는다. 로컬/테스트 프로파일은 `hibernate.ddl-auto: update`/`create-drop`이라 `RefreshToken` 엔티티만으로 테이블이 자동 생성되지만, **`application-prod.yml`은 `ddl-auto: validate`(운영 스키마 자동 변경 금지)이고 운영 DB에는 아직 `refresh_tokens` 테이블이 없다.** 이 상태로 `SPRING_PROFILES_ACTIVE=prod`로 배포하면 Hibernate 스키마 검증 단계에서 애플리케이션이 기동에 실패한다.
+
+**배포 전 운영 DB에 아래 DDL을 수동으로 먼저 실행해야 한다** (로컬 `dongne-mysql`에서 `SHOW CREATE TABLE refresh_tokens`로 확인한 실제 Hibernate 생성 스키마 그대로):
+
+```sql
+CREATE TABLE `refresh_tokens` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `expires_at` datetime(6) NOT NULL,
+  `member_id` bigint NOT NULL,
+  `token` varchar(512) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_refresh_tokens_member_id` (`member_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+체크리스트:
+- [ ] 운영 DB에 위 DDL 실행 완료 확인 (배포 담당자/팀장 확인 필요)
+- [ ] 실행 후 `SPRING_PROFILES_ACTIVE=prod`로 기동 시 Hibernate `validate`가 통과하는지 확인
+- [ ] 이후 신규 테이블이 필요한 기능부터는 Flyway/Liquibase 도입을 팀 차원에서 검토 권장(현재는 스키마 변경마다 수동 DDL 필요)
 
 ---
 

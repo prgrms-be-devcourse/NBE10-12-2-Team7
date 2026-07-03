@@ -1,6 +1,7 @@
 package com.dongnemarket.global.security.jwt;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +28,10 @@ import java.util.List;
 @Component
 public class JwtTokenProvider {
 
+	private static final String CLAIM_TYPE = "type";
+	private static final String TOKEN_TYPE_ACCESS = "access";
+	private static final String TOKEN_TYPE_REFRESH = "refresh";
+
 	private final SecretKey key;
 	private final long accessTokenValidityMillis;
 	private final long refreshTokenValidityMillis;
@@ -47,6 +52,7 @@ public class JwtTokenProvider {
 		return Jwts.builder()
 				.subject(String.valueOf(memberId))
 				.claim("role", role)
+				.claim(CLAIM_TYPE, TOKEN_TYPE_ACCESS)
 				.issuedAt(now)
 				.expiration(expiry)
 				.signWith(key)
@@ -59,6 +65,7 @@ public class JwtTokenProvider {
 		Date expiry = new Date(now.getTime() + refreshTokenValidityMillis);
 		return Jwts.builder()
 				.subject(String.valueOf(memberId))
+				.claim(CLAIM_TYPE, TOKEN_TYPE_REFRESH)
 				.issuedAt(now)
 				.expiration(expiry)
 				.signWith(key)
@@ -81,9 +88,15 @@ public class JwtTokenProvider {
 		}
 	}
 
-	/** 토큰 → 인증 객체 (principal = memberId, authorities = [role]) */
+	/**
+	 * 토큰 → 인증 객체 (principal = memberId, authorities = [role]).
+	 * Access Token({@code type=access})이 아니면 인증에 사용할 수 없다(Refresh Token 오용 방지).
+	 */
 	public Authentication getAuthentication(String token) {
 		Claims claims = parse(token);
+		if (!TOKEN_TYPE_ACCESS.equals(claims.get(CLAIM_TYPE, String.class))) {
+			throw new JwtException("Access Token이 아닙니다.");
+		}
 		Long memberId = Long.valueOf(claims.getSubject());
 		String role = claims.get("role", String.class);
 		Collection<GrantedAuthority> authorities = (role == null)
@@ -95,6 +108,11 @@ public class JwtTokenProvider {
 	/** 토큰에서 memberId 추출 */
 	public Long getMemberId(String token) {
 		return Long.valueOf(parse(token).getSubject());
+	}
+
+	/** Refresh Token({@code type=refresh})인지 여부 */
+	public boolean isRefreshToken(String token) {
+		return TOKEN_TYPE_REFRESH.equals(parse(token).get(CLAIM_TYPE, String.class));
 	}
 
 	private Claims parse(String token) {

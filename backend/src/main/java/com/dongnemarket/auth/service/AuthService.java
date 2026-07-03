@@ -58,12 +58,7 @@ public class AuthService {
 		Member member = memberRepository.findByEmail(request.getEmail())
 				.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-		if (member.getStatus() == MemberStatus.DELETED) {
-			throw new BusinessException(ErrorCode.DELETED_MEMBER);
-		}
-		if (member.getStatus() == MemberStatus.SUSPENDED) {
-			throw new BusinessException(ErrorCode.SUSPENDED_MEMBER);
-		}
+		validateActiveStatus(member);
 		if (!passwordEncoder.matches(request.getPassword(), member.getPassword())) {
 			throw new BusinessException(ErrorCode.INVALID_PASSWORD);
 		}
@@ -80,9 +75,20 @@ public class AuthService {
 		Long memberId = refreshTokenService.validateAndGetMemberId(refreshToken);
 		Member member = memberRepository.findById(memberId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+		validateActiveStatus(member);
 
 		String newAccessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
 		return TokenResponse.of(newAccessToken, refreshToken);
+	}
+
+	/** 탈퇴/정지 회원은 로그인/재발급 모두 불가 (login()과 reissue()의 정책을 일관되게 유지) */
+	private void validateActiveStatus(Member member) {
+		if (member.getStatus() == MemberStatus.DELETED) {
+			throw new BusinessException(ErrorCode.DELETED_MEMBER);
+		}
+		if (member.getStatus() == MemberStatus.SUSPENDED) {
+			throw new BusinessException(ErrorCode.SUSPENDED_MEMBER);
+		}
 	}
 
 	/** 중복 체크 이후 save() 사이의 race condition으로 unique 제약을 위반한 경우, 원인을 재조회해 알맞은 BusinessException으로 변환한다. */

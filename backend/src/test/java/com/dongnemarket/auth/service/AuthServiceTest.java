@@ -245,6 +245,48 @@ class AuthServiceTest {
 	}
 
 	@Test
+	@DisplayName("Access Token으로 재발급을 시도하면 INVALID_REFRESH_TOKEN 예외가 발생한다")
+	void reissue_accessTokenPresented_throwsInvalidRefreshToken() {
+		String accessToken = jwtTokenProvider.createAccessToken(1L, "ROLE_USER");
+
+		assertThatThrownBy(() -> authService.reissue(accessToken))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REFRESH_TOKEN);
+	}
+
+	@Test
+	@DisplayName("탈퇴한 회원이 Refresh Token으로 재발급을 시도하면 DELETED_MEMBER 예외가 발생한다")
+	void reissue_deletedMember_throwsException() {
+		String refreshToken = jwtTokenProvider.createRefreshToken(1L);
+		Member member = Member.createUser("test@example.com", "encoded", "tester");
+		ReflectionTestUtils.setField(member, "id", 1L);
+		member.changeStatus(MemberStatus.DELETED);
+		given(refreshTokenRepository.findByMemberId(1L))
+				.willReturn(Optional.of(RefreshToken.issue(1L, refreshToken, LocalDateTime.now().plusDays(7))));
+		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+
+		assertThatThrownBy(() -> authService.reissue(refreshToken))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DELETED_MEMBER);
+	}
+
+	@Test
+	@DisplayName("정지된 회원이 Refresh Token으로 재발급을 시도하면 SUSPENDED_MEMBER 예외가 발생한다")
+	void reissue_suspendedMember_throwsException() {
+		String refreshToken = jwtTokenProvider.createRefreshToken(1L);
+		Member member = Member.createUser("test@example.com", "encoded", "tester");
+		ReflectionTestUtils.setField(member, "id", 1L);
+		member.changeStatus(MemberStatus.SUSPENDED);
+		given(refreshTokenRepository.findByMemberId(1L))
+				.willReturn(Optional.of(RefreshToken.issue(1L, refreshToken, LocalDateTime.now().plusDays(7))));
+		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+
+		assertThatThrownBy(() -> authService.reissue(refreshToken))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.SUSPENDED_MEMBER);
+	}
+
+	@Test
 	@DisplayName("존재하지 않는 이메일로 로그인하면 MEMBER_NOT_FOUND 예외가 발생한다")
 	void login_emailNotFound_throwsException() {
 		LoginRequest request = new LoginRequest("none@example.com", "password123");

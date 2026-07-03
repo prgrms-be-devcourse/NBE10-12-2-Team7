@@ -40,13 +40,16 @@ public class RefreshTokenService {
 
 	/**
 	 * Refresh Token을 검증하고 memberId를 반환한다.
-	 * 검증 순서: 서명/만료(JWT) → DB에 저장된 row 존재 → 저장값과 문자열 일치.
+	 * 검증 순서: 서명/만료(JWT) → Refresh Token 타입 여부(Access Token 오용 방지) → DB에 저장된 row 존재 → 저장값과 문자열 일치.
 	 */
 	@Transactional(readOnly = true)
 	public Long validateAndGetMemberId(String refreshToken) {
 		Long memberId;
 		try {
 			memberId = jwtTokenProvider.getMemberId(refreshToken);
+			if (!jwtTokenProvider.isRefreshToken(refreshToken)) {
+				throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN);
+			}
 		} catch (ExpiredJwtException e) {
 			throw new BusinessException(ErrorCode.EXPIRED_REFRESH_TOKEN);
 		} catch (JwtException | IllegalArgumentException e) {
