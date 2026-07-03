@@ -9,6 +9,7 @@
 - [x] 인증 헤더 없이 로그아웃 시도 시 401 `UNAUTHORIZED` 확인 완료
 - [x] 로그아웃 이후에도 기존 Access Token으로 다른 보호 API(`GET /api/members/me`) 호출은 계속 성공함을 확인 완료 (Stateless 정책 — 아래 "동작 방식" 참고)
 - [x] `refresh_tokens` 테이블에서 해당 회원의 row가 실제로 삭제됨을 DB 직접 조회로 확인 완료
+- [x] 시드된 관리자 계정(`admin@dongnemarket.com`, `ROLE_ADMIN`)으로도 동일하게 로그인 → 로그아웃 200 → 구 Refresh Token으로 재발급 시 401 `REFRESH_TOKEN_NOT_FOUND`까지 실측 확인 완료 (일반 사용자와 완전히 동일한 동작 — 아래 "관리자 계정도 동일하게 사용" 절 참고)
 
 ---
 
@@ -27,6 +28,13 @@
 1. `POST /api/auth/logout` 호출 (Access Token 헤더 포함)
 2. 응답 상태와 무관하게(멱등이므로 실패할 일이 거의 없지만, 네트워크 오류 등으로 실패해도) 클라이언트에 저장된 `accessToken`/`refreshToken`을 즉시 삭제
 3. 로그인 페이지 등으로 이동
+
+**관리자 계정도 동일하게 사용**
+
+- 시드된 관리자 계정도 일반 사용자와 동일하게 `POST /api/auth/login`으로 로그인한다.
+- `ROLE_ADMIN` 계정도 `POST /api/auth/logout` 사용 시 일반 사용자와 동일하게 Refresh Token이 삭제된다.
+- 관리자 계정으로도 logout 200 → 기존 Refresh Token 재발급 401을 실측 확인했다.
+- 별도의 관리자 로그아웃 API는 만들지 않는다.
 
 **⚠️ 반드시 알아야 할 동작 방식 — Access Token은 즉시 무효화되지 않는다**
 
