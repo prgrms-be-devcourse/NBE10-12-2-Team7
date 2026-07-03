@@ -20,6 +20,8 @@ interface Product {
   region: string
   viewCount: number
   favoriteCount: number
+  thumbnailUrl: string | null
+  imageUrls: string[]
   hidden: boolean
 }
 
@@ -294,17 +296,25 @@ export default function ProductDetailPage() {
             <span className={`${styles.statusBadge} ${statusCls(product.tradeStatus)}`}>
               {TRADE_STATUS_LABEL[product.tradeStatus]}
             </span>
-            <span className={styles.photoPh}>상품 이미지</span>
+            {product.imageUrls.length > 0 ? (
+              <img src={product.imageUrls[Math.min(selThumb, product.imageUrls.length - 1)]} alt={product.title} className={styles.photoImg} />
+            ) : (
+              <span className={styles.photoPh}>상품 이미지</span>
+            )}
           </div>
-          <div className={styles.thumbs}>
-            {Array.from({ length: 4 }, (_, i) => (
-              <div
-                key={i}
-                className={`${styles.thumb}${selThumb === i ? ' ' + styles.sel : ''}`}
-                onClick={() => setSelThumb(i)}
-              />
-            ))}
-          </div>
+          {product.imageUrls.length > 0 && (
+            <div className={styles.thumbs}>
+              {product.imageUrls.map((url, i) => (
+                <div
+                  key={i}
+                  className={`${styles.thumb}${selThumb === i ? ' ' + styles.sel : ''}`}
+                  onClick={() => setSelThumb(i)}
+                >
+                  <img src={url} alt={`${product.title} 이미지 ${i + 1}`} className={styles.thumbImg} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 상품 정보 */}

@@ -26,6 +26,8 @@ export default function ProductForm({ editId }: Props) {
   const [price,      setPrice]      = useState('')
   const [isFree,     setIsFree]     = useState(false)
   const [desc,       setDesc]       = useState('')
+  const [images,         setImages]         = useState<string[]>([''])
+  const [thumbnailIndex, setThumbnailIndex] = useState(0)
 
   /* ── 힌트 ── */
   const [titleHint,    setTitleHint]    = useState<{ text: string; err?: boolean }>({ text: '판매할 상품의 이름을 구체적으로 적어주세요.' })
@@ -33,6 +35,7 @@ export default function ProductForm({ editId }: Props) {
   const [regionHint,   setRegionHint]   = useState<{ text: string; err?: boolean }>({ text: '' })
   const [priceHint,    setPriceHint]    = useState<{ text: string; err?: boolean }>({ text: '' })
   const [descHint,     setDescHint]     = useState<{ text: string; err?: boolean }>({ text: '구매자가 궁금해할 정보를 상세히 적을수록 거래가 빨라져요.' })
+  const [imagesHint,   setImagesHint]   = useState<{ text: string; err?: boolean }>({ text: '최소 1장, 최대 5장까지 이미지 URL을 등록할 수 있어요.' })
 
   /* ── 메시지 ── */
   const [formMsg,    setFormMsg]    = useState<{ text: string; type: 'success' | 'error' } | null>(null)
@@ -52,7 +55,10 @@ export default function ProductForm({ editId }: Props) {
       setCategories(categoriesRes?.data ?? [])
 
       if (isEdit) {
-        const productRes = results[1] as { ok: boolean; data: { data?: { memberId: number; categoryId: number; title: string; description: string; price: number; region: string } } }
+        const productRes = results[1] as { ok: boolean; data: { data?: {
+          memberId: number; categoryId: number; title: string; description: string; price: number; region: string
+          thumbnailUrl?: string; imageUrls?: string[]
+        } } }
         if (!productRes.ok || !productRes.data?.data) {
           setLoadStatus('error')
           return
@@ -69,6 +75,10 @@ export default function ProductForm({ editId }: Props) {
         setPrice(product.price === 0 ? '' : product.price.toLocaleString('ko-KR'))
         setIsFree(product.price === 0)
         setDesc(product.description)
+        const fetchedImages = product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls : ['']
+        setImages(fetchedImages)
+        const thumbIdx = product.thumbnailUrl ? fetchedImages.indexOf(product.thumbnailUrl) : 0
+        setThumbnailIndex(thumbIdx === -1 ? 0 : thumbIdx)
       }
       setLoadStatus('ready')
     }).catch(() => { if (!cancelled) setLoadStatus('error') })
@@ -89,7 +99,33 @@ export default function ProductForm({ editId }: Props) {
     else setPrice('')
   }
 
+  /* ── 이미지 URL 목록 ── */
+  function updateImage(index: number, value: string) {
+    setImages(prev => prev.map((v, i) => i === index ? value : v))
+  }
+  function addImageField() {
+    setImages(prev => prev.length >= 5 ? prev : [...prev, ''])
+  }
+  function removeImageField(index: number) {
+    setImages(prev => {
+      const next = prev.filter((_, i) => i !== index)
+      return next.length > 0 ? next : ['']
+    })
+    setThumbnailIndex(prev => {
+      if (prev === index) return 0
+      return prev > index ? prev - 1 : prev
+    })
+  }
+
   /* ── 검증 ── */
+  function getValidImages() {
+    const trimmed = images.map(v => v.trim())
+    const nonBlankIndices = trimmed
+      .map((v, i) => (v ? i : -1))
+      .filter(i => i !== -1)
+    return { trimmed, nonBlankIndices }
+  }
+
   function validate() {
     let ok = true
     if (!title.trim()) {
@@ -117,6 +153,12 @@ export default function ProductForm({ editId }: Props) {
     } else {
       setDescHint({ text: '구매자가 궁금해할 정보를 상세히 적을수록 거래가 빨라져요.' })
     }
+    const { nonBlankIndices } = getValidImages()
+    if (nonBlankIndices.length === 0) {
+      setImagesHint({ text: '이미지 URL을 최소 1장 입력하세요.', err: true }); ok = false
+    } else {
+      setImagesHint({ text: '최소 1장, 최대 5장까지 이미지 URL을 등록할 수 있어요.' })
+    }
     return ok
   }
 
@@ -132,12 +174,18 @@ export default function ProductForm({ editId }: Props) {
     const token = getAccessToken()
     if (!token) { setLoadStatus('unauthenticated'); return }
 
+    const { trimmed, nonBlankIndices } = getValidImages()
+    const imageUrls = nonBlankIndices.map(i => trimmed[i])
+    const payloadThumbnailIndex = Math.max(0, nonBlankIndices.indexOf(thumbnailIndex))
+
     const payload = {
       categoryId,
       title: title.trim(),
       description: desc.trim(),
       price: isFree ? 0 : Number(price.replace(/[^\d]/g, '')),
       region: region.trim(),
+      imageUrls,
+      thumbnailIndex: payloadThumbnailIndex,
     }
     const url    = isEdit ? `/api/products/${editId}` : '/api/products'
     const method = isEdit ? 'PATCH' : 'POST'
@@ -219,6 +267,45 @@ export default function ProductForm({ editId }: Props) {
         <div className={msgCls} role="alert">{formMsg?.text}</div>
 
         <form onSubmit={handleSubmit} noValidate>
+          {/* 상품 이미지 */}
+          <div className={styles.field}>
+            <label>상품 이미지<span className={styles.req}>*</span><span className={styles.sub}>URL 최대 5장 · 대표 이미지 선택</span></label>
+            <div className={styles.imageList}>
+              {images.map((url, i) => (
+                <div key={i} className={styles.imageRow}>
+                  <div className={styles.imagePreview}>
+                    {url.trim() ? <img src={url.trim()} alt={`상품 이미지 ${i + 1}`} /> : <span className={styles.imagePreviewPh}>{i + 1}</span>}
+                  </div>
+                  <input
+                    type="text" className={styles.input}
+                    placeholder="https://example.com/image.jpg"
+                    value={url}
+                    onChange={e => updateImage(i, e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className={`${styles.thumbBtn}${thumbnailIndex === i ? ' ' + styles.thumbBtnOn : ''}`}
+                    onClick={() => setThumbnailIndex(i)}
+                  >
+                    {thumbnailIndex === i ? '대표' : '대표로'}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.imageRmBtn}
+                    aria-label="이미지 삭제"
+                    onClick={() => removeImageField(i)}
+                  >✕</button>
+                </div>
+              ))}
+            </div>
+            {images.length < 5 && (
+              <button type="button" className={styles.addImageBtn} onClick={addImageField}>
+                + 이미지 URL 추가
+              </button>
+            )}
+            <div className={hintCls(imagesHint)}>{imagesHint.text}</div>
+          </div>
+
           {/* 상품명 */}
           <div className={styles.field}>
             <label htmlFor="title">상품명<span className={styles.req}>*</span></label>

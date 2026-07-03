@@ -33,40 +33,38 @@
 .formMsg.error   { background: var(--danger-soft); color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); }
 .formMsg.success { background: var(--ok-soft);     color: var(--ok);     border: 1px solid color-mix(in srgb, var(--ok)     30%, transparent); }
 
-/* 이미지 업로더 */
-.photos { display: flex; gap: 12px; flex-wrap: wrap; }
-.addPhoto {
-  width: 96px; height: 96px;
-  border: 1.5px dashed var(--border); border-radius: 14px;
-  background: var(--bg); display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 5px;
-  cursor: pointer; color: var(--text-muted); font-size: 12px;
-  font-weight: 600; font-family: inherit; transition: border-color .15s, color .15s, background .15s;
+/* 이미지 URL 목록 */
+.imageList { display: flex; flex-direction: column; gap: 8px; }
+.imageRow { display: flex; align-items: center; gap: 8px; }
+.imagePreview {
+  width: 44px; height: 44px; flex-shrink: 0;
+  border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface-2); overflow: hidden;
+  display: grid; place-items: center;
 }
-.addPhoto:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
-.addPhoto.has   { border-style: solid; }
-.photoCnt { font-size: 11px; }
-.photoThumb {
-  position: relative; width: 96px; height: 96px;
-  border-radius: 14px; border: 1px solid var(--border);
-  background-color: var(--surface-2);
-  background-image: repeating-linear-gradient(
-    135deg, transparent, transparent 9px,
-    color-mix(in srgb, var(--text) 5%, transparent) 9px,
-    color-mix(in srgb, var(--text) 5%, transparent) 18px
-  );
+.imagePreview img { width: 100%; height: 100%; object-fit: cover; }
+.imagePreviewPh { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+.imageRow .input { flex: 1; }
+.thumbBtn {
+  flex-shrink: 0; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--bg); color: var(--text-muted);
+  font-size: 12.5px; font-weight: 700; font-family: inherit; cursor: pointer;
+  white-space: nowrap; transition: all .15s;
 }
-.rmBtn {
-  position: absolute; top: -7px; right: -7px;
-  width: 22px; height: 22px; border-radius: 50%; border: none;
-  background: var(--text); color: var(--bg); font-size: 12px;
-  cursor: pointer; display: grid; place-items: center;
+.thumbBtn:hover  { border-color: var(--primary); color: var(--primary); }
+.thumbBtnOn      { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+.imageRmBtn {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text-muted); font-size: 12px;
+  cursor: pointer; display: grid; place-items: center; transition: all .15s;
 }
-.coverBadge {
-  position: absolute; bottom: 5px; left: 5px;
-  font-size: 10px; font-weight: 700; color: #fff;
-  background: var(--primary); padding: 2px 7px; border-radius: 999px;
+.imageRmBtn:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+.addImageBtn {
+  margin-top: 4px; padding: 9px 14px; border: 1.5px dashed var(--border); border-radius: 10px;
+  background: var(--bg); color: var(--text-muted); font-size: 13px; font-weight: 600;
+  font-family: inherit; cursor: pointer; transition: all .15s;
 }
+.addImageBtn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
 
 /* 필드 */
 .field { margin-bottom: 20px; }

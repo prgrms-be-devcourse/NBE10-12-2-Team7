@@ -27,7 +27,7 @@
 /* 갤러리 */
 .gallery { display: flex; flex-direction: column; gap: 12px; }
 .photo {
-  position: relative; aspect-ratio: 1 / 1;
+  position: relative; aspect-ratio: 1 / 1; overflow: hidden;
   border-radius: var(--radius); border: 1px solid var(--border);
   background-color: var(--surface-2);
   background-image: repeating-linear-gradient(
@@ -42,8 +42,12 @@
   background: color-mix(in srgb, var(--bg) 60%, transparent);
   padding: 6px 12px; border-radius: 999px;
 }
+.photoImg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: cover;
+}
 .statusBadge {
-  position: absolute; top: 14px; left: 14px;
+  position: absolute; top: 14px; left: 14px; z-index: 1;
   font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
 }
 .statusSale     { background: var(--ok-soft);      color: var(--ok); }
@@ -52,7 +56,8 @@
 
 .thumbs { display: flex; gap: 10px; }
 .thumb {
-  flex: 1; aspect-ratio: 1 / 1; border-radius: 12px;
+  position: relative;
+  flex: 1; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden;
   border: 1px solid var(--border); background-color: var(--surface-2);
   background-image: repeating-linear-gradient(
     135deg, transparent, transparent 9px,
@@ -62,6 +67,10 @@
   cursor: pointer;
 }
 .thumb.sel { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+.thumbImg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: cover;
+}
 
 /* 상품 정보 */
 .info h1  { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.03em; line-height: 1.3; }

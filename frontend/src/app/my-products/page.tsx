@@ -19,6 +19,7 @@ interface MyProduct {
   region: string
   viewCount: number
   favoriteCount: number
+  thumbnailUrl: string | null
   hidden: boolean
 }
 
@@ -192,6 +193,9 @@ export default function MyProductsPage() {
                     <span className={`${styles.stBadge} ${stBadgeCls(product.tradeStatus)}`}>
                       {TRADE_STATUS_LABEL[product.tradeStatus]}
                     </span>
+                    {product.thumbnailUrl && (
+                      <img src={product.thumbnailUrl} alt={product.title} className={styles.thumbImg} />
+                    )}
                   </div>
 
                   {/* 바디 */}
