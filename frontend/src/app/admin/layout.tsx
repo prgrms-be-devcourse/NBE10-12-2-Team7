@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { ACCESS_TOKEN_KEY, getAccessToken, isAdmin } from '@/lib/auth'
+import { apiFetch, bootstrapAutoLogin, logout } from '@/lib/apiClient'
+import { getAccessToken, isAdmin } from '@/lib/auth'
 import styles from './admin.module.css'
 
 const NAV = [
@@ -25,29 +26,40 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
-    const token = getAccessToken()
-    if (!token) { setStatus('unauthenticated'); return }
-    if (!isAdmin()) { setStatus('forbidden'); return }
-
     let cancelled = false
-    setStatus('checking')
-    fetch('/api/members/me', { headers: { Authorization: `Bearer ${token}` } })
-      .then(async r => {
-        if (r.status === 401) { if (!cancelled) setStatus('unauthenticated'); return }
-        const data = await r.json().catch(() => null)
-        if (!r.ok) { if (!cancelled) setStatus('forbidden'); return }
-        if (!cancelled) {
-          setMe(data?.data)
-          setStatus('ok')
-        }
-      })
-      .catch(() => { if (!cancelled) setStatus('forbidden') })
+
+    async function init() {
+      setStatus('checking')
+
+      // accessToken이 없어도 refreshToken 쿠키가 남아있으면 재발급을 먼저 시도한다(자동 로그인/새로고침 복구).
+      if (!getAccessToken()) await bootstrapAutoLogin()
+      if (cancelled) return
+      if (!getAccessToken()) { setStatus('unauthenticated'); return }
+      if (!isAdmin()) { setStatus('forbidden'); return }
+
+      try {
+        const res = await apiFetch('/api/members/me')
+        if (cancelled) return
+        if (res.status === 401) { setStatus('unauthenticated'); return }
+        const data = await res.json().catch(() => null)
+        if (!res.ok) { setStatus('forbidden'); return }
+        setMe(data?.data)
+        setStatus('ok')
+      } catch {
+        if (!cancelled) setStatus('forbidden')
+      }
+    }
+
+    init()
     return () => { cancelled = true }
   }, [retryKey])
 
-  function handleLogout() {
-    try { localStorage.removeItem(ACCESS_TOKEN_KEY) } catch {}
-    window.location.href = '/login'
+  async function handleLogout() {
+    try {
+      await logout()
+    } finally {
+      window.location.href = '/login'
+    }
   }
 
   if (status === 'checking') {

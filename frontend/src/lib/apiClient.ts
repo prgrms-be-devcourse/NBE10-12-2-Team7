@@ -85,3 +85,18 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
 
   return fetch(input, withAuthHeader(init, newAccessToken))
 }
+
+/**
+ * 로그아웃: 서버에 Refresh Token 무효화 + 쿠키 만료(Set-Cookie Max-Age=0)를 요청한다.
+ * clearAccessToken()만으로는 HttpOnly Refresh Token 쿠키가 지워지지 않으므로 반드시 이 요청이 필요하다.
+ * 요청 성공/실패와 무관하게 클라이언트의 Access Token은 항상 지운다.
+ */
+export async function logout(): Promise<void> {
+  try {
+    await fetch('/api/auth/logout', withAuthHeader({ method: 'POST', credentials: 'include' }, getAccessToken()))
+  } catch {
+    // 네트워크 오류 등으로 실패해도 클라이언트 쪽 정리는 그대로 진행한다.
+  } finally {
+    clearAccessToken()
+  }
+}
