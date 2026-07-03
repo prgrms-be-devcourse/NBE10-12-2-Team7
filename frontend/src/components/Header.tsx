@@ -50,6 +50,10 @@ export default function Header() {
     try { localStorage.setItem('marketon-theme', next ? 'dark' : 'light') } catch {}
   }
 
+  /* 관리자 화면은 자체 사이드바 레이아웃을 쓰므로 고객용 헤더를 숨긴다.
+     (테마 초기화 useEffect는 계속 실행되도록 훅 아래에서 분기한다) */
+  if (pathname?.startsWith('/admin')) return null
+
   return (
     <header>
       <div className="head-in">
