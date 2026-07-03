@@ -50,8 +50,9 @@ public class ProductController {
 
 	@Operation(summary = "상품 목록 조회", description = "삭제되거나 숨김 처리되지 않은 상품 목록을 최신 등록순으로 조회합니다.")
 	@GetMapping
-	public ApiResponse<List<ProductSummaryResponse>> getProducts() {
-		return ApiResponse.success(productService.getProducts());
+	public ApiResponse<List<ProductSummaryResponse>> getProducts(
+			@RequestParam(required = false) List<String> regions) {
+		return ApiResponse.success(productService.getProducts(regions));
 	}
 
 	@Operation(summary = "상품 검색", description = "상품을 키워드, 카테고리, 가격 범위, 거래 상태로 검색합니다.")
@@ -61,8 +62,9 @@ public class ProductController {
 			@RequestParam(required = false) Long categoryId,
 			@RequestParam(required = false) BigDecimal minPrice,
 			@RequestParam(required = false) BigDecimal maxPrice,
-			@RequestParam(required = false) String tradeStatus) {
-		ProductSearchRequest request = new ProductSearchRequest(keyword, categoryId, minPrice, maxPrice, tradeStatus);
+			@RequestParam(required = false) String tradeStatus,
+			@RequestParam(required = false) List<String> regions) {
+		ProductSearchRequest request = new ProductSearchRequest(keyword, categoryId, minPrice, maxPrice, tradeStatus, regions);
 		return ApiResponse.success(productService.searchProducts(request));
 	}
 

@@ -18,6 +18,7 @@ import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.ProductImageRepository;
 import com.dongnemarket.product.repository.ProductRepository;
 import com.dongnemarket.product.repository.spec.ProductSpecification;
+import com.dongnemarket.region.repository.RegionRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,19 +31,24 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class ProductService {
 
+	private static final int MAX_REGION_FILTER_SIZE = 2;
+
 	private final ProductRepository productRepository;
 	private final ProductImageRepository productImageRepository;
 	private final MemberRepository memberRepository;
 	private final CategoryRepository categoryRepository;
+	private final RegionRepository regionRepository;
 
 	public ProductService(ProductRepository productRepository,
 						  ProductImageRepository productImageRepository,
 						  MemberRepository memberRepository,
-						  CategoryRepository categoryRepository) {
+						  CategoryRepository categoryRepository,
+						  RegionRepository regionRepository) {
 		this.productRepository = productRepository;
 		this.productImageRepository = productImageRepository;
 		this.memberRepository = memberRepository;
 		this.categoryRepository = categoryRepository;
+		this.regionRepository = regionRepository;
 	}
 
 	@Transactional
@@ -52,6 +58,7 @@ public class ProductService {
 				.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 		Category category = categoryRepository.findById(request.getCategoryId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND));
+		validateRegionExists(request.getRegion());
 
 		Product product = Product.create(
 				member,
@@ -67,7 +74,17 @@ public class ProductService {
 	}
 
 	public List<ProductSummaryResponse> getProducts() {
-		return productRepository.findAllByDeletedAtIsNullAndHiddenFalseOrderByIdDesc()
+		return getProducts(null);
+	}
+
+	public List<ProductSummaryResponse> getProducts(List<String> regions) {
+		List<String> normalizedRegions = normalizeRegions(regions);
+		validateRegionFilterSize(normalizedRegions);
+
+		return productRepository.findAll(
+						ProductSpecification.list(normalizedRegions),
+						Sort.by(Sort.Direction.DESC, "id")
+				)
 				.stream()
 				.map(ProductSummaryResponse::from)
 				.toList();
@@ -94,6 +111,8 @@ public class ProductService {
 
 	public List<ProductSummaryResponse> searchProducts(ProductSearchRequest request) {
 		ProductSearchRequest searchRequest = normalizeSearchRequest(request);
+		List<String> regions = normalizeRegions(searchRequest.getRegions());
+		validateRegionFilterSize(regions);
 		validateSearchPrice(searchRequest.getMinPrice(), searchRequest.getMaxPrice());
 		TradeStatus tradeStatus = parseSearchTradeStatus(searchRequest.getTradeStatus());
 
@@ -103,7 +122,8 @@ public class ProductService {
 								searchRequest.getCategoryId(),
 								searchRequest.getMinPrice(),
 								searchRequest.getMaxPrice(),
-								tradeStatus
+								tradeStatus,
+								regions
 						),
 						Sort.by(Sort.Direction.DESC, "id")
 				)
@@ -145,6 +165,7 @@ public class ProductService {
 
 		Category category = categoryRepository.findById(request.getCategoryId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND));
+		validateRegionExists(request.getRegion());
 		product.update(
 				category,
 				request.getTitle(),
@@ -224,6 +245,12 @@ public class ProductService {
 		}
 	}
 
+	private void validateRegionExists(String region) {
+		if (!StringUtils.hasText(region) || !regionRepository.existsByName(region)) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+		}
+	}
+
 	private void validateProductImages(List<String> imageUrls, int thumbnailIndex) {
 		if (imageUrls == null || imageUrls.isEmpty() || imageUrls.size() > 5) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
@@ -269,9 +296,24 @@ public class ProductService {
 
 	private ProductSearchRequest normalizeSearchRequest(ProductSearchRequest request) {
 		if (request == null) {
-			return new ProductSearchRequest(null, null, (BigDecimal) null, null, null);
+			return new ProductSearchRequest(null, null, (BigDecimal) null, null, null, null);
 		}
 		return request;
+	}
+
+	private List<String> normalizeRegions(List<String> regions) {
+		if (regions == null) {
+			return List.of();
+		}
+		return regions.stream()
+				.filter(StringUtils::hasText)
+				.toList();
+	}
+
+	private void validateRegionFilterSize(List<String> regions) {
+		if (regions.size() > MAX_REGION_FILTER_SIZE) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+		}
 	}
 
 	private void validateSearchPrice(BigDecimal minPrice, BigDecimal maxPrice) {

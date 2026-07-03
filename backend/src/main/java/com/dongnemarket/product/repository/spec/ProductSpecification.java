@@ -6,21 +6,32 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public class ProductSpecification {
 
 	private ProductSpecification() {
 	}
 
+	public static Specification<Product> list(List<String> regions) {
+		return visibleProducts()
+				.and(regionIn(regions));
+	}
+
 	public static Specification<Product> search(String keyword, Long categoryId, BigDecimal minPrice,
-												BigDecimal maxPrice, TradeStatus tradeStatus) {
-		return notDeleted()
-				.and(notHidden())
+												BigDecimal maxPrice, TradeStatus tradeStatus, List<String> regions) {
+		return visibleProducts()
 				.and(keywordContains(keyword))
 				.and(categoryEquals(categoryId))
 				.and(priceGreaterThanOrEqualTo(minPrice))
 				.and(priceLessThanOrEqualTo(maxPrice))
-				.and(tradeStatusEquals(tradeStatus));
+				.and(tradeStatusEquals(tradeStatus))
+				.and(regionIn(regions));
+	}
+
+	private static Specification<Product> visibleProducts() {
+		return notDeleted()
+				.and(notHidden());
 	}
 
 	private static Specification<Product> notDeleted() {
@@ -77,6 +88,15 @@ public class ProductSpecification {
 				return null;
 			}
 			return criteriaBuilder.equal(root.get("tradeStatus"), tradeStatus);
+		};
+	}
+
+	private static Specification<Product> regionIn(List<String> regions) {
+		return (root, query, criteriaBuilder) -> {
+			if (regions == null || regions.isEmpty()) {
+				return null;
+			}
+			return root.get("region").in(regions);
 		};
 	}
 
