@@ -81,6 +81,7 @@
   width: 104px; height: 104px;
   flex-shrink: 0;
   border-radius: 12px;
+  overflow: hidden;
   border: 1px solid var(--border);
   background-color: var(--surface-2);
   background-image: repeating-linear-gradient(
@@ -89,8 +90,12 @@
     color-mix(in srgb, var(--text) 5%, transparent) 20px
   );
 }
+.thumbImg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: cover;
+}
 .stBadge {
-  position: absolute; top: 7px; left: 7px;
+  position: absolute; top: 7px; left: 7px; z-index: 1;
   font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px;
 }
 .stSale     { background: var(--ok-soft);      color: var(--ok); }

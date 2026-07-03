@@ -20,6 +20,7 @@ interface Product {
   region: string
   viewCount: number
   favoriteCount: number
+  thumbnailUrl: string | null
   hidden: boolean
 }
 
@@ -163,7 +164,11 @@ export default function ProductsPage() {
                   {/* 썸네일 */}
                   <div className={styles.thumb}>
                     {badge && <span className={`${styles.badgeTag} ${badge.cls}`}>{badge.label}</span>}
-                    <span className={styles.thumbPh}>상품 이미지</span>
+                    {product.thumbnailUrl ? (
+                      <img src={product.thumbnailUrl} alt={product.title} className={styles.thumbImg} />
+                    ) : (
+                      <span className={styles.thumbPh}>상품 이미지</span>
+                    )}
                   </div>
 
                   {/* 바디 */}
