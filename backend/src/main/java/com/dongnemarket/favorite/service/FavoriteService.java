@@ -13,6 +13,7 @@ import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.service.ProductService;
 import jakarta.persistence.EntityManager;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Limit;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,9 @@ import java.util.List;
 @Service
 @Transactional(readOnly = true)
 public class FavoriteService {
+
+    /** 관심 목록 조회 상한. 개인 목록은 자연히 바운드되지만, 비정상 폭주 시 payload·메모리를 캡한다(최근순 기준). */
+    private static final Limit MY_FAVORITES_LIMIT = Limit.of(200);
 
     private final FavoriteRepository favoriteRepository;
     private final ProductService productService;
@@ -61,10 +65,12 @@ public class FavoriteService {
     /**
      * 내 관심 상품 목록 조회. 로그인 사용자가 등록한 관심 상품을 상품 요약과 함께 최근 등록순으로 조회한다.
      * 삭제·숨김된 상품의 관심은 목록에서 제외한다(정책 A).
+     * <p>상품을 fetch join으로 함께 로딩해 N+1을 제거하고, {@link #MY_FAVORITES_LIMIT}로 상한을 둔다.
+     * 페이지네이션은 클라이언트에서 처리한다(개인 목록이라 바운드됨).
      */
     public List<MyFavoriteResponse> getMyFavorites(Long memberId) {
         return favoriteRepository
-                .findAllByMember_IdAndProduct_DeletedAtIsNullAndProduct_HiddenFalseOrderByCreatedAtDescIdDesc(memberId)
+                .findMyFavoritesWithProduct(memberId, MY_FAVORITES_LIMIT)
                 .stream()
                 .map(MyFavoriteResponse::from)
                 .toList();
