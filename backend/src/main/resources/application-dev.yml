@@ -1,0 +1,16 @@
+# dev: 호스트 bootRun. 로컬 MySQL(base fallback), 개발 편의(스키마 자동반영·SQL 로그).
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+logging:
+  level:
+    org.hibernate.SQL: debug
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
