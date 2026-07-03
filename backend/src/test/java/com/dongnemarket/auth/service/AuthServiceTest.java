@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -284,6 +285,44 @@ class AuthServiceTest {
 		assertThatThrownBy(() -> authService.reissue(refreshToken))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.SUSPENDED_MEMBER);
+	}
+
+	// ===== logout =====
+
+	@Test
+	@DisplayName("로그아웃하면 저장된 Refresh Token이 삭제된다")
+	void logout_callsRefreshTokenServiceDeleteByMemberId() {
+		authService.logout(1L);
+
+		verify(refreshTokenRepository).deleteByMemberId(1L);
+	}
+
+	@Test
+	@DisplayName("로그아웃을 여러 번 호출해도 항상 성공한다(멱등)")
+	void logout_calledTwice_bothSucceedWithoutException() {
+		authService.logout(1L);
+
+		assertThatCode(() -> authService.logout(1L)).doesNotThrowAnyException();
+	}
+
+	@Test
+	@DisplayName("로그아웃 이후 기존 Refresh Token으로 재발급을 시도하면 REFRESH_TOKEN_NOT_FOUND 예외가 발생한다")
+	void reissue_afterLogout_throwsRefreshTokenNotFound() {
+		LoginRequest request = new LoginRequest("test@example.com", "password123");
+		Member member = Member.createUser(request.getEmail(), passwordEncoder.encode(request.getPassword()), "tester");
+		ReflectionTestUtils.setField(member, "id", 1L);
+		given(memberRepository.findByEmail(request.getEmail())).willReturn(Optional.of(member));
+		// 로그인 시점에는 저장된 row가 없어 신규 저장되고, 로그아웃(삭제) 이후 재발급 시점에도 row가 없는 상태를 그대로 재현한다.
+		given(refreshTokenRepository.findByMemberId(1L)).willReturn(Optional.empty());
+
+		LoginResponse loginResponse = authService.login(request);
+		String refreshToken = loginResponse.getRefreshToken();
+
+		authService.logout(1L);
+
+		assertThatThrownBy(() -> authService.reissue(refreshToken))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.REFRESH_TOKEN_NOT_FOUND);
 	}
 
 	@Test

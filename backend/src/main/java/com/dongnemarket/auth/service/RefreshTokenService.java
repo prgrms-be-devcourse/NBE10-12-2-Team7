@@ -13,8 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 /**
- * Refresh Token의 저장·교체·검증을 전담한다.
+ * Refresh Token의 저장·교체·검증·삭제를 전담한다.
  * <p>회원당 1개만 유지하며(단일 세션), 재로그인/재발급 시 기존 토큰을 교체한다.
+ * <p>{@link AuthService}는 이 클래스만 의존하고 {@link RefreshTokenRepository}를 직접 참조하지 않는다 —
+ * 저장소를 DB에서 Redis 등으로 교체하더라도 이 클래스 내부만 바뀌면 되고, Controller/AuthService는 영향받지 않는다.
  */
 @Service
 @Transactional
@@ -62,5 +64,13 @@ public class RefreshTokenService {
 			throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN);
 		}
 		return memberId;
+	}
+
+	/**
+	 * 로그아웃 시 호출: 저장된 Refresh Token을 삭제한다.
+	 * 이미 삭제되어 저장된 row가 없어도 예외 없이 통과한다(멱등 — 중복 로그아웃 허용).
+	 */
+	public void deleteByMemberId(Long memberId) {
+		refreshTokenRepository.deleteByMemberId(memberId);
 	}
 }

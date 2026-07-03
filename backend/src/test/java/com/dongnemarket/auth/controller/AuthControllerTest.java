@@ -209,4 +209,73 @@ class AuthControllerTest {
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error").value("INVALID_REFRESH_TOKEN"));
 	}
+
+	// ===== logout =====
+
+	@Test
+	@DisplayName("로그인한 사용자가 로그아웃하면 200을 반환한다")
+	void logout_success() throws Exception {
+		String signup = "{ \"email\": \"logout@example.com\", \"password\": \"password123\", \"nickname\": \"logoutUser\" }";
+		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
+				.andExpect(status().isCreated());
+
+		String login = "{ \"email\": \"logout@example.com\", \"password\": \"password123\" }";
+		MvcResult loginResult = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
+				.andReturn();
+		String accessToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
+				.path("data").path("accessToken").asText();
+
+		mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + accessToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200));
+	}
+
+	@Test
+	@DisplayName("인증 헤더 없이 로그아웃을 시도하면 401을 반환한다")
+	void logout_withoutToken_returns401() throws Exception {
+		mockMvc.perform(post("/api/auth/logout"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	@DisplayName("로그아웃을 여러 번 호출해도 항상 200을 반환한다(멱등)")
+	void logout_calledTwice_bothReturn200() throws Exception {
+		String signup = "{ \"email\": \"logout-twice@example.com\", \"password\": \"password123\", \"nickname\": \"logoutTwice\" }";
+		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
+				.andExpect(status().isCreated());
+
+		String login = "{ \"email\": \"logout-twice@example.com\", \"password\": \"password123\" }";
+		MvcResult loginResult = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
+				.andReturn();
+		String accessToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
+				.path("data").path("accessToken").asText();
+
+		mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + accessToken))
+				.andExpect(status().isOk());
+		mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + accessToken))
+				.andExpect(status().isOk());
+	}
+
+	@Test
+	@DisplayName("로그아웃 이후 기존 Refresh Token으로 재발급을 시도하면 401과 REFRESH_TOKEN_NOT_FOUND를 반환한다")
+	void logout_thenReissueWithOldRefreshToken_returns401RefreshTokenNotFound() throws Exception {
+		String signup = "{ \"email\": \"logout-reissue@example.com\", \"password\": \"password123\", \"nickname\": \"logoutReissue\" }";
+		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
+				.andExpect(status().isCreated());
+
+		String login = "{ \"email\": \"logout-reissue@example.com\", \"password\": \"password123\" }";
+		MvcResult loginResult = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
+				.andReturn();
+		String loginBody = loginResult.getResponse().getContentAsString();
+		String accessToken = objectMapper.readTree(loginBody).path("data").path("accessToken").asText();
+		String refreshToken = objectMapper.readTree(loginBody).path("data").path("refreshToken").asText();
+
+		mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + accessToken))
+				.andExpect(status().isOk());
+
+		String reissueBody = String.format("{ \"refreshToken\": \"%s\" }", refreshToken);
+		mockMvc.perform(post("/api/auth/reissue").contentType(MediaType.APPLICATION_JSON).content(reissueBody))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("REFRESH_TOKEN_NOT_FOUND"));
+	}
 }

@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -133,5 +134,24 @@ class RefreshTokenServiceTest {
 		assertThatThrownBy(() -> refreshTokenService.validateAndGetMemberId(accessToken))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REFRESH_TOKEN);
+	}
+
+	// ===== deleteByMemberId =====
+
+	@Test
+	@DisplayName("deleteByMemberId 호출 시 Repository의 삭제 메서드를 호출한다")
+	void deleteByMemberId_callsRepository() {
+		refreshTokenService.deleteByMemberId(1L);
+
+		verify(refreshTokenRepository).deleteByMemberId(1L);
+	}
+
+	@Test
+	@DisplayName("이미 삭제된 Refresh Token에 다시 deleteByMemberId를 호출해도 예외 없이 통과한다(멱등)")
+	void deleteByMemberId_calledTwice_bothSucceed() {
+		refreshTokenService.deleteByMemberId(1L);
+		refreshTokenService.deleteByMemberId(1L);
+
+		verify(refreshTokenRepository, times(2)).deleteByMemberId(1L);
 	}
 }

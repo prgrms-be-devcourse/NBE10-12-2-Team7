@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -49,5 +50,12 @@ public class AuthController {
 	public ResponseEntity<ApiResponse<TokenResponse>> reissue(@Valid @RequestBody ReissueRequest request) {
 		TokenResponse response = authService.reissue(request.getRefreshToken());
 		return ResponseEntity.ok(ApiResponse.success("토큰이 재발급되었습니다.", response));
+	}
+
+	@Operation(summary = "로그아웃", description = "현재 로그인한 사용자의 Refresh Token을 삭제한다. 여러 번 호출해도 항상 성공한다.")
+	@PostMapping("/logout")
+	public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal Long memberId) {
+		authService.logout(memberId);
+		return ResponseEntity.ok(ApiResponse.success());
 	}
 }
