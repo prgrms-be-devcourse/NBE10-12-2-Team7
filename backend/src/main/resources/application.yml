@@ -2,7 +2,11 @@ spring:
   application:
     name: dongnemarket
 
-  # 운영/개발 DB: MySQL (접속정보는 환경변수로 주입, 기본값은 로컬 docker-compose 기준)
+  # 실행 프로파일 미지정(호스트 bootRun) 시 자동 dev. 도커·테스트는 프로파일 명시라 영향 없음.
+  profiles:
+    default: dev
+
+  # DB 접속정보는 환경변수 주입. 기본값(fallback)은 로컬 MySQL = dev 편의.
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/dongne_market?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
     username: ${DB_USERNAME:dongne}
@@ -10,36 +14,26 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
-    hibernate:
-      ddl-auto: update          # 초기 개발 편의 (운영 전 validate 권장)
-    properties:
-      hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.MySQLDialect
-        # default_batch_fetch_size: 100 (임의 설정)
-
-    open-in-view: false
+    open-in-view: false          # dialect는 자동감지(명시 시 deprecation 경고), ddl/format은 프로파일로
 
   jackson:
     serialization:
-      write-dates-as-timestamps: false   # LocalDateTime -> ISO-8601 문자열
+      write-dates-as-timestamps: false
 
-  # Spring AI - 로컬 Ollama (관리자 AI 어시스턴트)
+  # Spring AI - 사내 Ollama (관리자 AI 어시스턴트)
   ai:
     ollama:
-      base-url: ${OLLAMA_BASE_URL:http://10.111.111.90:11434}   # OpenVPN 내 Ollama 서버
+      base-url: ${OLLAMA_BASE_URL:http://10.111.111.90:11434}
       chat:
         options:
-          model: ${OLLAMA_MODEL:qwen3:14b}   # tool calling 지원 모델 필수 (gemma·qwen2.5-coder 불가, 실측)
-          temperature: 0.1                   # 관리 데이터 조회이므로 사실성 우선
+          model: ${OLLAMA_MODEL:qwen3:14b}
+          temperature: 0.1
 
-# JWT (시크릿은 운영 시 반드시 JWT_SECRET 환경변수로 교체)
 jwt:
   secret: ${JWT_SECRET:dongne-market-local-dev-secret-key-please-change-in-production-0123456789}
   access-token-validity-seconds: ${JWT_ACCESS_TTL:900}
   refresh-token-validity-seconds: ${JWT_REFRESH_TTL:604800}
 
-# Swagger / Springdoc
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -47,17 +41,12 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
-logging:
-  level:
-    org.hibernate.SQL: debug
-
-
-# Actuator: 모니터링 엔드포인트 노출 (로컬 학습용 — 운영에선 노출 범위 좁혀야 함)
+# 기본은 최소 노출(health,info). prometheus는 dev/local에서만 연다.
 management:
   endpoints:
     web:
       exposure:
-        include: health, info, prometheus   # 딱 필요한 것만 공개
+        include: health, info
   metrics:
     tags:
-      application: ${spring.application.name}   # 모든 지표에 app 라벨 부착
+      application: ${spring.application.name}

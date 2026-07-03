@@ -36,7 +36,7 @@ PR을 올리면 팀장이 별도 도구로 코드 로직·구조를 검증·테�
 
 ## 폴더 구조 (팀원용)
 
-> **모노레포**: 레포 루트에 **`backend/`**(Spring Boot 백엔드 — `build.gradle`·`src`·`docker-compose.yml`)와 **`docs/`**·**`lead-only/`**가 함께 있습니다. 백엔드 작업은 `cd backend` 후 진행합니다.
+> **모노레포**: 레포 루트에 **`backend/`**(Spring Boot — `build.gradle`·`src`)·**`frontend/`**(Next.js)·**`docs/`**·**`lead-only/`**와 인프라(`docker-compose.yml`·`nginx/`·`monitoring/`)가 함께 있습니다. 백엔드 작업은 `cd backend` 후 진행합니다. **로컬 실행/띄우는 법은 루트 [README.md](../README.md) 참고**(dev·local-deploy).
 
 ```
 docs/

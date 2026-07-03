@@ -9,6 +9,8 @@
 |------|------|------|
 | 01 | [01-capacity-planning.md](01-capacity-planning.md) | 로컬 실측 벤치마크 + 문제점 + AWS 인스턴스 선정/비용 비교 |
 | 02 | [02-build-fix.md](02-build-fix.md) | 빌드 가능화 — Report 리팩터링 통합 갭으로 깨진 컴파일 복구 |
+| 03 | [03-local-deploy.md](03-local-deploy.md) | 로컬 배포용(전부 Docker: web·observability·edge) 실행 런북 — 팀원 온보딩용 |
+| 04 | [04-local-deploy-build.md](04-local-deploy-build.md) | 로컬 배포 환경 **구축 과정·설계 이유·유지보수 변경 포인트** |
 
 ## 결정 로그 (요약)
 
@@ -27,4 +29,4 @@
 - [x] actuator 헬스체크 + `SecurityConfig` `/actuator/health` permitAll
 - [x] Dockerfile + `docker-compose.prod.yml` (buffer pool 128M·healthcheck·restart)
 - [x] **Phase 1 게이트: 로컬 prod 컨테이너 기동 검증** — `{"status":"UP"}`, 스키마 6테이블 생성 (2026-07-02)
-- [ ] EC2 셋업 런북 (스왑, 보안그룹, 배포 스크립트) ← 다음
+- [ ] ~~EC2 셋업 런북~~ → **cloud(AWS) 배포는 개발 완성 후로 보류**. `application-prod.yml`·`docker-compose.prod.yml` 제거됨. 재개 시 GitHub Actions CI/CD(develop 머지→ECR→EC2) 방향.
