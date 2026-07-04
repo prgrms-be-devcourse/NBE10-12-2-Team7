@@ -17,11 +17,13 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     Optional<ChatRoom> findByProduct_IdAndBuyer_Id(Long productId, Long buyerId);
 
     /**
-     * 내가 참여한(구매자 또는 판매자) 방 목록을 최근 생성순으로 조회한다.
+     * 내가 참여한(구매자 또는 판매자) 방 목록을 조회한다.
      * <p>참여자 필터({@code buyer.id}/{@code seller.id})는 chat_rooms 컬럼이라 조인 없이 처리된다
      * (seller를 방에 저장한 덕분 — 인가/필터가 순수 row 비교).
      * 목록 렌더링에 필요한 상품·상대방을 {@code JOIN FETCH}로 함께 로딩해 N+1을 방지한다.
-     * (정렬 기준을 마지막 메시지 시각으로 바꾸는 건 last-message 비정규화가 필요한 PR3 범위.)
+     * <p>여기서는 결정적 입력을 위해 id DESC(생성 역순)로 조회하고,
+     * <b>최종 정렬(최근 활동순 = 마지막 메시지 시각)은 서비스에서</b> 마지막 메시지를 함께 로딩한 뒤
+     * 메모리에서 적용한다({@code ChatService#getMyRooms}). 개인 목록이라 방 수가 작아 DB 비정규화는 불필요.
      */
     @Query("SELECT r FROM ChatRoom r " +
             "JOIN FETCH r.product " +

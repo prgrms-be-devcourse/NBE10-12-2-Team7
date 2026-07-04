@@ -18,6 +18,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -65,7 +67,7 @@ public class ChatService {
         return ChatRoomDetailResponse.of(room);
     }
 
-    /** 내가 참여한 방 목록(최근순). 상품 요약·상대방·방별 마지막 메시지를 함께 담는다. */
+    /** 내가 참여한 방 목록(최근 활동순 = 마지막 메시지 시각). 상품 요약·상대방·방별 마지막 메시지를 함께 담는다. */
     @Transactional(readOnly = true)
     public List<ChatRoomListResponse> getMyRooms(Long memberId) {
         List<ChatRoom> rooms = chatRoomRepository.findMyChatRooms(memberId);
@@ -77,8 +79,26 @@ public class ChatService {
                 .collect(Collectors.toMap(ChatMessage::getChatRoomId, Function.identity()));
 
         return rooms.stream()
+                .sorted(byRecentActivityDesc(lastByRoom))
                 .map(room -> ChatRoomListResponse.of(room, opponentOf(room, memberId), lastByRoom.get(room.getId())))
                 .toList();
+    }
+
+    /**
+     * 최근 활동순 정렬(마지막 메시지 시각 DESC). 방 목록과 방별 마지막 메시지를 이미 메모리에 다 로딩했고,
+     * 이 API는 페이지네이션 없이 전체 목록을 반환하며 개인 목록이라 방 수가 작아 DB 비정규화 없이 여기서 정렬한다.
+     * 메시지가 없는 방은 방 생성 시각을 활동 시각으로 보아(갓 만든 빈 방이 위로) 정렬하고,
+     * 동시각은 roomId DESC로 결정성을 확보한다(메시지 id는 시각과 동일 순서라 시각 하나로 충분).
+     */
+    private Comparator<ChatRoom> byRecentActivityDesc(Map<Long, ChatMessage> lastByRoom) {
+        return Comparator
+                .comparing((ChatRoom room) -> activityTimeOf(room, lastByRoom), Comparator.reverseOrder())
+                .thenComparing(ChatRoom::getId, Comparator.reverseOrder());
+    }
+
+    private LocalDateTime activityTimeOf(ChatRoom room, Map<Long, ChatMessage> lastByRoom) {
+        ChatMessage last = lastByRoom.get(room.getId());
+        return last != null ? last.getCreatedAt() : room.getCreatedAt();
     }
 
     /** 방의 메시지를 최신순 커서 페이지네이션으로 조회한다. 참여자만 접근 가능. */

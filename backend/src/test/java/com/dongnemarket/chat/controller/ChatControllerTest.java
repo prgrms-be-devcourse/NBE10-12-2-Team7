@@ -95,6 +95,15 @@ class ChatControllerTest {
         return chatRoomRepository.save(ChatRoom.of(product, buyerMember, sellerMember));
     }
 
+    /** buyer가 참여한 새 방을 별도 상품에 만든다. UNIQUE(product_id, buyer_id)라 방을 여러 개 만들려면 상품이 달라야 한다. */
+    private ChatRoom saveRoomOnNewProduct() {
+        Category category = categoryRepository.findById(categoryId).orElseThrow();
+        Product product = Product.create(seller, category, "상품", "설명",
+                BigDecimal.valueOf(10_000), "서울");
+        productRepository.save(product);
+        return chatRoomRepository.save(ChatRoom.of(product, buyer, seller));
+    }
+
     @Nested
     @DisplayName("채팅방 연결 (POST /api/chat-rooms)")
     class CreateRoom {
@@ -219,6 +228,24 @@ class ChatControllerTest {
             mockMvc.perform(get("/api/chat-rooms").header("Authorization", buyerToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data[0].lastMessage").doesNotExist());
+        }
+
+        @Test
+        @DisplayName("마지막 메시지가 최근인 방이 먼저 오고, 메시지 없는 방은 방 생성 시각 기준으로 정렬된다")
+        void ordersByLastMessageTime() throws Exception {
+            // 생성 순서(=id 순): empty < older < newer. 메시지는 older, newer 순으로 저장돼 newer가 더 최근.
+            ChatRoom empty = saveRoomOnNewProduct();   // 메시지 없음 → 활동 시각 = 방 생성 시각(가장 이름)
+            ChatRoom older = saveRoomOnNewProduct();    // 오래된 마지막 메시지
+            ChatRoom newer = saveRoomOnNewProduct();    // 최근 마지막 메시지
+            chatMessageRepository.save(ChatMessage.of(older, buyer, "예전 대화"));
+            chatMessageRepository.save(ChatMessage.of(newer, buyer, "최근 대화"));
+
+            mockMvc.perform(get("/api/chat-rooms").header("Authorization", buyerToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.length()").value(3))
+                    .andExpect(jsonPath("$.data[0].roomId").value(newer.getId()))
+                    .andExpect(jsonPath("$.data[1].roomId").value(older.getId()))
+                    .andExpect(jsonPath("$.data[2].roomId").value(empty.getId()));
         }
     }
 
