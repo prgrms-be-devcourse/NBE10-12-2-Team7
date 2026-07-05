@@ -37,4 +37,25 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
             "WHERE m.id IN (SELECT MAX(m2.id) FROM ChatMessage m2 " +
             "WHERE m2.chatRoom.id IN :roomIds GROUP BY m2.chatRoom.id)")
     List<ChatMessage> findLatestPerRoom(@Param("roomIds") List<Long> roomIds);
+
+    /** 방의 마지막(최신) 메시지 id. 메시지가 없으면 null. 읽음 처리 시 읽음 지점을 이 값까지 전진시킨다. */
+    @Query("SELECT MAX(m.id) FROM ChatMessage m WHERE m.chatRoom.id = :roomId")
+    Long findMaxIdByRoom(@Param("roomId") Long roomId);
+
+    /**
+     * 여러 방의 안읽음 메시지 수를 한 번에 센다(목록 배지용, 방 하나당 한 행 → N+1 없음).
+     * <p>안읽음 = 내가 보내지 않았고({@code sender ≠ 나}) 내 읽음 지점보다 뒤({@code id > last_read})인 메시지.
+     * 읽음 지점은 참여 좌석에 따라 다르므로 {@code CASE}로 구매자/판매자 컬럼을 분기하고,
+     * 아직 안 읽었으면(null) {@code COALESCE(.., 0)}으로 id가 1부터라 상대 메시지 전부를 안읽음으로 센다.
+     * 안읽음이 0인 방은 결과 행이 없으므로 서비스에서 기본값 0으로 채운다.
+     */
+    @Query("SELECT r.id AS roomId, COUNT(m.id) AS unreadCount " +
+            "FROM ChatMessage m JOIN m.chatRoom r " +
+            "WHERE r.id IN :roomIds " +
+            "AND m.sender.id <> :memberId " +
+            "AND m.id > CASE WHEN r.buyer.id = :memberId " +
+            "THEN COALESCE(r.buyerLastReadMessageId, 0) ELSE COALESCE(r.sellerLastReadMessageId, 0) END " +
+            "GROUP BY r.id")
+    List<RoomUnreadCount> countUnreadPerRoom(@Param("roomIds") List<Long> roomIds,
+                                             @Param("memberId") Long memberId);
 }

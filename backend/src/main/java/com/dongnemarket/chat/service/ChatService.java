@@ -8,6 +8,7 @@ import com.dongnemarket.chat.entity.ChatMessage;
 import com.dongnemarket.chat.entity.ChatRoom;
 import com.dongnemarket.chat.repository.ChatMessageRepository;
 import com.dongnemarket.chat.repository.ChatRoomRepository;
+import com.dongnemarket.chat.repository.RoomUnreadCount;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.entity.Member;
@@ -77,11 +78,31 @@ public class ChatService {
         List<Long> roomIds = rooms.stream().map(ChatRoom::getId).toList();
         Map<Long, ChatMessage> lastByRoom = chatMessageRepository.findLatestPerRoom(roomIds).stream()
                 .collect(Collectors.toMap(ChatMessage::getChatRoomId, Function.identity()));
+        Map<Long, Long> unreadByRoom = chatMessageRepository.countUnreadPerRoom(roomIds, memberId).stream()
+                .collect(Collectors.toMap(RoomUnreadCount::getRoomId, RoomUnreadCount::getUnreadCount));
 
         return rooms.stream()
                 .sorted(byRecentActivityDesc(lastByRoom))
-                .map(room -> ChatRoomListResponse.of(room, opponentOf(room, memberId), lastByRoom.get(room.getId())))
+                .map(room -> ChatRoomListResponse.of(room, opponentOf(room, memberId),
+                        lastByRoom.get(room.getId()), unreadByRoom.getOrDefault(room.getId(), 0L)))
                 .toList();
+    }
+
+    /**
+     * 방의 메시지를 모두 읽음 처리한다 — 내 읽음 지점을 방의 최신 메시지 id까지 전진시킨다(참여자만 가능).
+     * 메시지가 없는 방은 전진할 지점이 없어 아무것도 하지 않는다(안읽음은 어차피 0).
+     * 읽음 지점 전진은 더티체킹으로 커밋된다.
+     */
+    @Transactional
+    public void markRoomAsRead(Long memberId, Long roomId) {
+        ChatRoom room = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND));
+        validateParticipant(room, memberId);
+
+        Long latestMessageId = chatMessageRepository.findMaxIdByRoom(roomId);
+        if (latestMessageId != null) {
+            room.markRead(memberId, latestMessageId);
+        }
     }
 
     /**
