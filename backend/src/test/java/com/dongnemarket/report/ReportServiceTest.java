@@ -13,6 +13,7 @@ import com.dongnemarket.report.dto.ProductReportCreateRequest;
 import com.dongnemarket.report.dto.ReportResponse;
 import com.dongnemarket.report.entity.Report;
 import com.dongnemarket.report.entity.ReportReason;
+import com.dongnemarket.report.entity.ReportStatus;
 import com.dongnemarket.report.repository.ReportRepository;
 import com.dongnemarket.report.service.ReportService;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +41,9 @@ class ReportServiceTest {
 
     @Mock
     ProductRepository productRepository;
+
+    @Mock
+    com.dongnemarket.report.service.EvidenceImageStorageService evidenceImageStorageService;
 
     @InjectMocks
     ReportService reportService;
@@ -83,6 +87,26 @@ class ReportServiceTest {
     }
 
     @Test
+    @DisplayName("existsBy... 통과 후 저장 시점에 DB 유니크 제약을 위반해도 DUPLICATE_REPORT로 변환된다 (동시 요청 대비)")
+    void reportProduct_dbUniqueConstraintViolation_convertsToDuplicateReportException() {
+        Long reporterId = 1L;
+        Long targetProductId = 10L;
+        Member reporter = createMember(reporterId, "reporter@example.com", "신고자");
+        Product product = createProduct(2L);
+        ProductReportCreateRequest request = createProductReportRequest();
+
+        given(memberRepository.findById(reporterId)).willReturn(Optional.of(reporter));
+        given(productRepository.findById(targetProductId)).willReturn(Optional.of(product));
+        given(reportRepository.existsByReporterAndTargetProduct(reporter, product)).willReturn(false);
+        given(reportRepository.save(any(Report.class)))
+                .willThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate key"));
+
+        assertThatThrownBy(() -> reportService.reportProduct(reporterId, targetProductId, request))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_REPORT);
+    }
+
+    @Test
     @DisplayName("같은 상품을 중복 신고하면 DUPLICATE_REPORT 예외가 발생한다")
     void reportProduct_duplicate_throwsException() {
         Long reporterId = 1L;
@@ -99,6 +123,44 @@ class ReportServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_REPORT);
 
+    }
+
+    @Test
+    @DisplayName("증빙 이미지를 첨부해 상품을 신고하면 응답에 이미지 URL이 포함된다")
+    void reportProduct_withEvidenceImage_includesUrlInResponse() {
+        Long reporterId = 1L;
+        Long targetProductId = 10L;
+        Member reporter = createMember(reporterId, "reporter@example.com", "신고자");
+        Product product = createProduct(2L);
+        ProductReportCreateRequest request = createProductReportRequest("https://example.com/evidence.jpg");
+
+        given(memberRepository.findById(reporterId)).willReturn(Optional.of(reporter));
+        given(productRepository.findById(targetProductId)).willReturn(Optional.of(product));
+        given(reportRepository.existsByReporterAndTargetProduct(reporter, product)).willReturn(false);
+        given(reportRepository.save(any(Report.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        ReportResponse response = reportService.reportProduct(reporterId, targetProductId, request);
+
+        assertThat(response.getEvidenceImageUrl()).isEqualTo("https://example.com/evidence.jpg");
+    }
+
+    @Test
+    @DisplayName("증빙 이미지 없이 신고하면 응답의 이미지 URL은 null이다")
+    void reportProduct_withoutEvidenceImage_urlIsNull() {
+        Long reporterId = 1L;
+        Long targetProductId = 10L;
+        Member reporter = createMember(reporterId, "reporter@example.com", "신고자");
+        Product product = createProduct(2L);
+        ProductReportCreateRequest request = createProductReportRequest();
+
+        given(memberRepository.findById(reporterId)).willReturn(Optional.of(reporter));
+        given(productRepository.findById(targetProductId)).willReturn(Optional.of(product));
+        given(reportRepository.existsByReporterAndTargetProduct(reporter, product)).willReturn(false);
+        given(reportRepository.save(any(Report.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        ReportResponse response = reportService.reportProduct(reporterId, targetProductId, request);
+
+        assertThat(response.getEvidenceImageUrl()).isNull();
     }
 
     @Test
@@ -136,6 +198,66 @@ class ReportServiceTest {
 
     }
 
+    @Test
+    @DisplayName("RECEIVED 상태인 본인 신고를 취소하면 삭제된다")
+    void cancelReport_success() {
+        Long reporterId = 1L;
+        Long reportId = 100L;
+        Member reporter = createMember(reporterId, "reporter@example.com", "신고자");
+        Report report = Report.ofProduct(reporter, createProduct(2L), ReportReason.FAKE_ITEM, "신고합니다");
+
+        given(reportRepository.findById(reportId)).willReturn(Optional.of(report));
+
+        reportService.cancelReport(reporterId, reportId);
+
+        org.mockito.Mockito.verify(reportRepository).delete(report);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 신고를 취소하면 REPORT_NOT_FOUND 예외가 발생한다")
+    void cancelReport_notFound_throwsException() {
+        Long reporterId = 1L;
+        Long reportId = 999L;
+
+        given(reportRepository.findById(reportId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> reportService.cancelReport(reporterId, reportId))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.REPORT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("타인의 신고를 취소하려 하면 REPORT_OWNER_ONLY 예외가 발생한다")
+    void cancelReport_notOwner_throwsException() {
+        Long reporterId = 1L;
+        Long otherReporterId = 2L;
+        Long reportId = 100L;
+        Member otherReporter = createMember(otherReporterId, "other@example.com", "다른신고자");
+        Report report = Report.ofProduct(otherReporter, createProduct(3L), ReportReason.FAKE_ITEM, "신고합니다");
+
+        given(reportRepository.findById(reportId)).willReturn(Optional.of(report));
+
+        assertThatThrownBy(() -> reportService.cancelReport(reporterId, reportId))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.REPORT_OWNER_ONLY);
+    }
+
+    @Test
+    @DisplayName("이미 처리 중인 신고를 취소하려 하면 CANNOT_CANCEL_REPORT 예외가 발생한다")
+    void cancelReport_notReceivedStatus_throwsException() {
+        Long reporterId = 1L;
+        Long reportId = 100L;
+        Member reporter = createMember(reporterId, "reporter@example.com", "신고자");
+        Report report = Report.ofProduct(reporter, createProduct(2L), ReportReason.FAKE_ITEM, "신고합니다");
+        report.changeStatus(ReportStatus.REVIEWING);
+
+        given(reportRepository.findById(reportId)).willReturn(Optional.of(report));
+
+        assertThatThrownBy(() -> reportService.cancelReport(reporterId, reportId))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_CANCEL_REPORT);
+    }
+
     private Member createMember(Long id, String email, String nickname) {
         try {
             Member member = Member.createUser(email, "pw", nickname);
@@ -162,6 +284,10 @@ class ReportServiceTest {
     }
 
     private ProductReportCreateRequest createProductReportRequest() {
+        return createProductReportRequest(null);
+    }
+
+    private ProductReportCreateRequest createProductReportRequest(String evidenceImageUrl) {
         try {
             var constructor = ProductReportCreateRequest.class.getDeclaredConstructor();
             constructor.setAccessible(true);
@@ -169,6 +295,9 @@ class ReportServiceTest {
             var reasonField = ProductReportCreateRequest.class.getDeclaredField("reason");
             reasonField.setAccessible(true);
             reasonField.set(request, ReportReason.FAKE_ITEM);
+            var evidenceField = ProductReportCreateRequest.class.getDeclaredField("evidenceImageUrl");
+            evidenceField.setAccessible(true);
+            evidenceField.set(request, evidenceImageUrl);
             return request;
         } catch (Exception e) {
             throw new RuntimeException(e);

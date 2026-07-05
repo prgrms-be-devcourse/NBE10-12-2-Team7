@@ -91,6 +91,53 @@
 .note { background: var(--primary-soft); border: 1px dashed color-mix(in srgb, var(--primary) 40%, transparent); color: var(--primary-d); padding: 10px 14px; border-radius: 11px; font-size: 12.5px; margin-bottom: 16px; }
 .empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
 
+/* AI 어시스턴트 챗 */
+.chatWrap { display: flex; flex-direction: column; height: calc(100vh - 300px); min-height: 420px; max-width: 760px; }
+.chatLog {
+  flex: 1; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: 18px;
+  background: var(--surface); padding: 20px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.chatMsg { display: flex; gap: 10px; align-items: flex-start; }
+.chatMsg.user { flex-direction: row-reverse; }
+.chatAvatar {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 11px; font-weight: 800;
+  background: var(--primary-soft); color: var(--primary-d);
+}
+.chatMsg.user .chatAvatar { background: var(--neutral-soft); color: var(--neutral); }
+.chatBubble {
+  max-width: 78%; padding: 12px 15px; border-radius: 14px;
+  background: var(--bg); border: 1px solid var(--border);
+  font-size: 13.5px; line-height: 1.6; white-space: pre-line;
+}
+.chatMsg.user .chatBubble { background: var(--primary-soft); border-color: transparent; color: var(--primary-d); }
+.chatMsg.error .chatBubble { background: var(--danger-soft); border-color: transparent; color: var(--danger); }
+
+.chatChips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.chatChip {
+  padding: 7px 14px; border: 1px solid var(--border); border-radius: 999px;
+  font-size: 12.5px; font-weight: 600; background: var(--surface); color: var(--text-muted);
+  cursor: pointer; font-family: inherit; transition: all .15s;
+}
+.chatChip:hover { border-color: var(--primary-soft); color: var(--primary); background: var(--primary-soft); }
+
+.chatInputRow { display: flex; gap: 10px; margin-top: 14px; }
+.chatInputRow input {
+  flex: 1; padding: 13px 16px; border: 1px solid var(--border); border-radius: 999px;
+  font-size: 14px; font-family: inherit; background: var(--surface); color: var(--text); outline: none;
+}
+.chatInputRow input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.chatInputRow input:disabled { opacity: .6; }
+.chatSendBtn {
+  flex-shrink: 0; padding: 13px 22px; border: none; border-radius: 999px;
+  background: var(--primary); color: #fff; font-size: 14px; font-weight: 700;
+  font-family: inherit; cursor: pointer; transition: background .15s;
+}
+.chatSendBtn:hover:not(:disabled) { background: var(--primary-d); }
+.chatSendBtn:disabled { opacity: .55; cursor: not-allowed; }
+
 /* 경고 버튼(숨김 처리용) */
 .btnWarn {
   display: inline-flex; align-items: center; justify-content: center;

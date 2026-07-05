@@ -82,11 +82,11 @@
 }
 @keyframes mo-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
-  50%      { transform: scale(1.5); opacity: .35; }
+  50%      { transform: scale(2); opacity: .1; }
 }
 @keyframes mo-blink {
   0%, 100% { opacity: 1; }
-  50%      { opacity: .3; }
+  50%      { opacity: .08; }
 }
 
 /* ── 기본 ─────────────────────────────────────────────── */

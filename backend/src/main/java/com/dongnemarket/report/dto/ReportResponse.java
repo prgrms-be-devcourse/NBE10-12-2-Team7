@@ -13,6 +13,7 @@ public class ReportResponse {
     private final ReportType reportType;
     private final ReportReason reason;
     private final ReportStatus status;
+    private final String evidenceImageUrl;
     private final LocalDateTime createdAt;
 
     private ReportResponse(Report report) {
@@ -20,6 +21,7 @@ public class ReportResponse {
         this.reportType = report.getReportType();
         this.reason = report.getReason();
         this.status = report.getStatus();
+        this.evidenceImageUrl = report.getEvidenceImageUrl();
         this.createdAt = report.getCreatedAt();
     }
 
@@ -31,5 +33,6 @@ public class ReportResponse {
     public ReportType getReportType() { return reportType; }
     public ReportReason getReason() { return reason; }
     public ReportStatus getStatus() { return status; }
+    public String getEvidenceImageUrl() { return evidenceImageUrl; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

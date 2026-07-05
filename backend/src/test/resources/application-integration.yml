@@ -14,3 +14,8 @@ spring:
 logging:
   level:
     org.hibernate.SQL: debug
+
+# 저장소 경로를 build/ 아래로 둬서 테스트가 프로젝트 루트를 더럽히지 않게 하고, clean 시 자동으로 지워지게 한다.
+report:
+  evidence-image:
+    storage-path: build/test-evidence-images

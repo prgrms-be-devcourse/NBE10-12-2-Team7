@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { apiFetch, bootstrapAutoLogin } from '@/lib/apiClient'
 import { getAccessToken } from '@/lib/auth'
@@ -41,6 +41,10 @@ function ReportForm() {
 
   const [reason,  setReason]  = useState<ReportReason | ''>('')
   const [content, setContent] = useState('')
+  const [evidenceImageUrl, setEvidenceImageUrl] = useState('')
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [imageErr, setImageErr] = useState('')
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [reasonErr,  setReasonErr]  = useState('')
   const [contentErr, setContentErr] = useState('')
   const [formMsg, setFormMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
@@ -57,6 +61,36 @@ function ReportForm() {
     init()
     return () => { cancelled = true }
   }, [])
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setImageErr('')
+    setUploadingImage(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await apiFetch('/api/reports/evidence-image', { method: 'POST', body: formData })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        setImageErr(data?.message ?? '이미지 업로드 중 오류가 발생했습니다.')
+        return
+      }
+      setEvidenceImageUrl(data.data.evidenceImageUrl)
+    } catch {
+      setImageErr('이미지 업로드 중 서버에 연결할 수 없습니다.')
+    } finally {
+      setUploadingImage(false)
+      e.target.value = ''
+    }
+  }
+
+  function removeEvidenceImage() {
+    setEvidenceImageUrl('')
+    setImageErr('')
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -94,7 +128,11 @@ function ReportForm() {
       const res = await apiFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason, content: content.trim() }),
+        body: JSON.stringify({
+          reason,
+          content: content.trim(),
+          evidenceImageUrl: evidenceImageUrl.trim() || undefined,
+        }),
       })
 
       const data = await res.json().catch(() => null)
@@ -213,6 +251,39 @@ function ReportForm() {
             {contentErr && <div className={`${styles.hint} ${styles.err}`}>{contentErr}</div>}
           </div>
 
+          {/* 증빙 이미지 */}
+          <div className={styles.field}>
+            <label htmlFor="evidenceImage">
+              증빙 이미지<span className={styles.sub}>선택 · 5MB 이하</span>
+            </label>
+            <div className={styles.evidenceRow}>
+              <div className={styles.evidencePreview}>
+                {evidenceImageUrl
+                  ? <img src={evidenceImageUrl} alt="증빙 이미지 미리보기" />
+                  : null}
+              </div>
+              {evidenceImageUrl ? (
+                <button type="button" className={styles.evidenceRemoveBtn} onClick={removeEvidenceImage}>
+                  이미지 제거
+                </button>
+              ) : (
+                <input
+                  id="evidenceImage"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  className={styles.input}
+                  disabled={uploadingImage}
+                  onChange={handleFileChange}
+                />
+              )}
+              {uploadingImage && <span className={styles.uploadingText}>업로드 중...</span>}
+            </div>
+            <div className={imageErr ? `${styles.hint} ${styles.err}` : styles.hint}>
+              {imageErr || '신고 내용을 뒷받침할 스크린샷 등의 이미지 파일을 첨부할 수 있어요.'}
+            </div>
+          </div>
+
           {/* 안내 */}
           <div className={styles.notice}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -225,7 +296,7 @@ function ReportForm() {
           {/* 액션 */}
           <div className={styles.actions}>
             <Link href={cancelHref} className={styles.btnGhost}>취소</Link>
-            <button type="submit" className={styles.btnSubmit} disabled={submitting}>
+            <button type="submit" className={styles.btnSubmit} disabled={submitting || uploadingImage}>
               {submitting ? '신고 접수 중...' : '신고하기'}
             </button>
           </div>

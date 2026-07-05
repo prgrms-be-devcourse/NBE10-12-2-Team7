@@ -5,16 +5,25 @@
  */
 let accessToken: string | null = null
 
+/** Access Token이 설정/해제될 때마다 발생하는 이벤트. Header 등 여러 컴포넌트가 로그인 상태를 반응형으로 구독하는 데 쓴다. */
+export const AUTH_CHANGED_EVENT = 'marketon-auth-changed'
+
+function notifyAuthChanged(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_CHANGED_EVENT))
+}
+
 export function getAccessToken(): string | null {
   return accessToken
 }
 
 export function setAccessToken(token: string): void {
   accessToken = token
+  notifyAuthChanged()
 }
 
 export function clearAccessToken(): void {
   accessToken = null
+  notifyAuthChanged()
 }
 
 function decodeTokenPayload(): Record<string, unknown> | null {

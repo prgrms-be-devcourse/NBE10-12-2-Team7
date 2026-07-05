@@ -45,6 +45,8 @@ services:
       DB_USERNAME: ${DB_USERNAME:-dongne}
       DB_PASSWORD: ${DB_PASSWORD:-dongne1234}
       JWT_SECRET: ${JWT_SECRET:-dongne-market-local-dev-secret-please-change-0123456789}
+    volumes:
+      - dongne-report-evidence:/app/uploads/report-evidence   # 신고 증빙 이미지: 컨테이너 재시작에도 유지
     expose:
       - "8080"                        # 외부 노출 대신 nginx 통해서만 접근(디버깅 필요하면 ports로 바꿔도 됨)
 
@@ -133,6 +135,7 @@ services:
 
 volumes:
   dongne-mysql-data:
+  dongne-report-evidence:
   prometheus-data:
   grafana-data:
   loki-data:

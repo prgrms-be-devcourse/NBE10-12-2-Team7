@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { logout } from '@/lib/apiClient'
+import { AUTH_CHANGED_EVENT, getAccessToken } from '@/lib/auth'
 
 const NAV_LINKS = [
   { href: '/products',     label: '상품목록' },
@@ -16,6 +18,20 @@ const NAV_LINKS = [
 export default function Header() {
   const pathname = usePathname()
   const [dark, setDark] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(false)
+  /* 실제 알림 API가 없어 아직은 항상 false — 알림 기능이 생기면 이 값을 실제 미확인 알림 여부로 채운다. */
+  const [hasUnreadNotification] = useState(false)
+
+  useEffect(() => {
+    setLoggedIn(!!getAccessToken())
+    const handler = () => setLoggedIn(!!getAccessToken())
+    window.addEventListener(AUTH_CHANGED_EVENT, handler)
+    return () => window.removeEventListener(AUTH_CHANGED_EVENT, handler)
+  }, [])
+
+  async function handleLogout() {
+    await logout()
+  }
 
   useEffect(() => {
     const saved = (() => {
@@ -85,14 +101,18 @@ export default function Header() {
             <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9z" />
             <path d="M13.7 21a2 2 0 0 1-3.4 0" />
           </svg>
-          <span className="notif-dot" />
+          {hasUnreadNotification && <span className="notif-dot" />}
         </button>
         <Link className="icon-btn" href="/chat" aria-label="채팅">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 11.5a8.5 8.5 0 0 1-12.3 7.6L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5z" />
           </svg>
         </Link>
-        <Link className="ghost-link" href="/login">로그인</Link>
+        {loggedIn ? (
+          <button className="ghost-link" onClick={handleLogout} type="button">로그아웃</button>
+        ) : (
+          <Link className="ghost-link" href="/login">로그인</Link>
+        )}
       </div>
     </header>
   )

@@ -16,6 +16,11 @@ spring:
   jpa:
     open-in-view: false          # dialect는 자동감지(명시 시 deprecation 경고), ddl/format은 프로파일로
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
   jackson:
     serialization:
       write-dates-as-timestamps: false
@@ -38,6 +43,11 @@ jwt:
 auth:
   cookie:
     secure: ${AUTH_COOKIE_SECURE:false}
+
+# 신고 증빙 이미지 로컬 디스크 저장 경로 (report 도메인). local(도커) 프로파일에서는 볼륨 마운트 경로로 덮어쓴다.
+report:
+  evidence-image:
+    storage-path: ${REPORT_EVIDENCE_IMAGE_PATH:./uploads/report-evidence}
 
 # Swagger / Springdoc
 springdoc:
