@@ -69,4 +69,13 @@ public class ChatController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), "메시지를 전송했습니다.", response));
     }
+
+    @Operation(summary = "읽음 처리", description = "방의 메시지를 모두 읽음 처리한다(내 읽음 지점을 최신 메시지로 이동). 참여자만 가능.")
+    @PostMapping("/api/chat-rooms/{roomId}/read")
+    public ResponseEntity<ApiResponse<Void>> markAsRead(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long roomId) {
+        chatService.markRoomAsRead(memberId, roomId);
+        return ResponseEntity.ok(ApiResponse.<Void>success("읽음 처리되었습니다.", null));
+    }
 }

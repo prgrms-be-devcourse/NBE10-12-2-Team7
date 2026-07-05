@@ -104,6 +104,15 @@ class ChatControllerTest {
         return chatRoomRepository.save(ChatRoom.of(product, buyer, seller));
     }
 
+    /** buyer가 '판매자' 좌석인 방(상대는 outsider). 안읽음 CASE의 판매자 분기를 태우기 위함. */
+    private ChatRoom saveRoomWhereBuyerIsSeller() {
+        Category category = categoryRepository.findById(categoryId).orElseThrow();
+        Product product = Product.create(buyer, category, "내가 파는 상품", "설명",
+                BigDecimal.valueOf(5_000), "서울");
+        productRepository.save(product);
+        return chatRoomRepository.save(ChatRoom.of(product, outsider, buyer));
+    }
+
     @Nested
     @DisplayName("채팅방 연결 (POST /api/chat-rooms)")
     class CreateRoom {
@@ -196,7 +205,31 @@ class ChatControllerTest {
                     .andExpect(jsonPath("$.data[0].roomId").value(room.getId()))
                     .andExpect(jsonPath("$.data[0].product.title").value("맥북 프로"))
                     .andExpect(jsonPath("$.data[0].opponent.nickname").value("seller"))
-                    .andExpect(jsonPath("$.data[0].lastMessage.content").value("네 안녕하세요"));
+                    .andExpect(jsonPath("$.data[0].lastMessage.content").value("네 안녕하세요"))
+                    // 아직 읽지 않았으므로 상대(seller)가 보낸 1건이 안읽음(내가 보낸 건 제외)
+                    .andExpect(jsonPath("$.data[0].unreadCount").value(1));
+        }
+
+        @Test
+        @DisplayName("안읽음 수는 좌석(구매자·판매자)에 맞는 읽음 지점으로 세고, 내가 보낸 메시지는 제외한다")
+        void unreadCount_perSeat_excludesOwn() throws Exception {
+            // roomA: buyer가 '구매자' 좌석. seller 2건 + buyer 1건(내 메시지) → 안읽음 2
+            ChatRoom roomA = saveRoom(buyer, seller);
+            chatMessageRepository.save(ChatMessage.of(roomA, seller, "a1"));
+            chatMessageRepository.save(ChatMessage.of(roomA, buyer, "내가 보낸 것"));
+            chatMessageRepository.save(ChatMessage.of(roomA, seller, "a2"));
+            // roomB: buyer가 '판매자' 좌석. 상대(outsider) 1건 → 안읽음 1 (판매자 분기 검증)
+            ChatRoom roomB = saveRoomWhereBuyerIsSeller();
+            chatMessageRepository.save(ChatMessage.of(roomB, outsider, "b1"));
+
+            // 활동 시각 DESC 정렬: roomB의 b1이 가장 최근 → [roomB, roomA]
+            mockMvc.perform(get("/api/chat-rooms").header("Authorization", buyerToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.length()").value(2))
+                    .andExpect(jsonPath("$.data[0].roomId").value(roomB.getId()))
+                    .andExpect(jsonPath("$.data[0].unreadCount").value(1))
+                    .andExpect(jsonPath("$.data[1].roomId").value(roomA.getId()))
+                    .andExpect(jsonPath("$.data[1].unreadCount").value(2));
         }
 
         @Test
@@ -373,6 +406,54 @@ class ChatControllerTest {
                             .header("Authorization", buyerToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"content\":\"안녕\"}"))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.error").value("CHAT_ROOM_NOT_FOUND"));
+        }
+    }
+
+    @Nested
+    @DisplayName("읽음 처리 (POST /api/chat-rooms/{roomId}/read)")
+    class MarkAsRead {
+
+        @Test
+        @DisplayName("읽음 처리하면 그 방의 안읽음이 0이 되고, 다른 방은 영향받지 않는다")
+        void markRead_zeroesUnread_onlyForThatRoom() throws Exception {
+            ChatRoom target = saveRoom(buyer, seller);
+            chatMessageRepository.save(ChatMessage.of(target, seller, "t1"));
+            chatMessageRepository.save(ChatMessage.of(target, seller, "t2"));
+            ChatRoom other = saveRoomOnNewProduct();
+            chatMessageRepository.save(ChatMessage.of(other, seller, "o1"));
+
+            // 읽음 처리 전: target 안읽음 2
+            mockMvc.perform(post("/api/chat-rooms/{roomId}/read", target.getId())
+                            .header("Authorization", buyerToken))
+                    .andExpect(status().isOk());
+
+            // 활동 시각 DESC: other의 o1이 target의 t2보다 나중 → [other, target]
+            mockMvc.perform(get("/api/chat-rooms").header("Authorization", buyerToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data[0].roomId").value(other.getId()))
+                    .andExpect(jsonPath("$.data[0].unreadCount").value(1))
+                    .andExpect(jsonPath("$.data[1].roomId").value(target.getId()))
+                    .andExpect(jsonPath("$.data[1].unreadCount").value(0));
+        }
+
+        @Test
+        @DisplayName("참여자가 아니면 403 CHAT_ACCESS_DENIED")
+        void notParticipant_403() throws Exception {
+            ChatRoom room = saveRoom(buyer, seller);
+
+            mockMvc.perform(post("/api/chat-rooms/{roomId}/read", room.getId())
+                            .header("Authorization", outsiderToken))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.error").value("CHAT_ACCESS_DENIED"));
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 방이면 404 CHAT_ROOM_NOT_FOUND")
+        void missingRoom_404() throws Exception {
+            mockMvc.perform(post("/api/chat-rooms/{roomId}/read", 999999)
+                            .header("Authorization", buyerToken))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.error").value("CHAT_ROOM_NOT_FOUND"));
         }

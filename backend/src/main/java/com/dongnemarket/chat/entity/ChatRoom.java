@@ -3,6 +3,7 @@ package com.dongnemarket.chat.entity;
 import com.dongnemarket.global.common.BaseTimeEntity;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.product.entity.Product;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -47,6 +48,17 @@ public class ChatRoom extends BaseTimeEntity {
     @JoinColumn(name = "seller_id", nullable = false)
     private Member seller;
 
+    /**
+     * 참여자별 마지막 읽은 메시지 id(구매자/판매자 각각). 1:1이라 참여자가 2명 고정이므로
+     * 별도 읽음 테이블 대신 방에 컬럼 2개로 둔다(안읽음 카운트 쿼리를 방 컬럼 비교로 단순화).
+     * null이면 아직 한 번도 읽지 않음 = 상대가 보낸 메시지 전부가 안읽음.
+     */
+    @Column(name = "buyer_last_read_message_id")
+    private Long buyerLastReadMessageId;
+
+    @Column(name = "seller_last_read_message_id")
+    private Long sellerLastReadMessageId;
+
     protected ChatRoom() {}
 
     public static ChatRoom of(Product product, Member buyer, Member seller) {
@@ -63,6 +75,28 @@ public class ChatRoom extends BaseTimeEntity {
      */
     public boolean isParticipant(Long memberId) {
         return buyer.getId().equals(memberId) || seller.getId().equals(memberId);
+    }
+
+    /** 주어진 참여자의 마지막 읽은 메시지 id(구매자/판매자 좌석 분기). 아직 안 읽었으면 null. */
+    public Long lastReadMessageIdOf(Long memberId) {
+        return buyer.getId().equals(memberId) ? buyerLastReadMessageId : sellerLastReadMessageId;
+    }
+
+    /**
+     * 참여자의 읽음 지점을 주어진 메시지 id까지 전진시킨다(해당 좌석 컬럼만 갱신).
+     * 읽음 지점은 단조 전진만 하므로 이미 더 뒤를 읽은 상태면 무시한다(순서 뒤바뀐/중복 요청에 안전).
+     * 참여자 인가는 서비스에서 선행하므로 비참여자 호출은 도달하지 않는다.
+     */
+    public void markRead(Long memberId, Long messageId) {
+        if (buyer.getId().equals(memberId)) {
+            if (buyerLastReadMessageId == null || messageId > buyerLastReadMessageId) {
+                buyerLastReadMessageId = messageId;
+            }
+        } else if (seller.getId().equals(memberId)) {
+            if (sellerLastReadMessageId == null || messageId > sellerLastReadMessageId) {
+                sellerLastReadMessageId = messageId;
+            }
+        }
     }
 
     public Long getId() { return id; }
