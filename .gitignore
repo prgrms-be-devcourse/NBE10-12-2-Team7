@@ -12,6 +12,9 @@ build/
 *.class
 *.log
 
+# 로컬 파일 업로드 저장소 (신고 증빙 이미지 등)
+uploads/
+
 # 환경 설정 / 시크릿
 application-local.yml
 application-secret.yml
@@ -20,3 +23,4 @@ application-secret.yml
 # Claude Code / 로컬 분석 도구 (개인 절대경로 포함 — 팀 레포에 올리지 않음)
 .mcp.json
 .serena/
+.claude/

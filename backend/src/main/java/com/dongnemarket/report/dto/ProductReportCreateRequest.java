@@ -12,8 +12,12 @@ public class ProductReportCreateRequest {
     @Size(max = 500, message = "신고 내용은 500자 이하여야 합니다.")
     private String content;
 
+    @Size(max = 500, message = "증빙 이미지 URL은 500자 이하여야 합니다.")
+    private String evidenceImageUrl;
+
     protected ProductReportCreateRequest() {}
 
     public ReportReason getReason() { return reason; }
     public String getContent() { return content; }
+    public String getEvidenceImageUrl() { return evidenceImageUrl; }
 }

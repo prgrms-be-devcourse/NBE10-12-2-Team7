@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { getAccessToken } from '@/lib/auth'
+import { REPORT_STATUS_LABEL, REPORT_TYPE_LABEL, type ReportStatus, type ReportType } from '@/lib/reportStatus'
 import styles from '../admin.module.css'
 
 interface Dashboard {
@@ -15,14 +16,33 @@ interface Dashboard {
 
 interface MemberRow { memberId: number; nickname: string; createdAt: string }
 interface ProductRow { productId: number; title: string; createdAt: string }
+interface ReportRow {
+  reportId: number
+  reportType: ReportType
+  targetMemberId: number | null
+  targetProductId: number | null
+  status: ReportStatus
+  createdAt: string
+}
 
 type Status = 'loading' | 'ready' | 'error'
+
+function reportStatusTagCls(s: ReportStatus) {
+  if (s === 'RECEIVED') return styles.tagGreen
+  if (s === 'REVIEWING') return styles.tagAmber
+  if (s === 'REJECTED') return styles.tagRose
+  return styles.tagNeut
+}
+function reportTypeTagCls(t: ReportType) {
+  return t === 'PRODUCT' ? styles.tagPink : styles.tagRose
+}
 
 export default function AdminDashboardPage() {
   const [status, setStatus] = useState<Status>('loading')
   const [dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [recentMembers, setRecentMembers] = useState<MemberRow[]>([])
   const [recentProducts, setRecentProducts] = useState<ProductRow[]>([])
+  const [recentReports, setRecentReports] = useState<ReportRow[]>([])
 
   useEffect(() => {
     const token = getAccessToken()
@@ -34,13 +54,16 @@ export default function AdminDashboardPage() {
       fetch('/api/admin/dashboard', { headers }).then(r => r.json()),
       fetch('/api/admin/members', { headers }).then(r => r.json()),
       fetch('/api/admin/products', { headers }).then(r => r.json()),
-    ]).then(([dashRes, membersRes, productsRes]) => {
+      fetch('/api/admin/reports', { headers }).then(r => r.json()),
+    ]).then(([dashRes, membersRes, productsRes, reportsRes]) => {
       if (cancelled) return
       setDashboard(dashRes?.data ?? null)
       const members: MemberRow[] = (membersRes?.data ?? []) as MemberRow[]
       const products: ProductRow[] = (productsRes?.data ?? []) as ProductRow[]
+      const reports: ReportRow[] = (reportsRes?.data ?? []) as ReportRow[]
       setRecentMembers([...members].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5))
       setRecentProducts([...products].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5))
+      setRecentReports([...reports].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5))
       setStatus('ready')
     }).catch(() => { if (!cancelled) setStatus('error') })
     return () => { cancelled = true }
@@ -96,6 +119,26 @@ export default function AdminDashboardPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <div className={styles.panel}>
+        <h3>최근 신고 목록</h3>
+        <div className={styles.tablewrap}>
+          <table>
+            <thead><tr><th>#</th><th>유형</th><th>대상</th><th>상태</th><th>신고일</th></tr></thead>
+            <tbody>
+              {recentReports.map(r => (
+                <tr key={r.reportId}>
+                  <td><Link href={`/admin/reports/${r.reportId}`}>{r.reportId}</Link></td>
+                  <td><span className={`${styles.tag} ${reportTypeTagCls(r.reportType)}`}>{REPORT_TYPE_LABEL[r.reportType]}</span></td>
+                  <td>{r.reportType === 'PRODUCT' ? `상품 #${r.targetProductId}` : `회원 #${r.targetMemberId}`}</td>
+                  <td><span className={`${styles.tag} ${reportStatusTagCls(r.status)}`}>{REPORT_STATUS_LABEL[r.status]}</span></td>
+                  <td>{r.createdAt.slice(0, 10)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </>

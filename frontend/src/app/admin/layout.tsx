@@ -13,6 +13,7 @@ const NAV = [
   { href: '/admin/products',  label: '📦 상품 관리' },
   { href: '/admin/reports',   label: '🚨 신고 관리' },
   { href: '/admin/comments',  label: '💬 댓글 관리' },
+  { href: '/admin/ai',        label: '🤖 AI 어시스턴트' },
 ]
 
 type GuardStatus = 'checking' | 'ok' | 'unauthenticated' | 'forbidden'
