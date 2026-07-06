@@ -228,7 +228,7 @@ export default function MyProfilePage() {
         setPwMsg({ text: data?.message ?? '비밀번호 변경 중 오류가 발생했습니다.', type: 'error' })
         return
       }
-      showToast('비밀번호를 변경했어요. 다시 로그인해주세요.')
+      showToast('비밀번호를 변경했어요.\n다시 로그인해주세요.')
       clearAccessToken()
       setTimeout(() => { window.location.href = '/login' }, 1200)
     } catch {
