@@ -11,6 +11,9 @@
 | 02 | [02-build-fix.md](02-build-fix.md) | 빌드 가능화 — Report 리팩터링 통합 갭으로 깨진 컴파일 복구 |
 | 03 | [03-local-deploy.md](03-local-deploy.md) | 로컬 배포용(전부 Docker: web·observability·edge) 실행 런북 — 팀원 온보딩용 |
 | 04 | [04-local-deploy-build.md](04-local-deploy-build.md) | 로컬 배포 환경 **구축 과정·설계 이유·유지보수 변경 포인트** |
+| 05 | [05-aws-cicd-design.md](05-aws-cicd-design.md) | **AWS 배포 & CI/CD 전체 설계 방향** — EC2×2 + RDS + ECR, GitHub Actions 파이프라인 |
+| 06 | [06-ec2-app-deploy.md](06-ec2-app-deploy.md) | **EC2 #1 수동 배포 런북** — Docker 설치·EC2 IAM(ECR pull)·pull/up 검증 (8-4) |
+| 07 | [07-aws-operations-log.md](07-aws-operations-log.md) | **AWS 작업 로그 & 관리 대장** — 실행 명령·리소스 상태·되돌리는 법·관리 체크리스트 |
 
 ## 결정 로그 (요약)
 
