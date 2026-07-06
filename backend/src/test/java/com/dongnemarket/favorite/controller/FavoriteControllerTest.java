@@ -69,8 +69,9 @@ class FavoriteControllerTest {
         Member seller = memberRepository.save(Member.createUser("seller@example.com", "encoded-pw", "seller"));
         // 시드된 기본 카테고리(CategoryInitializer)와 이름이 겹치지 않도록 테스트 전용 카테고리를 만든다.
         Category category = categoryRepository.save(new Category("관심테스트전용카테고리"));
-        Product product = productRepository.save(
-                Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), "서울 강남구"));
+        Product product = Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), "서울 강남구");
+        product.changeThumbnailUrl("https://img.example/macbook.jpg");
+        product = productRepository.save(product);
         Product otherProduct = productRepository.save(
                 Product.create(seller, category, "아이패드", "상태 좋음", BigDecimal.valueOf(700_000), "서울 강남구"));
 
@@ -192,7 +193,8 @@ class FavoriteControllerTest {
                     .andExpect(jsonPath("$.data[0].product.title").value("아이패드"))
                     .andExpect(jsonPath("$.data[0].product.tradeStatus").value("ON_SALE"))
                     .andExpect(jsonPath("$.data[1].product.productId").value(productId.intValue()))
-                    .andExpect(jsonPath("$.data[1].product.title").value("맥북 프로"));
+                    .andExpect(jsonPath("$.data[1].product.title").value("맥북 프로"))
+                    .andExpect(jsonPath("$.data[1].product.thumbnailUrl").value("https://img.example/macbook.jpg"));
         }
 
         @Test
