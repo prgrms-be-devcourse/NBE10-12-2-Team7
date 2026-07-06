@@ -14,6 +14,7 @@ interface FavoriteProduct {
     price: number
     region: string
     tradeStatus: TradeStatus
+    thumbnailUrl: string | null
   }
 }
 
@@ -110,7 +111,11 @@ export default function FavoritesPage() {
                   {/* 썸네일 */}
                   <div className={styles.thumb}>
                     {badge && <span className={`${styles.badgeTag} ${badge.cls}`}>{badge.label}</span>}
-                    <span className={styles.ph}>상품 이미지</span>
+                    {product.thumbnailUrl ? (
+                      <img src={product.thumbnailUrl} alt={product.title} className={styles.thumbImg} />
+                    ) : (
+                      <span className={styles.ph}>상품 이미지</span>
+                    )}
                     <button
                       className={styles.heart}
                       type="button"
