@@ -14,8 +14,13 @@ public class ProductSpecification {
 	}
 
 	public static Specification<Product> list(List<String> regions) {
+		return list(regions, null);
+	}
+
+	public static Specification<Product> list(List<String> regions, Long cursor) {
 		return visibleProducts()
-				.and(regionIn(regions));
+				.and(regionIn(regions))
+				.and(idLessThan(cursor));
 	}
 
 	public static Specification<Product> search(String keyword, Long categoryId, BigDecimal minPrice,
@@ -97,6 +102,15 @@ public class ProductSpecification {
 				return null;
 			}
 			return root.get("region").in(regions);
+		};
+	}
+
+	private static Specification<Product> idLessThan(Long cursor) {
+		return (root, query, criteriaBuilder) -> {
+			if (cursor == null) {
+				return null;
+			}
+			return criteriaBuilder.lessThan(root.get("id"), cursor);
 		};
 	}
 

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/apiClient'
 import { getAccessToken } from '@/lib/auth'
 import type { TradeStatus } from '@/lib/tradeStatus'
@@ -37,6 +37,12 @@ interface Product {
   hidden: boolean
 }
 
+interface ProductPage {
+  items: Product[]
+  nextCursor: number | null
+  hasNext: boolean
+}
+
 interface MyFavorite {
   product: { productId: number }
 }
@@ -52,6 +58,7 @@ const SORT_OPTIONS = [
 
 /* 상단 활동 배너용 목표 수치 — 실제 집계 API가 없어 디자인 시안의 예시 값을 그대로 사용 */
 const STAT_TARGETS = [1204, 1892, 5640]
+const PRODUCT_PAGE_SIZE = 30
 
 function priceText(price: number) {
   return price === 0 ? '나눔' : price.toLocaleString('ko-KR') + '원'
@@ -67,6 +74,9 @@ function badgeInfo(product: Product): { label: string; cls: string } | null {
 export default function ProductsPage() {
   const [status, setStatus] = useState<PageStatus>('loading')
   const [products, setProducts] = useState<Product[]>([])
+  const [nextCursor, setNextCursor] = useState<number | null>(null)
+  const [hasNext, setHasNext] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
 
   const [search,     setSearch]     = useState('')
@@ -137,22 +147,60 @@ export default function ProductsPage() {
     return () => { cancelled = true }
   }, [])
 
+  const fetchProductPage = useCallback(async (cursor?: number | null): Promise<ProductPage> => {
+    const params = new URLSearchParams()
+    params.set('size', String(PRODUCT_PAGE_SIZE))
+    if (activeRegion) params.append('regions', activeRegion)
+    if (cursor != null) params.set('cursor', String(cursor))
+
+    const query = params.toString()
+    const res = await fetch(query ? `/api/products?${query}` : '/api/products')
+    const data = await res.json().catch(() => null)
+    if (!res.ok) throw new Error(data?.message ?? '상품 목록 조회 실패')
+
+    return data?.data ?? { items: [], nextCursor: null, hasNext: false }
+  }, [activeRegion])
+
   /* 상품 목록 — 활성 동네가 있으면 해당 지역으로 필터링해 조회 */
   useEffect(() => {
     let cancelled = false
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- activeRegion 변경 시 재조회 로딩 표시(커서 페이지네이션 도입 시 재검토 예정)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- activeRegion 변경 시 첫 페이지를 다시 조회하며 로딩 상태를 표시한다.
     setStatus('loading')
-    const url = activeRegion ? `/api/products?regions=${encodeURIComponent(activeRegion)}` : '/api/products'
-    fetch(url)
-      .then(r => r.json())
-      .then(data => {
+
+    fetchProductPage()
+      .then(page => {
         if (cancelled) return
-        setProducts(data?.data ?? [])
+        setProducts(page.items)
+        setNextCursor(page.nextCursor)
+        setHasNext(page.hasNext)
         setStatus('ready')
       })
-      .catch(() => { if (!cancelled) setStatus('error') })
+      .catch(() => {
+        if (!cancelled) {
+          setProducts([])
+          setNextCursor(null)
+          setHasNext(false)
+          setStatus('error')
+        }
+      })
     return () => { cancelled = true }
-  }, [activeRegion])
+  }, [fetchProductPage])
+
+  async function loadMoreProducts() {
+    if (loadingMore || !hasNext || nextCursor == null) return
+
+    setLoadingMore(true)
+    try {
+      const page = await fetchProductPage(nextCursor)
+      setProducts(prev => [...prev, ...page.items])
+      setNextCursor(page.nextCursor)
+      setHasNext(page.hasNext)
+    } catch {
+      showToast('상품을 더 불러오지 못했습니다.')
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   /* ── 동네 설정 모달 ── */
   function openRegion() { setRegionOpen(true); setAddMode(false); setRegionQuery('') }
@@ -421,50 +469,65 @@ export default function ProductsPage() {
 
       {status === 'ready' && (
         filtered.length > 0 ? (
-          <div className={styles.grid}>
-            {filtered.map((product, i) => {
-              const badge = badgeInfo(product)
-              const liked = favoriteIds.has(product.productId)
-              return (
-                <Link
-                  key={product.productId}
-                  href={`/products/${product.productId}`}
-                  className={styles.pcard}
-                  style={{ animationDelay: `${(0.05 + i * 0.045).toFixed(3)}s` }}
-                >
-                  <div className={styles.thumb}>
-                    {badge && <span className={`${styles.badgeTag} ${badge.cls}`}>{badge.label}</span>}
-                    {product.thumbnailUrl ? (
-                      <img src={product.thumbnailUrl} alt={product.title} className={styles.thumbImg} />
-                    ) : (
-                      <span className={styles.thumbPh}>{categories.find(c => c.id === product.categoryId)?.name ?? '상품 이미지'}</span>
-                    )}
-                    <button
-                      type="button"
-                      className={`${styles.heartBtn}${liked ? ' ' + styles.on : ''}`}
-                      aria-label={liked ? '찜 취소' : '찜'}
-                      onClick={e => toggleFavorite(e, product)}
-                    >
-                      <svg width="17" height="17" viewBox="0 0 24 24" strokeWidth="2"><path d="M12 20.5l-1.4-1.3C5.4 14.5 2 11.4 2 7.6 2 4.9 4.1 3 6.7 3c1.5 0 3 .7 3.9 1.9L12 6.3l1.4-1.4C14.3 3.7 15.8 3 17.3 3 19.9 3 22 4.9 22 7.6c0 3.8-3.4 6.9-8.6 11.6L12 20.5z" /></svg>
-                    </button>
-                  </div>
+          <>
+            <div className={styles.grid}>
+              {filtered.map((product, i) => {
+                const badge = badgeInfo(product)
+                const liked = favoriteIds.has(product.productId)
+                return (
+                  <Link
+                    key={product.productId}
+                    href={`/products/${product.productId}`}
+                    className={styles.pcard}
+                    style={{ animationDelay: `${(0.05 + i * 0.045).toFixed(3)}s` }}
+                  >
+                    <div className={styles.thumb}>
+                      {badge && <span className={`${styles.badgeTag} ${badge.cls}`}>{badge.label}</span>}
+                      {product.thumbnailUrl ? (
+                        <img src={product.thumbnailUrl} alt={product.title} className={styles.thumbImg} />
+                      ) : (
+                        <span className={styles.thumbPh}>{categories.find(c => c.id === product.categoryId)?.name ?? '상품 이미지'}</span>
+                      )}
+                      <button
+                        type="button"
+                        className={`${styles.heartBtn}${liked ? ' ' + styles.on : ''}`}
+                        aria-label={liked ? '찜 취소' : '찜'}
+                        onClick={e => toggleFavorite(e, product)}
+                      >
+                        <svg width="17" height="17" viewBox="0 0 24 24" strokeWidth="2"><path d="M12 20.5l-1.4-1.3C5.4 14.5 2 11.4 2 7.6 2 4.9 4.1 3 6.7 3c1.5 0 3 .7 3.9 1.9L12 6.3l1.4-1.4C14.3 3.7 15.8 3 17.3 3 19.9 3 22 4.9 22 7.6c0 3.8-3.4 6.9-8.6 11.6L12 20.5z" /></svg>
+                      </button>
+                    </div>
 
-                  <div className={styles.body}>
-                    <div className={styles.title}>{product.title}</div>
-                    <div className={`${styles.price}${product.price === 0 ? ' ' + styles.priceFree : ''}`}>
-                      {priceText(product.price)}
+                    <div className={styles.body}>
+                      <div className={styles.title}>{product.title}</div>
+                      <div className={`${styles.price}${product.price === 0 ? ' ' + styles.priceFree : ''}`}>
+                        {priceText(product.price)}
+                      </div>
+                      <div className={styles.meta}>
+                        <span>{product.region}</span>
+                      </div>
+                      <div className={styles.foot}>
+                        <span>♡ {product.favoriteCount}</span>
+                      </div>
                     </div>
-                    <div className={styles.meta}>
-                      <span>{product.region}</span>
-                    </div>
-                    <div className={styles.foot}>
-                      <span>♡ {product.favoriteCount}</span>
-                    </div>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
+                  </Link>
+                )
+              })}
+            </div>
+
+            {hasNext && (
+              <div className={styles.loadMoreWrap}>
+                <button
+                  type="button"
+                  className={styles.loadMoreBtn}
+                  onClick={loadMoreProducts}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? '불러오는 중...' : '더 보기'}
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className={styles.empty}>
             <div className={styles.emptyIcon}>🔍</div>

@@ -31,6 +31,7 @@ import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.dto.ProductCreateRequest;
+import com.dongnemarket.product.dto.ProductPageResponse;
 import com.dongnemarket.product.dto.ProductResponse;
 import com.dongnemarket.product.dto.ProductSearchRequest;
 import com.dongnemarket.product.dto.ProductStatusUpdateRequest;
@@ -172,36 +173,95 @@ class ProductServiceTest {
 	@DisplayName("상품 목록 조회")
 	class GetProducts {
 
-		@Test
-		@DisplayName("전체 상품 목록을 최신 등록순으로 조회한다")
-		void getsProductsInLatestOrder() {
-			Product oldProduct = product("오래된 상품", BigDecimal.valueOf(10000));
-			Product newProduct = product("최신 상품", BigDecimal.valueOf(20000));
-			given(productRepository.findAll(anyProductSpecification(), any(Sort.class)))
-					.willReturn(List.of(newProduct, oldProduct));
+			@Test
+			@DisplayName("전체 상품 목록을 최신 등록순으로 조회한다")
+			void getsProductsInLatestOrder() {
+				Product oldProduct = product(1L, "오래된 상품", BigDecimal.valueOf(10000));
+				Product newProduct = product(2L, "최신 상품", BigDecimal.valueOf(20000));
+				given(productRepository.findBy(anyProductSpecification(), any()))
+						.willReturn(List.of(newProduct, oldProduct));
 
-			List<ProductSummaryResponse> responses = productService.getProducts(null);
+				ProductPageResponse response = productService.getProducts(null, null, 30);
 
-			assertThat(responses).extracting(ProductSummaryResponse::getTitle)
-					.containsExactly("최신 상품", "오래된 상품");
+				assertThat(response.getItems()).extracting(ProductSummaryResponse::getTitle)
+						.containsExactly("최신 상품", "오래된 상품");
+				assertThat(response.isHasNext()).isFalse();
+				assertThat(response.getNextCursor()).isNull();
+				verify(productRepository).findBy(anyProductSpecification(), any());
+			}
 
-			ArgumentCaptor<Sort> sortCaptor = ArgumentCaptor.forClass(Sort.class);
-			verify(productRepository).findAll(anyProductSpecification(), sortCaptor.capture());
-			Sort.Order idOrder = sortCaptor.getValue().getOrderFor("id");
-			assertThat(idOrder).isNotNull();
-			assertThat(idOrder.getDirection()).isEqualTo(Sort.Direction.DESC);
-		}
+			@Test
+			@DisplayName("상품 목록은 size보다 1개 더 조회해 다음 페이지 여부와 커서를 계산한다")
+			void getsProductsWithCursorPage() {
+				Product newestProduct = product(3L, "최신 상품", BigDecimal.valueOf(30000));
+				Product middleProduct = product(2L, "중간 상품", BigDecimal.valueOf(20000));
+				Product extraProduct = product(1L, "다음 페이지 확인용 상품", BigDecimal.valueOf(10000));
+				given(productRepository.findBy(anyProductSpecification(), any()))
+						.willReturn(List.of(newestProduct, middleProduct, extraProduct));
 
-		@Test
-		@DisplayName("상품 목록 지역 필터가 3개이면 조회할 수 없다")
-		void throwsInvalidInputWhenGettingProductsWithMoreThanTwoRegions() {
-			assertBusinessException(
-					() -> productService.getProducts(List.of("서울 강남구", "서울 마포구", "서울 송파구")),
-					ErrorCode.INVALID_INPUT_VALUE
-			);
+				ProductPageResponse response = productService.getProducts(null, null, 2);
 
-			verify(productRepository, never()).findAll(anyProductSpecification(), any(Sort.class));
-		}
+				assertThat(response.getItems()).extracting(ProductSummaryResponse::getProductId)
+						.containsExactly(3L, 2L);
+				assertThat(response.isHasNext()).isTrue();
+				assertThat(response.getNextCursor()).isEqualTo(2L);
+			}
+
+			@Test
+			@DisplayName("마지막 페이지이면 nextCursor는 null이다")
+			void returnsNullNextCursorWhenLastPage() {
+				Product product = product(1L, "마지막 상품", BigDecimal.valueOf(10000));
+				given(productRepository.findBy(anyProductSpecification(), any()))
+						.willReturn(List.of(product));
+
+				ProductPageResponse response = productService.getProducts(null, 2L, 2);
+
+				assertThat(response.getItems()).extracting(ProductSummaryResponse::getProductId)
+						.containsExactly(1L);
+				assertThat(response.isHasNext()).isFalse();
+				assertThat(response.getNextCursor()).isNull();
+			}
+
+			@Test
+			@DisplayName("size가 0 이하이면 기본 크기 30으로 조회한다")
+			void usesDefaultSizeWhenSizeIsNotPositive() {
+				List<Product> rows = java.util.stream.IntStream.rangeClosed(1, 31)
+						.mapToObj(index -> product((long) index, "상품 " + index, BigDecimal.valueOf(index * 1000L)))
+						.toList();
+				given(productRepository.findBy(anyProductSpecification(), any()))
+						.willReturn(rows);
+
+				ProductPageResponse response = productService.getProducts(null, null, 0);
+
+				assertThat(response.getItems()).hasSize(30);
+				assertThat(response.isHasNext()).isTrue();
+			}
+
+			@Test
+			@DisplayName("size가 100보다 크면 최대 100개로 제한한다")
+			void clampsSizeToMaxPageSize() {
+				List<Product> rows = java.util.stream.IntStream.rangeClosed(1, 101)
+						.mapToObj(index -> product((long) index, "상품 " + index, BigDecimal.valueOf(index * 1000L)))
+						.toList();
+				given(productRepository.findBy(anyProductSpecification(), any()))
+						.willReturn(rows);
+
+				ProductPageResponse response = productService.getProducts(null, null, 101);
+
+				assertThat(response.getItems()).hasSize(100);
+				assertThat(response.isHasNext()).isTrue();
+			}
+
+			@Test
+			@DisplayName("상품 목록 지역 필터가 3개이면 조회할 수 없다")
+			void throwsInvalidInputWhenGettingProductsWithMoreThanTwoRegions() {
+				assertBusinessException(
+						() -> productService.getProducts(List.of("서울 강남구", "서울 마포구", "서울 송파구"), null, 30),
+						ErrorCode.INVALID_INPUT_VALUE
+				);
+
+				verify(productRepository, never()).findBy(anyProductSpecification(), any());
+			}
 
 		@Test
 		@DisplayName("카테고리별 상품 목록을 최신 등록순으로 조회한다")
@@ -1130,7 +1190,11 @@ class ProductServiceTest {
 	}
 
 	private Product product(String title, BigDecimal price) {
-		return Product.create(
+		return product(null, title, price);
+	}
+
+	private Product product(Long id, String title, BigDecimal price) {
+		Product product = Product.create(
 				seller(),
 				category("디지털기기"),
 				title,
@@ -1138,6 +1202,10 @@ class ProductServiceTest {
 				price,
 				"서울 강남구"
 		);
+		if (id != null) {
+			ReflectionTestUtils.setField(product, "id", id);
+		}
+		return product;
 	}
 
 	private Product hiddenProduct(String title) {

@@ -7,6 +7,7 @@ import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.dto.ProductCreateRequest;
+import com.dongnemarket.product.dto.ProductPageResponse;
 import com.dongnemarket.product.dto.ProductResponse;
 import com.dongnemarket.product.dto.ProductSearchRequest;
 import com.dongnemarket.product.dto.ProductStatusUpdateRequest;
@@ -32,6 +33,8 @@ import java.util.List;
 public class ProductService {
 
 	private static final int MAX_REGION_FILTER_SIZE = 2;
+	private static final int DEFAULT_PAGE_SIZE = 30;
+	private static final int MAX_PAGE_SIZE = 100;
 
 	private final ProductRepository productRepository;
 	private final ProductImageRepository productImageRepository;
@@ -73,21 +76,34 @@ public class ProductService {
 		return ProductResponse.from(savedProduct, request.getImageUrls());
 	}
 
-	public List<ProductSummaryResponse> getProducts() {
-		return getProducts(null);
+	public ProductPageResponse getProducts() {
+		return getProducts(null, null, DEFAULT_PAGE_SIZE);
 	}
 
-	public List<ProductSummaryResponse> getProducts(List<String> regions) {
+	public ProductPageResponse getProducts(List<String> regions) {
+		return getProducts(regions, null, DEFAULT_PAGE_SIZE);
+	}
+
+	public ProductPageResponse getProducts(List<String> regions, Long cursor, int size) {
 		List<String> normalizedRegions = normalizeRegions(regions);
 		validateRegionFilterSize(normalizedRegions);
+		int limit = clampPageSize(size);
 
-		return productRepository.findAll(
-						ProductSpecification.list(normalizedRegions),
-						Sort.by(Sort.Direction.DESC, "id")
-				)
-				.stream()
-				.map(ProductSummaryResponse::from)
-				.toList();
+		List<Product> rows = productRepository.findBy(
+				ProductSpecification.list(normalizedRegions, cursor),
+				query -> query
+						.sortBy(Sort.by(Sort.Direction.DESC, "id"))
+						.limit(limit + 1)
+						.all()
+		);
+		boolean hasNext = rows.size() > limit;
+		List<Product> page = hasNext ? rows.subList(0, limit) : rows;
+		Long nextCursor = hasNext ? page.get(page.size() - 1).getId() : null;
+		List<ProductSummaryResponse> items = page
+					.stream()
+					.map(ProductSummaryResponse::from)
+					.toList();
+		return ProductPageResponse.of(items, nextCursor, hasNext);
 	}
 
 	public List<ProductSummaryResponse> getProductsByCategory(Long categoryId) {
@@ -314,6 +330,13 @@ public class ProductService {
 		if (regions.size() > MAX_REGION_FILTER_SIZE) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
 		}
+	}
+
+	private int clampPageSize(int size) {
+		if (size <= 0) {
+			return DEFAULT_PAGE_SIZE;
+		}
+		return Math.min(size, MAX_PAGE_SIZE);
 	}
 
 	private void validateSearchPrice(BigDecimal minPrice, BigDecimal maxPrice) {
