@@ -16,32 +16,24 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("test")
 class RegionInitializerTest {
 
-	private static final List<String> SEOUL_REGION_NAMES = List.of(
+	private static final List<String> REPRESENTATIVE_REGION_NAMES = List.of(
 			"서울 강남구",
-			"서울 강동구",
-			"서울 강북구",
-			"서울 강서구",
-			"서울 관악구",
-			"서울 광진구",
-			"서울 구로구",
-			"서울 금천구",
-			"서울 노원구",
-			"서울 도봉구",
-			"서울 동대문구",
-			"서울 동작구",
-			"서울 마포구",
-			"서울 서대문구",
-			"서울 서초구",
-			"서울 성동구",
-			"서울 성북구",
-			"서울 송파구",
-			"서울 양천구",
-			"서울 영등포구",
-			"서울 용산구",
-			"서울 은평구",
-			"서울 종로구",
-			"서울 중구",
-			"서울 중랑구"
+			"부산 해운대구",
+			"대구 군위군",
+			"인천 강화군",
+			"광주 광산구",
+			"대전 유성구",
+			"울산 울주군",
+			"세종",
+			"경기 성남시",
+			"강원 춘천시",
+			"충북 청주시",
+			"충남 천안시",
+			"전북 전주시",
+			"전남 여수시",
+			"경북 포항시",
+			"경남 창원시",
+			"제주 제주시"
 	);
 
 	@Autowired
@@ -51,22 +43,25 @@ class RegionInitializerTest {
 	RegionInitializer regionInitializer;
 
 	@Test
-	@DisplayName("애플리케이션 시작 시 서울 25개 구가 저장된다")
-	void savesTwentyFiveSeoulRegions() {
+	@DisplayName("애플리케이션 시작 시 전국 지역 마스터가 저장된다")
+	void savesDefaultRegions() {
 		List<String> regionNames = regionRepository.findAllByOrderByNameAsc()
 				.stream()
 				.map(Region::getName)
 				.toList();
 
-		assertThat(regionNames).containsExactlyInAnyOrderElementsOf(SEOUL_REGION_NAMES);
+		assertThat(regionNames).isNotEmpty();
+		assertThat(regionNames).containsAll(REPRESENTATIVE_REGION_NAMES);
 	}
 
 	@Test
 	@DisplayName("초기화기를 다시 실행해도 지역이 중복 저장되지 않는다")
 	void doesNotDuplicateRegions() {
+		long beforeCount = regionRepository.count();
+
 		regionInitializer.run(null);
 
-		assertThat(regionRepository.count()).isEqualTo(SEOUL_REGION_NAMES.size());
+		assertThat(regionRepository.count()).isEqualTo(beforeCount);
 	}
 
 	@Test
@@ -82,7 +77,12 @@ class RegionInitializerTest {
 				.stream()
 				.map(Region::getName)
 				.toList();
-		assertThat(regionNames).containsExactlyInAnyOrderElementsOf(SEOUL_REGION_NAMES);
-		assertThat(regionRepository.count()).isEqualTo(SEOUL_REGION_NAMES.size());
+		assertThat(regionNames).containsAll(REPRESENTATIVE_REGION_NAMES);
+		assertThat(regionNames)
+				.filteredOn(regionName -> regionName.equals("서울 강남구"))
+				.hasSize(1);
+		assertThat(regionNames)
+				.filteredOn(regionName -> regionName.equals("서울 마포구"))
+				.hasSize(1);
 	}
 }
