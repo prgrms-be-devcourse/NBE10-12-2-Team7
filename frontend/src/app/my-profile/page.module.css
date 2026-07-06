@@ -178,18 +178,62 @@
 .locRemove:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 32%, var(--border)); background: var(--danger-soft); }
 .locEmpty { font-size: 13.5px; color: var(--text-muted); margin: 0 0 14px; }
 
-.locAddRow { display: flex; gap: 8px; }
-.locSelect {
-  flex: 1;
-  padding: 11px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  font-size: 14px;
-  font-family: inherit;
-  background: var(--bg);
-  color: var(--text);
-  cursor: pointer;
+.addRegionBtn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1.5px dashed var(--primary); background: var(--primary-soft); color: var(--primary);
+  border-radius: 13px; font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer;
 }
+
+/* 동네 추가 모달 */
+.modalOverlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal {
+  width: 100%; max-width: 420px;
+  min-height: 400px; max-height: 88vh; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; box-shadow: var(--shadow-hover);
+  text-align: left;
+  animation: mo-pop .3s cubic-bezier(.2,.7,.3,1) backwards;
+}
+.modalHead {
+  padding: 20px 22px 0;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+}
+.modalTitle { font-size: 17.5px; font-weight: 800; letter-spacing: -.02em; }
+.modalDesc { margin-top: 5px; font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+.modalClose {
+  flex-shrink: 0; width: 32px; height: 32px;
+  display: grid; place-items: center;
+  border: none; background: transparent; color: var(--text-muted);
+  border-radius: 50%; cursor: pointer;
+}
+.modalClose:hover { background: var(--surface-2); }
+
+.searchWrap { padding: 16px 22px 22px; }
+.searchInputRow {
+  display: flex; align-items: center; gap: 9px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+  padding: 11px 15px;
+}
+.searchInputRow input {
+  border: none; outline: none; background: transparent;
+  color: var(--text); font-family: inherit; font-size: 14px; width: 100%;
+}
+.resultsList { margin-top: 10px; max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.resultItem {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  padding: 12px 13px; border: none; background: transparent; color: var(--text);
+  border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.resultItem:hover { background: var(--primary-soft); color: var(--primary); }
+.noResults { padding: 18px 13px; text-align: center; font-size: 13px; color: var(--text-muted); }
+
 .apiNote {
   margin-top: 14px;
   font-size: 11.5px;
