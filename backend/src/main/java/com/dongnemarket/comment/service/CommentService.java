@@ -5,12 +5,14 @@ import com.dongnemarket.comment.dto.CommentResponse;
 import com.dongnemarket.comment.dto.CommentUpdateRequest;
 import com.dongnemarket.comment.entity.Comment;
 import com.dongnemarket.comment.repository.CommentRepository;
+import com.dongnemarket.global.common.event.CommentCreatedEvent;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.service.ProductService;
 import jakarta.persistence.EntityManager;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,13 +25,16 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final ProductService productService;
     private final EntityManager entityManager;
+    private final ApplicationEventPublisher eventPublisher;
 
     public CommentService(CommentRepository commentRepository,
                           ProductService productService,
-                          EntityManager entityManager) {
+                          EntityManager entityManager,
+                          ApplicationEventPublisher eventPublisher) {
         this.commentRepository = commentRepository;
         this.productService = productService;
         this.entityManager = entityManager;
+        this.eventPublisher = eventPublisher;
     }
 
     /** 댓글 작성. 로그인 사용자가 접근 가능한 상품에 댓글을 단다. */
@@ -40,6 +45,13 @@ public class CommentService {
         Member member = entityManager.find(Member.class, memberId);
         Product product = entityManager.find(Product.class, productId);
         Comment saved = commentRepository.save(Comment.of(member, product, request.getContent()));
+
+        // 상품 소유자에게 댓글 알림(자기 상품에 스스로 단 댓글은 제외). 프록시 id 접근이라 추가 쿼리 없음.
+        // 커밋 후(AFTER_COMMIT) 별도 트랜잭션에서 저장되므로 알림 실패가 댓글 작성을 롤백하지 않는다.
+        Long recipientId = product.getMember().getId();
+        if (!recipientId.equals(memberId)) {
+            eventPublisher.publishEvent(new CommentCreatedEvent(recipientId, productId, product.getTitle(), memberId));
+        }
         return CommentResponse.from(saved);
     }
 
