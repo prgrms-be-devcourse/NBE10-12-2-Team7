@@ -32,6 +32,7 @@ interface ChatRoom {
   opponent: ChatMemberSummary
   createdAt: string
   lastMessage: ChatMessage | null
+  unreadCount: number
 }
 
 type PageStatus = 'loading' | 'ready' | 'error'
@@ -104,10 +105,17 @@ export default function ChatListPage() {
                 <div className={styles.body}>
                   <div className={styles.top}>
                     <span className={styles.nick}>{room.opponent.nickname}</span>
-                    {room.lastMessage && <span className={styles.time}>{formatTime(room.lastMessage.createdAt)}</span>}
                   </div>
                   <div className={styles.pname}>{room.product.title} · {priceText(room.product.price)}</div>
                   <div className={styles.last}>{room.lastMessage ? room.lastMessage.content : '대화를 시작해보세요'}</div>
+                </div>
+                <div className={styles.meta}>
+                  {room.lastMessage && <span className={styles.time}>{formatTime(room.lastMessage.createdAt)}</span>}
+                  {room.unreadCount > 0 && (
+                    <span className={styles.unreadBadge}>
+                      {room.unreadCount > 99 ? '99+' : room.unreadCount}
+                    </span>
+                  )}
                 </div>
               </Link>
             ))}

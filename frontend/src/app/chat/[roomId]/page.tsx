@@ -79,6 +79,10 @@ export default function ChatRoomPage() {
     })
   }
 
+  function markRead() {
+    apiFetch(`/api/chat-rooms/${roomId}/read`, { method: 'POST' }).catch(() => {})
+  }
+
   function mergeMessages(incoming: ChatMessage[]) {
     incoming.forEach(m => seenIds.current.add(m.messageId))
     setMessages(prev => {
@@ -108,6 +112,7 @@ export default function ChatRoomPage() {
       mergeMessages(list)
       setStatus('ready')
       scrollToBottom()
+      markRead()
     }).catch(() => {
       if (!cancelled) { setErrorMsg('서버에 연결할 수 없습니다.'); setStatus('error') }
     })
@@ -125,6 +130,7 @@ export default function ChatRoomPage() {
           if (list.some(m => !seenIds.current.has(m.messageId))) {
             mergeMessages(list)
             scrollToBottom()
+            markRead()
           }
         })
         .catch(() => {})
