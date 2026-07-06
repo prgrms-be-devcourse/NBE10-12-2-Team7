@@ -4,6 +4,7 @@ import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -15,14 +16,17 @@ public class SmtpEmailSender implements EmailSender {
 	private static final Logger log = LoggerFactory.getLogger(SmtpEmailSender.class);
 
 	private final JavaMailSender javaMailSender;
+	private final String fromAddress;
 
-	public SmtpEmailSender(JavaMailSender javaMailSender) {
+	public SmtpEmailSender(JavaMailSender javaMailSender, @Value("${spring.mail.username}") String fromAddress) {
 		this.javaMailSender = javaMailSender;
+		this.fromAddress = fromAddress;
 	}
 
 	@Override
 	public void send(String to, String subject, String content) {
 		SimpleMailMessage message = new SimpleMailMessage();
+		message.setFrom(fromAddress);
 		message.setTo(to);
 		message.setSubject(subject);
 		message.setText(content);

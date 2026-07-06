@@ -17,6 +17,12 @@ spring:
     console:
       enabled: false
 
+  # 테스트는 EmailSender를 @MockitoBean으로 대체해 실제 발송을 하지 않으므로 값이 없어도 무방하다.
+  # 값이 아예 없으면 JavaMailSender 빈 생성 시 플레이스홀더 해석 실패로 컨텍스트 로딩 자체가 깨지므로 빈 값으로 고정한다.
+  mail:
+    username:
+    password:
+
 report:
   evidence-image:
     storage-path: build/test-evidence-images
