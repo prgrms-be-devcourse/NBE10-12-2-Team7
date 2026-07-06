@@ -95,3 +95,23 @@ jobs:
             ${{ steps.ecr.outputs.registry }}/dongnemarket-next:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+    # ── 앱 EC2에 SSH로 배포 (pull → up) ──
+    deploy:
+      needs: [ build-backend, build-frontend ]
+      # 빌드 중 하나라도 성공하면(=새 이미지 있으면) 배포
+      if: always() && (needs.build-backend.result == 'success' || needs.build-frontend.result == 'success')
+      runs-on: ubuntu-latest
+      steps:
+        - name: Deploy to app EC2
+          uses: appleboy/ssh-action@v1
+          with:
+            host: ${{ secrets.EC2_APP_HOST }}
+            username: ubuntu
+            key: ${{ secrets.EC2_SSH_KEY }}
+            script: |
+              cd ~/app
+              aws ecr get-login-password --region ap-northeast-2 \
+                | docker login --username AWS --password-stdin 773505972890.dkr.ecr.ap-northeast-2.amazonaws.com
+              docker compose --env-file .env pull
+              docker compose --env-file .env up -d
+              docker image prune -f
