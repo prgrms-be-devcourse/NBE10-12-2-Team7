@@ -1,0 +1,42 @@
+# EC2 #1 (app) 전용. mysql 없음 → RDS. 이미지는 ECR pull.
+# 사용(EC2 #1, 이 폴더에서):
+#   docker compose --env-file .env pull
+#   docker compose --env-file .env up -d
+name: dongnemarket-app
+
+services:
+  app:
+    image: ${ECR_REGISTRY}/dongnemarket-app:${IMAGE_TAG:-latest}
+    container_name: dongne-app
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: local          # prometheus 노출(모니터 EC2가 scrape)
+      DB_URL: ${DB_URL}                       # ← RDS 엔드포인트 (.env)
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}     # AWS에서 접근 가능한 주소여야 함
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:14b}
+    expose:
+      - "8080"                                # nginx 뒤에만 (모니터 scrape용 SG는 별도)
+
+  next:
+    image: ${ECR_REGISTRY}/dongnemarket-next:${IMAGE_TAG:-latest}
+    container_name: dongne-next
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    expose:
+      - "3000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: dongne-nginx
+    restart: unless-stopped
+    depends_on:
+      - app
+      - next
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro   # ← 같은 폴더의 cloud용 conf
