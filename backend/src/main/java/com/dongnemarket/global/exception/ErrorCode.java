@@ -22,6 +22,7 @@ public enum ErrorCode {
 	INVALID_REFRESH_TOKEN(401, "AUTH_006", "유효하지 않은 Refresh Token입니다."),
 	REFRESH_TOKEN_NOT_FOUND(401, "AUTH_007", "Refresh Token 정보를 찾을 수 없습니다. 다시 로그인해주세요."),
 	EMAIL_SEND_FAILED(500, "AUTH_008", "이메일 발송에 실패했습니다."),
+	EMAIL_VERIFICATION_REQUEST_TOO_SOON(429, "AUTH_009", "인증 코드를 너무 자주 요청했습니다. 잠시 후 다시 시도해주세요."),
 
 	// ===== MEMBER ERROR (김대연) =====
 	MEMBER_NOT_FOUND(404, "MEMBER_001", "회원을 찾을 수 없습니다."),
