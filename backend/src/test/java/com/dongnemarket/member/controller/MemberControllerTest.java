@@ -206,6 +206,7 @@ class MemberControllerTest {
 	@Test
 	@DisplayName("비밀번호 변경에 성공하면 기존 Refresh Token이 삭제되어 재발급이 REFRESH_TOKEN_NOT_FOUND로 실패한다")
 	void changePassword_success_invalidatesExistingRefreshToken() throws Exception {
+		verifyEmail("pwchange-token@example.com");
 		String signup = "{ \"email\": \"pwchange-token@example.com\", \"password\": \"password123!\", \"nickname\": \"pwChangeToken\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup));
 
