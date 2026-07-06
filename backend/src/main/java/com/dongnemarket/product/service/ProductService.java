@@ -5,6 +5,7 @@ import com.dongnemarket.category.repository.CategoryRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.dto.ProductCreateRequest;
 import com.dongnemarket.product.dto.ProductPageResponse;
@@ -111,7 +112,10 @@ public class ProductService {
 			throw new BusinessException(ErrorCode.CATEGORY_NOT_FOUND);
 		}
 
-		return productRepository.findAllByCategoryIdAndDeletedAtIsNullAndHiddenFalseOrderByIdDesc(categoryId)
+		return productRepository.findAll(
+						ProductSpecification.categoryList(categoryId),
+						Sort.by(Sort.Direction.DESC, "id")
+				)
 				.stream()
 				.map(ProductSummaryResponse::from)
 				.toList();
@@ -157,6 +161,12 @@ public class ProductService {
 		}
 		if (product.isHidden()) {
 			throw new BusinessException(ErrorCode.HIDDEN_PRODUCT);
+		}
+		if (product.getMember().getStatus() != MemberStatus.ACTIVE) {
+			throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
+		}
+		if (product.isCompleted()) {
+			throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
 		}
 
 		product.increaseViewCount();

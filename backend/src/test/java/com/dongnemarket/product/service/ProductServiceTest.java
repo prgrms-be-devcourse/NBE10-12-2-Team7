@@ -29,6 +29,7 @@ import com.dongnemarket.category.repository.CategoryRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.dto.ProductCreateRequest;
 import com.dongnemarket.product.dto.ProductPageResponse;
@@ -265,32 +266,33 @@ class ProductServiceTest {
 
 		@Test
 		@DisplayName("카테고리별 상품 목록을 최신 등록순으로 조회한다")
-		void getsProductsByCategoryInLatestOrder() {
-			Product oldProduct = product("오래된 상품", BigDecimal.valueOf(10000));
-			Product newProduct = product("최신 상품", BigDecimal.valueOf(20000));
-			given(categoryRepository.existsById(CATEGORY_ID)).willReturn(true);
-			given(productRepository.findAllByCategoryIdAndDeletedAtIsNullAndHiddenFalseOrderByIdDesc(CATEGORY_ID))
-					.willReturn(List.of(newProduct, oldProduct));
+			void getsProductsByCategoryInLatestOrder() {
+				Product oldProduct = product("오래된 상품", BigDecimal.valueOf(10000));
+				Product newProduct = product("최신 상품", BigDecimal.valueOf(20000));
+				given(categoryRepository.existsById(CATEGORY_ID)).willReturn(true);
+				given(productRepository.findAll(anyProductSpecification(), any(Sort.class)))
+						.willReturn(List.of(newProduct, oldProduct));
 
-			List<ProductSummaryResponse> responses = productService.getProductsByCategory(CATEGORY_ID);
+				List<ProductSummaryResponse> responses = productService.getProductsByCategory(CATEGORY_ID);
 
-			assertThat(responses).extracting(ProductSummaryResponse::getTitle)
-					.containsExactly("최신 상품", "오래된 상품");
-		}
+				assertThat(responses).extracting(ProductSummaryResponse::getTitle)
+						.containsExactly("최신 상품", "오래된 상품");
+				verify(productRepository).findAll(anyProductSpecification(), any(Sort.class));
+			}
 
 		@Test
 		@DisplayName("카테고리가 없으면 카테고리별 상품 목록을 조회할 수 없다")
 		void throwsCategoryNotFoundWhenGettingProductsByMissingCategory() {
 			given(categoryRepository.existsById(CATEGORY_ID)).willReturn(false);
 
-			assertBusinessException(
-					() -> productService.getProductsByCategory(CATEGORY_ID),
-					ErrorCode.CATEGORY_NOT_FOUND
-			);
+				assertBusinessException(
+						() -> productService.getProductsByCategory(CATEGORY_ID),
+						ErrorCode.CATEGORY_NOT_FOUND
+				);
 
-			verify(productRepository, never()).findAllByCategoryIdAndDeletedAtIsNullAndHiddenFalseOrderByIdDesc(any());
+				verify(productRepository, never()).findAll(anyProductSpecification(), any(Sort.class));
+			}
 		}
-	}
 
 	@Nested
 	@DisplayName("내 상품 조회")
@@ -476,16 +478,52 @@ class ProductServiceTest {
 
 		@Test
 		@DisplayName("숨김 상품이면 상세 조회를 할 수 없다")
-		void throwsHiddenProductWhenProductIsHidden() {
-			Product product = hiddenProduct("아이폰 15");
-			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
+			void throwsHiddenProductWhenProductIsHidden() {
+				Product product = hiddenProduct("아이폰 15");
+				given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
 
-			assertBusinessException(
-					() -> productService.getProduct(PRODUCT_ID),
-					ErrorCode.HIDDEN_PRODUCT
-			);
+				assertBusinessException(
+						() -> productService.getProduct(PRODUCT_ID),
+						ErrorCode.HIDDEN_PRODUCT
+				);
+			}
+
+			@Test
+			@DisplayName("탈퇴 판매자 상품이면 상세 조회를 할 수 없다")
+			void throwsProductNotFoundWhenSellerIsDeleted() {
+				Product product = productBySellerStatus("아이폰 15", MemberStatus.DELETED);
+				given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
+
+				assertBusinessException(
+						() -> productService.getProduct(PRODUCT_ID),
+						ErrorCode.PRODUCT_NOT_FOUND
+				);
+			}
+
+			@Test
+			@DisplayName("정지 판매자 상품이면 상세 조회를 할 수 없다")
+			void throwsProductNotFoundWhenSellerIsSuspended() {
+				Product product = productBySellerStatus("아이폰 15", MemberStatus.SUSPENDED);
+				given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
+
+				assertBusinessException(
+						() -> productService.getProduct(PRODUCT_ID),
+						ErrorCode.PRODUCT_NOT_FOUND
+				);
+			}
+
+			@Test
+			@DisplayName("거래완료 상품이면 상세 조회를 할 수 없다")
+			void throwsProductNotFoundWhenProductIsCompleted() {
+				Product product = completedProduct("아이폰 15");
+				given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
+
+				assertBusinessException(
+						() -> productService.getProduct(PRODUCT_ID),
+						ErrorCode.PRODUCT_NOT_FOUND
+				);
+			}
 		}
-	}
 
 	@Nested
 	@DisplayName("상품 수정")
@@ -1220,11 +1258,24 @@ class ProductServiceTest {
 		return product;
 	}
 
-	private Product completedProduct(String title) {
-		Product product = product(title, BigDecimal.valueOf(800000));
-		product.complete();
-		return product;
-	}
+		private Product completedProduct(String title) {
+			Product product = product(title, BigDecimal.valueOf(800000));
+			product.complete();
+			return product;
+		}
+
+		private Product productBySellerStatus(String title, MemberStatus status) {
+			Member seller = seller();
+			seller.changeStatus(status);
+			return Product.create(
+					seller,
+					category("디지털기기"),
+					title,
+					"상품 설명입니다.",
+					BigDecimal.valueOf(800000),
+					"서울 강남구"
+			);
+		}
 
 	private ProductCreateRequest createRequest(String title, BigDecimal price) {
 		return createRequest(

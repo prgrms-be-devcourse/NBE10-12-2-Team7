@@ -6,8 +6,10 @@ import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
 import com.dongnemarket.global.security.jwt.JwtTokenProvider;
 import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
+import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.ProductImageRepository;
 import com.dongnemarket.product.repository.ProductRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -286,8 +288,44 @@ class ProductControllerTest {
 					.andExpect(jsonPath("$.data.items[1].productId").value(oldProduct.getId()))
 					.andExpect(jsonPath("$.data.items[1].title").value("오래된 상품"))
 					.andExpect(jsonPath("$.data.hasNext").value(false))
-					.andExpect(jsonPath("$.data.nextCursor").doesNotExist());
-		}
+				.andExpect(jsonPath("$.data.nextCursor").doesNotExist());
+			}
+
+	@Test
+	@DisplayName("상품 목록은 탈퇴·정지 판매자 상품과 거래완료 상품을 제외한다")
+	void excludesInactiveSellerProductsAndCompletedProductsFromProductList() throws Exception {
+		Member activeMember = memberRepository.save(Member.createUser("list-visible-active@example.com", "encodedPassword", "활성판매자"));
+		Member deletedMember = Member.createUser("list-visible-deleted@example.com", "encodedPassword", "탈퇴판매자");
+		deletedMember.changeStatus(MemberStatus.DELETED);
+		deletedMember = memberRepository.save(deletedMember);
+		Member suspendedMember = Member.createUser("list-visible-suspended@example.com", "encodedPassword", "정지판매자");
+		suspendedMember.changeStatus(MemberStatus.SUSPENDED);
+		suspendedMember = memberRepository.save(suspendedMember);
+		Category category = categoryRepository.save(new Category("목록공개정책"));
+		Product onSaleProduct = productRepository.save(Product.create(
+				activeMember,
+				category,
+				"판매중 공개 상품",
+				"판매중 공개 상품 설명",
+				BigDecimal.valueOf(10000),
+				"서울 강남구"
+		));
+		Product reservedProduct = Product.create(activeMember, category, "예약중 공개 상품", "예약중 공개 상품 설명", BigDecimal.valueOf(20000), "서울 마포구");
+		reservedProduct.changeTradeStatus(TradeStatus.RESERVED);
+		Product savedReservedProduct = productRepository.save(reservedProduct);
+		Product completedProduct = Product.create(activeMember, category, "거래완료 상품", "거래완료 상품 설명", BigDecimal.valueOf(30000), "서울 서초구");
+		completedProduct.complete();
+		productRepository.save(completedProduct);
+		productRepository.save(Product.create(deletedMember, category, "탈퇴 판매자 상품", "탈퇴 판매자 상품 설명", BigDecimal.valueOf(40000), "서울 송파구"));
+		productRepository.saveAndFlush(Product.create(suspendedMember, category, "정지 판매자 상품", "정지 판매자 상품 설명", BigDecimal.valueOf(50000), "서울 용산구"));
+
+		mockMvc.perform(get("/api/products"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.items.length()").value(2))
+				.andExpect(jsonPath("$.data.items[0].productId").value(savedReservedProduct.getId()))
+				.andExpect(jsonPath("$.data.items[1].productId").value(onSaleProduct.getId()))
+				.andExpect(jsonPath("$.data.items[?(@.productId == " + completedProduct.getId() + ")]").isEmpty());
+	}
 
 		@Test
 		@DisplayName("상품 목록은 지역 2개로 필터링해 최신 등록순으로 조회한다")
@@ -575,6 +613,63 @@ class ProductControllerTest {
 	}
 
 	@Test
+	@DisplayName("상품 검색은 탈퇴·정지 판매자 상품과 거래완료 상품을 제외한다")
+	void excludesInactiveSellerProductsAndCompletedProductsFromSearch() throws Exception {
+		Member activeMember = memberRepository.save(Member.createUser("search-visible-active-controller@example.com", "encodedPassword", "활성검색판매자"));
+		Member deletedMember = Member.createUser("search-visible-deleted-controller@example.com", "encodedPassword", "탈퇴검색판매자");
+		deletedMember.changeStatus(MemberStatus.DELETED);
+		deletedMember = memberRepository.save(deletedMember);
+		Member suspendedMember = Member.createUser("search-visible-suspended-controller@example.com", "encodedPassword", "정지검색판매자");
+		suspendedMember.changeStatus(MemberStatus.SUSPENDED);
+		suspendedMember = memberRepository.save(suspendedMember);
+		Category category = categoryRepository.save(new Category("검색공개정책"));
+		Product visibleProduct = productRepository.save(Product.create(
+				activeMember,
+				category,
+				"정책 맥북",
+				"정책 검색 상품입니다.",
+				BigDecimal.valueOf(1000000),
+				"서울 강남구"
+		));
+		Product completedProduct = Product.create(activeMember, category, "정책 완료 맥북", "거래완료 검색 상품입니다.", BigDecimal.valueOf(900000), "서울 강남구");
+		completedProduct.complete();
+		productRepository.save(completedProduct);
+		productRepository.save(Product.create(deletedMember, category, "정책 탈퇴 맥북", "탈퇴 판매자 검색 상품입니다.", BigDecimal.valueOf(800000), "서울 강남구"));
+		productRepository.saveAndFlush(Product.create(suspendedMember, category, "정책 정지 맥북", "정지 판매자 검색 상품입니다.", BigDecimal.valueOf(700000), "서울 강남구"));
+
+		mockMvc.perform(get("/api/products/search")
+						.param("keyword", "정책")
+						.param("regions", "서울 강남구"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.length()").value(1))
+				.andExpect(jsonPath("$.data[0].productId").value(visibleProduct.getId()))
+				.andExpect(jsonPath("$.data[0].title").value("정책 맥북"));
+	}
+
+	@Test
+	@DisplayName("상품 검색은 거래완료 상태를 요청하면 빈 목록을 반환한다")
+	void returnsEmptyListWhenSearchingCompletedProducts() throws Exception {
+		Member member = memberRepository.save(Member.createUser("search-completed-controller@example.com", "encodedPassword", "완료검색판매자"));
+		Category category = categoryRepository.save(new Category("검색거래완료"));
+		Product completedProduct = Product.create(
+				member,
+				category,
+				"거래완료 맥북",
+				"거래완료 검색 상품입니다.",
+				BigDecimal.valueOf(1000000),
+				"서울 강남구"
+		);
+		completedProduct.complete();
+		productRepository.saveAndFlush(completedProduct);
+
+		mockMvc.perform(get("/api/products/search")
+						.param("keyword", "맥북")
+						.param("tradeStatus", "COMPLETED"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.length()").value(0));
+	}
+
+	@Test
 	@DisplayName("상품 검색 지역 필터가 3개이면 INVALID_INPUT_VALUE를 반환한다")
 	void returnsInvalidInputValueWhenSearchingWithMoreThanTwoRegions() throws Exception {
 		mockMvc.perform(get("/api/products/search")
@@ -754,6 +849,69 @@ class ProductControllerTest {
 		mockMvc.perform(get("/api/products/{productId}", savedProduct.getId()))
 				.andExpect(status().isForbidden())
 				.andExpect(jsonPath("$.error").value("HIDDEN_PRODUCT"));
+	}
+
+	@Test
+	@DisplayName("탈퇴 판매자 상품 상세 조회 시 PRODUCT_NOT_FOUND를 반환한다")
+	void returnsProductNotFoundWhenSellerIsDeleted() throws Exception {
+		Member member = Member.createUser("detail-deleted-seller@example.com", "encodedPassword", "탈퇴판매자");
+		member.changeStatus(MemberStatus.DELETED);
+		member = memberRepository.save(member);
+		Category category = categoryRepository.save(new Category("상세탈퇴판매자"));
+		Product product = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"탈퇴 판매자 상품",
+				"탈퇴 판매자 상품 설명",
+				BigDecimal.valueOf(10000),
+				"서울 강남구"
+		));
+
+		mockMvc.perform(get("/api/products/{productId}", product.getId()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("PRODUCT_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("정지 판매자 상품 상세 조회 시 PRODUCT_NOT_FOUND를 반환한다")
+	void returnsProductNotFoundWhenSellerIsSuspended() throws Exception {
+		Member member = Member.createUser("detail-suspended-seller@example.com", "encodedPassword", "정지판매자");
+		member.changeStatus(MemberStatus.SUSPENDED);
+		member = memberRepository.save(member);
+		Category category = categoryRepository.save(new Category("상세정지판매자"));
+		Product product = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"정지 판매자 상품",
+				"정지 판매자 상품 설명",
+				BigDecimal.valueOf(10000),
+				"서울 강남구"
+		));
+
+		mockMvc.perform(get("/api/products/{productId}", product.getId()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("PRODUCT_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("거래완료 상품 상세 조회 시 PRODUCT_NOT_FOUND를 반환한다")
+	void returnsProductNotFoundWhenProductIsCompleted() throws Exception {
+		Member member = memberRepository.save(Member.createUser("detail-completed-seller@example.com", "encodedPassword", "완료판매자"));
+		Category category = categoryRepository.save(new Category("상세거래완료"));
+		Product product = Product.create(
+				member,
+				category,
+				"거래완료 상품",
+				"거래완료 상품 설명",
+				BigDecimal.valueOf(10000),
+				"서울 강남구"
+		);
+		product.complete();
+		Product savedProduct = productRepository.saveAndFlush(product);
+
+		mockMvc.perform(get("/api/products/{productId}", savedProduct.getId()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("PRODUCT_NOT_FOUND"));
 	}
 
 	@Test
