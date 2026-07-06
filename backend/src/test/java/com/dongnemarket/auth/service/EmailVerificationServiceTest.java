@@ -1,5 +1,7 @@
 package com.dongnemarket.auth.service;
 
+import com.dongnemarket.auth.dto.EmailVerificationConfirmRequest;
+import com.dongnemarket.auth.dto.EmailVerificationConfirmResponse;
 import com.dongnemarket.auth.dto.EmailVerificationRequest;
 import com.dongnemarket.auth.dto.EmailVerificationResponse;
 import com.dongnemarket.auth.entity.EmailVerification;
@@ -103,5 +105,81 @@ class EmailVerificationServiceTest {
 		assertThat(existing.getCode()).isNotEqualTo(oldCode);
 		verify(emailVerificationRepository, never()).save(any());
 		verify(emailSender).send(anyString(), anyString(), anyString());
+	}
+
+	// ===== confirmVerification =====
+
+	@Test
+	@DisplayName("코드가 일치하고 만료 전이면 인증 완료로 표시하고 verified=true를 반환한다")
+	void confirmVerification_correctCode_success() {
+		emailVerificationService = new EmailVerificationService(emailVerificationRepository, memberRepository, emailSender);
+		EmailVerification existing = EmailVerification.issue(
+				"confirm@example.com", "123456", LocalDateTime.now().minusMinutes(1), LocalDateTime.now().plusMinutes(4));
+		given(emailVerificationRepository.findByEmail("confirm@example.com")).willReturn(Optional.of(existing));
+
+		EmailVerificationConfirmResponse response = emailVerificationService.confirmVerification(
+				new EmailVerificationConfirmRequest("confirm@example.com", "123456"));
+
+		assertThat(response.getEmail()).isEqualTo("confirm@example.com");
+		assertThat(response.isVerified()).isTrue();
+		assertThat(existing.isVerified()).isTrue();
+		assertThat(existing.getVerifiedAt()).isNotNull();
+	}
+
+	@Test
+	@DisplayName("코드가 일치하지 않으면 INVALID_VERIFICATION_CODE 예외가 발생한다")
+	void confirmVerification_wrongCode_throwsException() {
+		emailVerificationService = new EmailVerificationService(emailVerificationRepository, memberRepository, emailSender);
+		EmailVerification existing = EmailVerification.issue(
+				"confirm@example.com", "123456", LocalDateTime.now().minusMinutes(1), LocalDateTime.now().plusMinutes(4));
+		given(emailVerificationRepository.findByEmail("confirm@example.com")).willReturn(Optional.of(existing));
+
+		assertThatThrownBy(() -> emailVerificationService.confirmVerification(
+				new EmailVerificationConfirmRequest("confirm@example.com", "000000")))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_VERIFICATION_CODE);
+		assertThat(existing.isVerified()).isFalse();
+	}
+
+	@Test
+	@DisplayName("코드는 일치하지만 만료 시간이 지났으면 EXPIRED_VERIFICATION_CODE 예외가 발생한다")
+	void confirmVerification_expiredCode_throwsException() {
+		emailVerificationService = new EmailVerificationService(emailVerificationRepository, memberRepository, emailSender);
+		EmailVerification existing = EmailVerification.issue(
+				"confirm@example.com", "123456", LocalDateTime.now().minusMinutes(10), LocalDateTime.now().minusMinutes(5));
+		given(emailVerificationRepository.findByEmail("confirm@example.com")).willReturn(Optional.of(existing));
+
+		assertThatThrownBy(() -> emailVerificationService.confirmVerification(
+				new EmailVerificationConfirmRequest("confirm@example.com", "123456")))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.EXPIRED_VERIFICATION_CODE);
+		assertThat(existing.isVerified()).isFalse();
+	}
+
+	@Test
+	@DisplayName("인증 요청 이력이 없으면 EMAIL_VERIFICATION_NOT_FOUND 예외가 발생한다")
+	void confirmVerification_noRequestHistory_throwsException() {
+		emailVerificationService = new EmailVerificationService(emailVerificationRepository, memberRepository, emailSender);
+		given(emailVerificationRepository.findByEmail("unknown@example.com")).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> emailVerificationService.confirmVerification(
+				new EmailVerificationConfirmRequest("unknown@example.com", "123456")))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_VERIFICATION_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("이미 인증 완료된 건이면 코드 검사 없이 다시 성공을 반환한다(멱등)")
+	void confirmVerification_alreadyVerified_returnsSuccessIdempotently() {
+		emailVerificationService = new EmailVerificationService(emailVerificationRepository, memberRepository, emailSender);
+		EmailVerification existing = EmailVerification.issue(
+				"confirm@example.com", "123456", LocalDateTime.now().minusMinutes(10), LocalDateTime.now().minusMinutes(5));
+		existing.verify(LocalDateTime.now().minusMinutes(9));
+		given(emailVerificationRepository.findByEmail("confirm@example.com")).willReturn(Optional.of(existing));
+
+		EmailVerificationConfirmResponse response = emailVerificationService.confirmVerification(
+				new EmailVerificationConfirmRequest("confirm@example.com", "wrong-code"));
+
+		assertThat(response.isVerified()).isTrue();
 	}
 }

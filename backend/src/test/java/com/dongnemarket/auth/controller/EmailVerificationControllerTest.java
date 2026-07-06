@@ -1,5 +1,6 @@
 package com.dongnemarket.auth.controller;
 
+import com.dongnemarket.auth.entity.EmailVerification;
 import com.dongnemarket.auth.mail.EmailSender;
 import com.dongnemarket.auth.repository.EmailVerificationRepository;
 import com.dongnemarket.member.repository.MemberRepository;
@@ -12,7 +13,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -105,6 +109,91 @@ class EmailVerificationControllerTest {
 		mockMvc.perform(post("/api/auth/email-verifications")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
+	}
+
+	// ===== confirm =====
+
+	private String requestVerificationAndGetCode(String email) throws Exception {
+		mockMvc.perform(post("/api/auth/email-verifications")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(String.format("{ \"email\": \"%s\" }", email)));
+		return emailVerificationRepository.findByEmail(email).orElseThrow().getCode();
+	}
+
+	@Test
+	@DisplayName("올바른 코드로 확인하면 200과 verified=true를 반환한다")
+	void confirmVerification_correctCode_success() throws Exception {
+		String code = requestVerificationAndGetCode("confirm@example.com");
+
+		mockMvc.perform(post("/api/auth/email-verifications/confirm")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(String.format("{ \"email\": \"confirm@example.com\", \"code\": \"%s\" }", code)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200))
+				.andExpect(jsonPath("$.data.email").value("confirm@example.com"))
+				.andExpect(jsonPath("$.data.verified").value(true));
+	}
+
+	@Test
+	@DisplayName("코드가 일치하지 않으면 400과 INVALID_VERIFICATION_CODE를 반환한다")
+	void confirmVerification_wrongCode_returns400() throws Exception {
+		requestVerificationAndGetCode("confirm-wrong@example.com");
+
+		mockMvc.perform(post("/api/auth/email-verifications/confirm")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{ \"email\": \"confirm-wrong@example.com\", \"code\": \"000000\" }"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_VERIFICATION_CODE"));
+	}
+
+	@Test
+	@DisplayName("만료된 코드로 확인하면 400과 EXPIRED_VERIFICATION_CODE를 반환한다")
+	void confirmVerification_expiredCode_returns400() throws Exception {
+		String code = requestVerificationAndGetCode("confirm-expired@example.com");
+		EmailVerification verification = emailVerificationRepository.findByEmail("confirm-expired@example.com").orElseThrow();
+		ReflectionTestUtils.setField(verification, "expiresAt", LocalDateTime.now().minusMinutes(1));
+		emailVerificationRepository.save(verification);
+
+		mockMvc.perform(post("/api/auth/email-verifications/confirm")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(String.format("{ \"email\": \"confirm-expired@example.com\", \"code\": \"%s\" }", code)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("EXPIRED_VERIFICATION_CODE"));
+	}
+
+	@Test
+	@DisplayName("인증 요청 이력이 없으면 404와 EMAIL_VERIFICATION_NOT_FOUND를 반환한다")
+	void confirmVerification_noRequestHistory_returns404() throws Exception {
+		mockMvc.perform(post("/api/auth/email-verifications/confirm")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{ \"email\": \"never-requested@example.com\", \"code\": \"123456\" }"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("EMAIL_VERIFICATION_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("이미 인증 완료된 건은 다른 코드를 보내도 200과 verified=true를 반환한다(멱등)")
+	void confirmVerification_alreadyVerified_returnsSuccessIdempotently() throws Exception {
+		String code = requestVerificationAndGetCode("confirm-twice@example.com");
+		mockMvc.perform(post("/api/auth/email-verifications/confirm")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(String.format("{ \"email\": \"confirm-twice@example.com\", \"code\": \"%s\" }", code)));
+
+		mockMvc.perform(post("/api/auth/email-verifications/confirm")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{ \"email\": \"confirm-twice@example.com\", \"code\": \"wrong-code\" }"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.verified").value(true));
+	}
+
+	@Test
+	@DisplayName("확인 요청 이메일 형식이 올바르지 않으면 400과 INVALID_INPUT_VALUE를 반환한다")
+	void confirmVerification_invalidEmailFormat_returns400() throws Exception {
+		mockMvc.perform(post("/api/auth/email-verifications/confirm")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{ \"email\": \"not-an-email\", \"code\": \"123456\" }"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
 	}

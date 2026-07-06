@@ -1,5 +1,7 @@
 package com.dongnemarket.auth.service;
 
+import com.dongnemarket.auth.dto.EmailVerificationConfirmRequest;
+import com.dongnemarket.auth.dto.EmailVerificationConfirmResponse;
 import com.dongnemarket.auth.dto.EmailVerificationRequest;
 import com.dongnemarket.auth.dto.EmailVerificationResponse;
 import com.dongnemarket.auth.entity.EmailVerification;
@@ -63,6 +65,30 @@ public class EmailVerificationService {
 		emailSender.send(email, "[동네마켓] 이메일 인증 코드", "인증 코드: " + code + " (5분 이내에 입력해주세요)");
 
 		return new EmailVerificationResponse(email, expiresAt);
+	}
+
+	/**
+	 * 인증 코드를 확인한다. 이미 인증 완료된 건에 같은 이메일로 재요청하면(중복 확인) 코드 검사 없이 그대로 성공을 반환한다(멱등).
+	 */
+	public EmailVerificationConfirmResponse confirmVerification(EmailVerificationConfirmRequest request) {
+		String email = request.getEmail();
+		EmailVerification verification = emailVerificationRepository.findByEmail(email)
+				.orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_NOT_FOUND));
+
+		if (verification.isVerified()) {
+			return new EmailVerificationConfirmResponse(email, true);
+		}
+
+		LocalDateTime now = LocalDateTime.now();
+		if (verification.isExpired(now)) {
+			throw new BusinessException(ErrorCode.EXPIRED_VERIFICATION_CODE);
+		}
+		if (!verification.matchesCode(request.getCode())) {
+			throw new BusinessException(ErrorCode.INVALID_VERIFICATION_CODE);
+		}
+
+		verification.verify(now);
+		return new EmailVerificationConfirmResponse(email, true);
 	}
 
 	private String generateCode() {

@@ -1,5 +1,7 @@
 package com.dongnemarket.auth.controller;
 
+import com.dongnemarket.auth.dto.EmailVerificationConfirmRequest;
+import com.dongnemarket.auth.dto.EmailVerificationConfirmResponse;
 import com.dongnemarket.auth.dto.EmailVerificationRequest;
 import com.dongnemarket.auth.dto.EmailVerificationResponse;
 import com.dongnemarket.auth.service.EmailVerificationService;
@@ -32,5 +34,13 @@ public class EmailVerificationController {
 		EmailVerificationResponse response = emailVerificationService.requestVerification(request);
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(ApiResponse.success(HttpStatus.CREATED.value(), "인증 코드가 발송되었습니다.", response));
+	}
+
+	@Operation(summary = "이메일 인증 코드 확인", description = "발송된 인증 코드를 확인해 인증을 완료한다. 요청 이력이 없으면 404, 코드 불일치는 400, 코드 만료는 400을 반환한다. 이미 인증 완료된 건은 멱등하게 성공을 반환한다.")
+	@PostMapping("/confirm")
+	public ResponseEntity<ApiResponse<EmailVerificationConfirmResponse>> confirmVerification(
+			@Valid @RequestBody EmailVerificationConfirmRequest request) {
+		EmailVerificationConfirmResponse response = emailVerificationService.confirmVerification(request);
+		return ResponseEntity.ok(ApiResponse.success("이메일 인증이 완료되었습니다.", response));
 	}
 }

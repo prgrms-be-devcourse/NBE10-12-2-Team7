@@ -30,6 +30,12 @@ public class EmailVerification extends BaseTimeEntity {
 	@Column(name = "expires_at", nullable = false)
 	private LocalDateTime expiresAt;
 
+	@Column(nullable = false)
+	private boolean verified = false;
+
+	@Column(name = "verified_at")
+	private LocalDateTime verifiedAt;
+
 	protected EmailVerification() {
 	}
 
@@ -45,16 +51,34 @@ public class EmailVerification extends BaseTimeEntity {
 		return new EmailVerification(email, code, sentAt, expiresAt);
 	}
 
-	/** 재요청(쿨다운 경과 후) 시 기존 row를 새 코드로 교체(이메일당 1개 유지) */
+	/** 재요청(쿨다운 경과 후) 시 기존 row를 새 코드로 교체(이메일당 1개 유지). 이전 인증 상태는 새 코드에 대해 다시 확인해야 하므로 초기화한다. */
 	public void replace(String code, LocalDateTime sentAt, LocalDateTime expiresAt) {
 		this.code = code;
 		this.sentAt = sentAt;
 		this.expiresAt = expiresAt;
+		this.verified = false;
+		this.verifiedAt = null;
 	}
 
 	/** 마지막 발송 이후 쿨다운 시간이 지나지 않았는지 확인 (재요청 스팸 방지) */
 	public boolean isCoolingDown(LocalDateTime now, long cooldownSeconds) {
 		return now.isBefore(sentAt.plusSeconds(cooldownSeconds));
+	}
+
+	/** 코드 만료 여부 확인 */
+	public boolean isExpired(LocalDateTime now) {
+		return now.isAfter(expiresAt);
+	}
+
+	/** 입력한 코드가 발송된 코드와 일치하는지 확인 */
+	public boolean matchesCode(String code) {
+		return this.code.equals(code);
+	}
+
+	/** 인증 완료로 표시 */
+	public void verify(LocalDateTime now) {
+		this.verified = true;
+		this.verifiedAt = now;
 	}
 
 	public Long getId() {
@@ -75,5 +99,13 @@ public class EmailVerification extends BaseTimeEntity {
 
 	public LocalDateTime getExpiresAt() {
 		return expiresAt;
+	}
+
+	public boolean isVerified() {
+		return verified;
+	}
+
+	public LocalDateTime getVerifiedAt() {
+		return verifiedAt;
 	}
 }
