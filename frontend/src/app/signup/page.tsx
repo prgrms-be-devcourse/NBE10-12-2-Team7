@@ -13,14 +13,82 @@ type MsgType = 'success' | 'error'
 export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
   const [nickname, setNickname] = useState('')
 
   const [emailHint, setEmailHint] = useState<Hint>({ text: '로그인에 사용할 이메일을 입력하세요.' })
   const [passwordHint, setPasswordHint] = useState<Hint>({ text: '영문과 숫자를 포함해 8~20자로 입력하세요.' })
+  const [passwordConfirmHint, setPasswordConfirmHint] = useState<Hint>({ text: '비밀번호를 한 번 더 입력하세요.' })
   const [nicknameHint, setNicknameHint] = useState<Hint>({ text: '2~20자로 입력하세요. 다른 이웃에게 보여집니다.' })
 
   const [formMsg, setFormMsg] = useState<{ text: string; type: MsgType } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  /* ── 이메일 인증 ── */
+  const [codeSent, setCodeSent] = useState(false)
+  const [code, setCode] = useState('')
+  const [verifiedEmail, setVerifiedEmail] = useState('')
+  const [sendingCode, setSendingCode] = useState(false)
+  const [verifyingCode, setVerifyingCode] = useState(false)
+  const [emailCodeMsg, setEmailCodeMsg] = useState<Hint>({ text: '' })
+
+  const emailVerified = verifiedEmail !== '' && verifiedEmail === email.trim()
+
+  function resetEmailVerification() {
+    setCodeSent(false)
+    setCode('')
+    setVerifiedEmail('')
+    setEmailCodeMsg({ text: '' })
+  }
+
+  async function sendVerificationCode() {
+    if (!validateEmail()) return
+    setSendingCode(true)
+    setEmailCodeMsg({ text: '' })
+    try {
+      const res = await fetch('/api/auth/email-verifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        setEmailCodeMsg({ text: data?.message ?? '인증 코드 발송에 실패했습니다.', kind: 'err' })
+        return
+      }
+      setVerifiedEmail('')
+      setCode('')
+      setCodeSent(true)
+      setEmailCodeMsg({ text: '인증 코드를 발송했어요. 이메일을 확인해주세요.', kind: 'ok' })
+    } catch {
+      setEmailCodeMsg({ text: '서버에 연결할 수 없습니다.', kind: 'err' })
+    } finally {
+      setSendingCode(false)
+    }
+  }
+
+  async function verifyCode() {
+    if (!code.trim()) { setEmailCodeMsg({ text: '인증 코드를 입력하세요.', kind: 'err' }); return }
+    setVerifyingCode(true)
+    try {
+      const res = await fetch('/api/auth/email-verifications/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), code: code.trim() }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        setEmailCodeMsg({ text: data?.message ?? '인증에 실패했습니다.', kind: 'err' })
+        return
+      }
+      setVerifiedEmail(email.trim())
+      setEmailCodeMsg({ text: '이메일 인증이 완료되었어요.', kind: 'ok' })
+    } catch {
+      setEmailCodeMsg({ text: '서버에 연결할 수 없습니다.', kind: 'err' })
+    } finally {
+      setVerifyingCode(false)
+    }
+  }
 
   function validateEmail() {
     const v = email.trim()
@@ -36,6 +104,12 @@ export default function SignupPage() {
     return true
   }
 
+  function validatePasswordConfirm() {
+    if (passwordConfirm !== password) { setPasswordConfirmHint({ text: '비밀번호가 일치하지 않습니다.', kind: 'err' }); return false }
+    setPasswordConfirmHint({ text: '비밀번호가 일치합니다.', kind: 'ok' })
+    return true
+  }
+
   function validateNickname() {
     const v = nickname.trim()
     if (v.length < 2 || v.length > 20) { setNicknameHint({ text: '닉네임은 2~20자로 입력하세요.', kind: 'err' }); return false }
@@ -46,8 +120,9 @@ export default function SignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setFormMsg(null)
-    const valid = [validateEmail(), validatePassword(), validateNickname()].every(Boolean)
+    const valid = [validateEmail(), validatePassword(), validatePasswordConfirm(), validateNickname()].every(Boolean)
     if (!valid) { setFormMsg({ text: '입력값을 다시 확인해주세요.', type: 'error' }); return }
+    if (!emailVerified) { setFormMsg({ text: '이메일 인증을 먼저 완료해주세요.', type: 'error' }); return }
 
     setSubmitting(true)
     try {
@@ -105,17 +180,51 @@ export default function SignupPage() {
         <form onSubmit={handleSubmit} className={styles.formCol} noValidate>
           <div className={styles.field}>
             <label htmlFor="email">이메일<span className={styles.req}>*</span></label>
-            <input
-              type="email"
-              id="email"
-              placeholder="example@email.com"
-              autoComplete="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              onBlur={validateEmail}
-              aria-invalid={emailHint.kind === 'err' ? 'true' : 'false'}
-            />
+            <div className={styles.inlineRow}>
+              <input
+                type="email"
+                id="email"
+                placeholder="example@email.com"
+                autoComplete="email"
+                value={email}
+                onChange={e => { setEmail(e.target.value); resetEmailVerification() }}
+                onBlur={validateEmail}
+                aria-invalid={emailHint.kind === 'err' ? 'true' : 'false'}
+                disabled={emailVerified}
+              />
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={sendVerificationCode}
+                disabled={sendingCode || emailVerified || !email.trim()}
+              >
+                {emailVerified ? '인증 완료' : sendingCode ? '발송 중...' : codeSent ? '재발송' : '인증번호 발송'}
+              </button>
+            </div>
             <div className={hintClass(emailHint.kind)}>{emailHint.text}</div>
+
+            {codeSent && !emailVerified && (
+              <div className={`${styles.inlineRow} ${styles.codeRow}`}>
+                <input
+                  type="text"
+                  placeholder="인증번호를 입력하세요"
+                  value={code}
+                  onChange={e => setCode(e.target.value)}
+                  maxLength={6}
+                />
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={verifyCode}
+                  disabled={verifyingCode || !code.trim()}
+                >
+                  {verifyingCode ? '확인 중...' : '인증 확인'}
+                </button>
+              </div>
+            )}
+            {emailCodeMsg.text && (
+              <div className={hintClass(emailCodeMsg.kind)}>{emailCodeMsg.text}</div>
+            )}
           </div>
 
           <div className={styles.field}>
@@ -134,6 +243,21 @@ export default function SignupPage() {
           </div>
 
           <div className={styles.field}>
+            <label htmlFor="passwordConfirm">비밀번호 확인<span className={styles.req}>*</span></label>
+            <input
+              type="password"
+              id="passwordConfirm"
+              placeholder="비밀번호를 한 번 더 입력하세요"
+              autoComplete="new-password"
+              value={passwordConfirm}
+              onChange={e => setPasswordConfirm(e.target.value)}
+              onBlur={validatePasswordConfirm}
+              aria-invalid={passwordConfirmHint.kind === 'err' ? 'true' : 'false'}
+            />
+            <div className={hintClass(passwordConfirmHint.kind)}>{passwordConfirmHint.text}</div>
+          </div>
+
+          <div className={styles.field}>
             <label htmlFor="nickname">닉네임<span className={styles.req}>*</span></label>
             <input
               type="text"
@@ -149,8 +273,8 @@ export default function SignupPage() {
             <div className={hintClass(nicknameHint.kind)}>{nicknameHint.text}</div>
           </div>
 
-          <button type="submit" className="btn block" disabled={submitting}>
-            {submitting ? '가입 처리 중...' : '가입하기'}
+          <button type="submit" className="btn block" disabled={submitting || !emailVerified}>
+            {submitting ? '가입 처리 중...' : emailVerified ? '가입하기' : '이메일 인증을 완료해주세요'}
           </button>
         </form>
 
