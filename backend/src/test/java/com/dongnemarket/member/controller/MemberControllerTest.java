@@ -4,6 +4,7 @@ import com.dongnemarket.auth.entity.EmailVerification;
 import com.dongnemarket.auth.repository.EmailVerificationRepository;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -169,6 +170,137 @@ class MemberControllerTest {
 						.content("{\"nickname\":\"x\"}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
+	}
+
+	// ===== PATCH /api/members/me/password =====
+
+	@Test
+	@DisplayName("현재 비밀번호가 맞고 새 비밀번호가 다르면 200을 반환한다")
+	void changePassword_success() throws Exception {
+		String token = getAccessToken("pwchange@example.com", "password123!", "pwChangeUser");
+
+		mockMvc.perform(patch("/api/members/me/password")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"currentPassword\":\"password123!\",\"newPassword\":\"newPassword123!\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value(200));
+	}
+
+	@Test
+	@DisplayName("변경된 비밀번호로 다시 로그인할 수 있다")
+	void changePassword_thenLoginWithNewPassword_succeeds() throws Exception {
+		String token = getAccessToken("pwchange-login@example.com", "password123!", "pwChangeLoginUser");
+		mockMvc.perform(patch("/api/members/me/password")
+				.header("Authorization", "Bearer " + token)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"currentPassword\":\"password123!\",\"newPassword\":\"newPassword123!\"}"));
+
+		mockMvc.perform(post("/api/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"email\":\"pwchange-login@example.com\",\"password\":\"newPassword123!\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.accessToken").exists());
+	}
+
+	@Test
+	@DisplayName("비밀번호 변경에 성공하면 기존 Refresh Token이 삭제되어 재발급이 REFRESH_TOKEN_NOT_FOUND로 실패한다")
+	void changePassword_success_invalidatesExistingRefreshToken() throws Exception {
+		String signup = "{ \"email\": \"pwchange-token@example.com\", \"password\": \"password123!\", \"nickname\": \"pwChangeToken\" }";
+		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup));
+
+		String login = "{ \"email\": \"pwchange-token@example.com\", \"password\": \"password123!\" }";
+		MvcResult loginResult = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
+				.andReturn();
+		String accessToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
+				.path("data").path("accessToken").asText();
+		Cookie refreshTokenCookie = loginResult.getResponse().getCookie("refreshToken");
+
+		mockMvc.perform(patch("/api/members/me/password")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"currentPassword\":\"password123!\",\"newPassword\":\"newPassword123!\"}"));
+
+		mockMvc.perform(post("/api/auth/reissue").cookie(new Cookie("refreshToken", refreshTokenCookie.getValue())))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("REFRESH_TOKEN_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("현재 비밀번호가 틀리면 401과 INVALID_PASSWORD를 반환한다")
+	void changePassword_wrongCurrentPassword_returns401() throws Exception {
+		String token = getAccessToken("pwchange-wrong@example.com", "password123!", "pwChangeWrong");
+
+		mockMvc.perform(patch("/api/members/me/password")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"currentPassword\":\"wrongPassword123!\",\"newPassword\":\"newPassword123!\"}"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("INVALID_PASSWORD"));
+	}
+
+	@Test
+	@DisplayName("새 비밀번호가 현재 비밀번호와 같으면 400과 SAME_AS_OLD_PASSWORD를 반환한다")
+	void changePassword_sameAsOldPassword_returns400() throws Exception {
+		String token = getAccessToken("pwchange-same@example.com", "password123!", "pwChangeSame");
+
+		mockMvc.perform(patch("/api/members/me/password")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"currentPassword\":\"password123!\",\"newPassword\":\"password123!\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("SAME_AS_OLD_PASSWORD"));
+	}
+
+	@Test
+	@DisplayName("새 비밀번호가 정책에 맞지 않으면 400과 INVALID_INPUT_VALUE를 반환한다")
+	void changePassword_invalidNewPasswordFormat_returns400() throws Exception {
+		String token = getAccessToken("pwchange-format@example.com", "password123!", "pwChangeFormat");
+
+		mockMvc.perform(patch("/api/members/me/password")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"currentPassword\":\"password123!\",\"newPassword\":\"nospecialchar123\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
+	}
+
+	@Test
+	@DisplayName("토큰 없이 PATCH /api/members/me/password 요청하면 401을 반환한다")
+	void changePassword_noToken_returns401() throws Exception {
+		mockMvc.perform(patch("/api/members/me/password")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"currentPassword\":\"password123!\",\"newPassword\":\"newPassword123!\"}"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
+	}
+
+	@Test
+	@DisplayName("탈퇴한 회원 토큰으로 비밀번호를 변경하면 400과 DELETED_MEMBER를 반환한다")
+	void changePassword_deletedMember_returns400() throws Exception {
+		String token = getAccessToken("pwchange-deleted@example.com", "password123!", "pwChangeDeleted");
+		jdbcTemplate.update("UPDATE members SET status = 'DELETED' WHERE email = ?", "pwchange-deleted@example.com");
+
+		mockMvc.perform(patch("/api/members/me/password")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"currentPassword\":\"password123!\",\"newPassword\":\"newPassword123!\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("DELETED_MEMBER"));
+	}
+
+	@Test
+	@DisplayName("정지된 회원 토큰으로 비밀번호를 변경하면 403과 SUSPENDED_MEMBER를 반환한다")
+	void changePassword_suspendedMember_returns403() throws Exception {
+		String token = getAccessToken("pwchange-suspended@example.com", "password123!", "pwChangeSuspended");
+		jdbcTemplate.update("UPDATE members SET status = 'SUSPENDED' WHERE email = ?", "pwchange-suspended@example.com");
+
+		mockMvc.perform(patch("/api/members/me/password")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"currentPassword\":\"password123!\",\"newPassword\":\"newPassword123!\"}"))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.error").value("SUSPENDED_MEMBER"));
 	}
 
 	// ===== DELETE /api/members/me =====

@@ -3,6 +3,7 @@ package com.dongnemarket.member.controller;
 import com.dongnemarket.global.response.ApiResponse;
 import com.dongnemarket.member.dto.MemberResponse;
 import com.dongnemarket.member.dto.MemberUpdateRequest;
+import com.dongnemarket.member.dto.PasswordChangeRequest;
 import com.dongnemarket.member.service.MemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,6 +42,15 @@ public class MemberController {
 			@Valid @RequestBody MemberUpdateRequest request) {
 		MemberResponse response = memberService.updateMyInfo(memberId, request);
 		return ResponseEntity.ok(ApiResponse.success(response));
+	}
+
+	@Operation(summary = "비밀번호 변경", description = "현재 로그인한 사용자의 비밀번호를 변경한다. 변경 성공 시 저장된 Refresh Token이 삭제되어 재로그인이 필요하다.")
+	@PatchMapping("/me/password")
+	public ResponseEntity<ApiResponse<Void>> changePassword(
+			@AuthenticationPrincipal Long memberId,
+			@Valid @RequestBody PasswordChangeRequest request) {
+		memberService.changePassword(memberId, request);
+		return ResponseEntity.ok(ApiResponse.success());
 	}
 
 	@Operation(summary = "회원 탈퇴", description = "현재 로그인한 사용자의 계정을 탈퇴 처리한다.")

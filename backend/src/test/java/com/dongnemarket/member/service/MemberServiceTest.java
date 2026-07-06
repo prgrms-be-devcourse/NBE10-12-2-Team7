@@ -1,9 +1,11 @@
 package com.dongnemarket.member.service;
 
+import com.dongnemarket.auth.service.RefreshTokenService;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.dto.MemberResponse;
 import com.dongnemarket.member.dto.MemberUpdateRequest;
+import com.dongnemarket.member.dto.PasswordChangeRequest;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.member.repository.MemberRepository;
@@ -13,18 +15,28 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class MemberServiceTest {
 
 	@Mock
 	MemberRepository memberRepository;
+
+	@Mock
+	PasswordEncoder passwordEncoder;
+
+	@Mock
+	RefreshTokenService refreshTokenService;
 
 	@InjectMocks
 	MemberService memberService;
@@ -139,6 +151,92 @@ class MemberServiceTest {
 		given(memberRepository.findById(1L)).willReturn(Optional.of(suspendedMember));
 
 		assertThatThrownBy(() -> memberService.updateMyInfo(1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.SUSPENDED_MEMBER);
+	}
+
+	// ===== changePassword =====
+
+	@Test
+	@DisplayName("현재 비밀번호가 일치하고 새 비밀번호가 다르면 비밀번호를 변경하고 Refresh Token을 삭제한다")
+	void changePassword_success() {
+		Member member = Member.createUser("test@example.com", "encoded-old", "tester");
+		PasswordChangeRequest request = new PasswordChangeRequest("oldPassword123!", "newPassword123!");
+		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+		given(passwordEncoder.matches("oldPassword123!", "encoded-old")).willReturn(true);
+		given(passwordEncoder.matches("newPassword123!", "encoded-old")).willReturn(false);
+		given(passwordEncoder.encode("newPassword123!")).willReturn("encoded-new");
+
+		memberService.changePassword(1L, request);
+
+		assertThat(member.getPassword()).isEqualTo("encoded-new");
+		verify(refreshTokenService).deleteByMemberId(1L);
+	}
+
+	@Test
+	@DisplayName("현재 비밀번호가 일치하지 않으면 INVALID_PASSWORD 예외가 발생하고 변경/삭제하지 않는다")
+	void changePassword_wrongCurrentPassword_throwsException() {
+		Member member = Member.createUser("test@example.com", "encoded-old", "tester");
+		PasswordChangeRequest request = new PasswordChangeRequest("wrongPassword123!", "newPassword123!");
+		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+		given(passwordEncoder.matches("wrongPassword123!", "encoded-old")).willReturn(false);
+
+		assertThatThrownBy(() -> memberService.changePassword(1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_PASSWORD);
+
+		assertThat(member.getPassword()).isEqualTo("encoded-old");
+		verify(refreshTokenService, never()).deleteByMemberId(anyLong());
+	}
+
+	@Test
+	@DisplayName("새 비밀번호가 현재 비밀번호와 같으면 SAME_AS_OLD_PASSWORD 예외가 발생한다")
+	void changePassword_sameAsOldPassword_throwsException() {
+		Member member = Member.createUser("test@example.com", "encoded-old", "tester");
+		PasswordChangeRequest request = new PasswordChangeRequest("oldPassword123!", "oldPassword123!");
+		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+		given(passwordEncoder.matches("oldPassword123!", "encoded-old")).willReturn(true);
+
+		assertThatThrownBy(() -> memberService.changePassword(1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.SAME_AS_OLD_PASSWORD);
+
+		verify(refreshTokenService, never()).deleteByMemberId(anyLong());
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 memberId로 비밀번호를 변경하면 MEMBER_NOT_FOUND 예외가 발생한다")
+	void changePassword_memberNotFound_throwsException() {
+		PasswordChangeRequest request = new PasswordChangeRequest("oldPassword123!", "newPassword123!");
+		given(memberRepository.findById(999L)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> memberService.changePassword(999L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("탈퇴 회원이 비밀번호를 변경하면 DELETED_MEMBER 예외가 발생한다")
+	void changePassword_deletedMember_throwsException() {
+		Member member = Member.createUser("test@example.com", "encoded-old", "nick");
+		member.softDelete();
+		PasswordChangeRequest request = new PasswordChangeRequest("oldPassword123!", "newPassword123!");
+		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+
+		assertThatThrownBy(() -> memberService.changePassword(1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DELETED_MEMBER);
+	}
+
+	@Test
+	@DisplayName("정지 회원이 비밀번호를 변경하면 SUSPENDED_MEMBER 예외가 발생한다")
+	void changePassword_suspendedMember_throwsException() {
+		Member suspendedMember = Member.createUser("test@example.com", "encoded-old", "nick");
+		suspendedMember.changeStatus(MemberStatus.SUSPENDED);
+		PasswordChangeRequest request = new PasswordChangeRequest("oldPassword123!", "newPassword123!");
+		given(memberRepository.findById(1L)).willReturn(Optional.of(suspendedMember));
+
+		assertThatThrownBy(() -> memberService.changePassword(1L, request))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.SUSPENDED_MEMBER);
 	}
