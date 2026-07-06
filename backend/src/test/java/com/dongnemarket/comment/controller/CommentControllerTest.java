@@ -9,6 +9,7 @@ import com.dongnemarket.comment.repository.CommentRepository;
 import com.dongnemarket.global.security.jwt.JwtTokenProvider;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
+import com.dongnemarket.notification.repository.NotificationRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -61,6 +62,9 @@ class CommentControllerTest {
     @Autowired
     CommentRepository commentRepository;
 
+    @Autowired
+    NotificationRepository notificationRepository;
+
     private Long productId;
     private Long categoryId;
     private String token;
@@ -84,6 +88,8 @@ class CommentControllerTest {
 
     @AfterEach
     void cleanUp() {
+        // 댓글 작성은 상품 소유자에게 알림을 남기므로(AFTER_COMMIT), member 삭제 전에 알림부터 정리한다(FK).
+        notificationRepository.deleteAll();
         commentRepository.deleteAll();
         productRepository.deleteAll();
         memberRepository.deleteAll();
