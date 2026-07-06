@@ -114,13 +114,16 @@ export default function LoginPage() {
           </div>
 
           <div className={styles.autoLoginRow}>
-            <input
-              type="checkbox"
-              id="autoLogin"
-              checked={autoLogin}
-              onChange={e => setAutoLogin(e.target.checked)}
-            />
-            <label htmlFor="autoLogin">자동 로그인</label>
+            <div className={styles.autoLoginCheck}>
+              <input
+                type="checkbox"
+                id="autoLogin"
+                checked={autoLogin}
+                onChange={e => setAutoLogin(e.target.checked)}
+              />
+              <label htmlFor="autoLogin">자동 로그인</label>
+            </div>
+            <Link href="/find-password" className={styles.forgotLink}>비밀번호 찾기</Link>
           </div>
 
           <button type="submit" className="btn block" disabled={submitting}>
