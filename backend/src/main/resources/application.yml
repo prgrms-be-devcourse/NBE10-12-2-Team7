@@ -6,10 +6,13 @@ spring:
   profiles:
     default: dev
 
-  # 호스트에서 ./gradlew bootRun(작업 디렉터리 = backend/)으로 실행할 때 repo root의 .env(gitignore, KEY=VALUE)를
-  # 프로퍼티 소스로 읽는다. 파일이 없어도(도커 컨테이너 등 실제 OS 환경변수로 주입되는 경우) optional이라 실패하지 않는다.
+  # repo root의 .env(gitignore, KEY=VALUE)를 프로퍼티 소스로 읽는다. JVM 작업 디렉터리가
+  # backend/(./gradlew bootRun 기본값)인지 repo root(IntelliJ 실행 설정에 따라 다름)인지 확정할 수 없어
+  # 두 경로를 모두 optional로 시도한다 — 둘 다 없어도(도커 컨테이너 등 실제 OS 환경변수 주입) 실패하지 않는다.
   config:
-    import: "optional:file:../.env[.properties]"
+    import:
+      - "optional:file:../.env[.properties]"
+      - "optional:file:.env[.properties]"
 
   # DB 접속정보는 환경변수 주입. 기본값(fallback)은 로컬 MySQL = dev 편의.
   datasource:
