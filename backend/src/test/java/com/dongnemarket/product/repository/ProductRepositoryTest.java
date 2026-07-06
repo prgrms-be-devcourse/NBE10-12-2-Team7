@@ -481,10 +481,10 @@ class ProductRepositoryTest {
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
-		List<Product> products = productRepository.findAll(
-				ProductSpecification.list(null),
-				Sort.by(Sort.Direction.DESC, "id")
-		);
+			List<Product> products = productRepository.findAll(
+					ProductSpecification.list(null, null),
+					Sort.by(Sort.Direction.DESC, "id")
+			);
 
 		assertThat(products).containsExactly(newProduct, oldProduct);
 		assertThat(products).doesNotContain(hiddenProduct, deletedProduct);
@@ -512,10 +512,10 @@ class ProductRepositoryTest {
 				"서울 마포구"
 		));
 
-		List<Product> products = productRepository.findAll(
-				ProductSpecification.list(List.of("서울 강남구")),
-				Sort.by(Sort.Direction.DESC, "id")
-		);
+			List<Product> products = productRepository.findAll(
+					ProductSpecification.list(List.of("서울 강남구"), null),
+					Sort.by(Sort.Direction.DESC, "id")
+			);
 
 		assertThat(products).containsExactly(gangnamProduct);
 		assertThat(products).doesNotContain(mapoProduct);
@@ -551,10 +551,10 @@ class ProductRepositoryTest {
 				"서울 송파구"
 		));
 
-		List<Product> products = productRepository.findAll(
-				ProductSpecification.list(List.of("서울 강남구", "서울 마포구")),
-				Sort.by(Sort.Direction.DESC, "id")
-		);
+			List<Product> products = productRepository.findAll(
+					ProductSpecification.list(List.of("서울 강남구", "서울 마포구"), null),
+					Sort.by(Sort.Direction.DESC, "id")
+			);
 
 		assertThat(products).containsExactly(mapoProduct, gangnamProduct);
 		assertThat(products).doesNotContain(otherProduct);
@@ -574,13 +574,99 @@ class ProductRepositoryTest {
 				"서울 강남구"
 		));
 
-		List<Product> products = productRepository.findAll(
-				ProductSpecification.list(List.of("서울 없는구")),
-				Sort.by(Sort.Direction.DESC, "id")
-		);
+			List<Product> products = productRepository.findAll(
+					ProductSpecification.list(List.of("서울 없는구"), null),
+					Sort.by(Sort.Direction.DESC, "id")
+			);
 
-		assertThat(products).isEmpty();
-	}
+			assertThat(products).isEmpty();
+		}
+
+		@Test
+		@DisplayName("상품 목록 조건은 커서가 있으면 커서보다 작은 id의 상품만 조회한다")
+		void findsProductsBeforeCursor() {
+			Member member = memberRepository.save(Member.createUser("cursor-repository@example.com", "encodedPassword", "판매자"));
+			Category category = categoryRepository.save(new Category("커서필터"));
+			Product oldProduct = productRepository.save(Product.create(
+					member,
+					category,
+					"오래된 상품",
+					"오래된 상품 설명",
+					BigDecimal.valueOf(10000),
+					"서울 강남구"
+			));
+			Product cursorProduct = productRepository.save(Product.create(
+					member,
+					category,
+					"커서 상품",
+					"커서 상품 설명",
+					BigDecimal.valueOf(20000),
+					"서울 강남구"
+			));
+			Product newProduct = productRepository.saveAndFlush(Product.create(
+					member,
+					category,
+					"최신 상품",
+					"최신 상품 설명",
+					BigDecimal.valueOf(30000),
+					"서울 강남구"
+			));
+
+			List<Product> products = productRepository.findAll(
+					ProductSpecification.list(null, cursorProduct.getId()),
+					Sort.by(Sort.Direction.DESC, "id")
+			);
+
+			assertThat(products).containsExactly(oldProduct);
+			assertThat(products).doesNotContain(cursorProduct, newProduct);
+		}
+
+		@Test
+		@DisplayName("상품 목록 조건은 지역 필터와 커서 조건을 함께 적용한다")
+		void findsProductsByRegionsAndCursor() {
+			Member member = memberRepository.save(Member.createUser("cursor-region-repository@example.com", "encodedPassword", "판매자"));
+			Category category = categoryRepository.save(new Category("커서지역필터"));
+			Product gangnamOldProduct = productRepository.save(Product.create(
+					member,
+					category,
+					"강남 오래된 상품",
+					"강남 오래된 상품 설명",
+					BigDecimal.valueOf(10000),
+					"서울 강남구"
+			));
+			Product mapoProduct = productRepository.save(Product.create(
+					member,
+					category,
+					"마포 상품",
+					"마포 상품 설명",
+					BigDecimal.valueOf(20000),
+					"서울 마포구"
+			));
+			Product gangnamCursorProduct = productRepository.save(Product.create(
+					member,
+					category,
+					"강남 커서 상품",
+					"강남 커서 상품 설명",
+					BigDecimal.valueOf(30000),
+					"서울 강남구"
+			));
+			Product gangnamNewProduct = productRepository.saveAndFlush(Product.create(
+					member,
+					category,
+					"강남 최신 상품",
+					"강남 최신 상품 설명",
+					BigDecimal.valueOf(40000),
+					"서울 강남구"
+			));
+
+			List<Product> products = productRepository.findAll(
+					ProductSpecification.list(List.of("서울 강남구"), gangnamCursorProduct.getId()),
+					Sort.by(Sort.Direction.DESC, "id")
+			);
+
+			assertThat(products).containsExactly(gangnamOldProduct);
+			assertThat(products).doesNotContain(mapoProduct, gangnamCursorProduct, gangnamNewProduct);
+		}
 
 	@Test
 	@DisplayName("상품 검색 조건은 키워드와 지역 필터를 함께 적용한다")

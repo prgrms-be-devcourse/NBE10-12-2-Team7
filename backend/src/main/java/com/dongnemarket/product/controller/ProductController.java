@@ -2,6 +2,7 @@ package com.dongnemarket.product.controller;
 
 import com.dongnemarket.global.response.ApiResponse;
 import com.dongnemarket.product.dto.ProductCreateRequest;
+import com.dongnemarket.product.dto.ProductPageResponse;
 import com.dongnemarket.product.dto.ProductResponse;
 import com.dongnemarket.product.dto.ProductSearchRequest;
 import com.dongnemarket.product.dto.ProductStatusUpdateRequest;
@@ -50,9 +51,11 @@ public class ProductController {
 
 	@Operation(summary = "상품 목록 조회", description = "삭제되거나 숨김 처리되지 않은 상품 목록을 최신 등록순으로 조회합니다.")
 	@GetMapping
-	public ApiResponse<List<ProductSummaryResponse>> getProducts(
-			@RequestParam(required = false) List<String> regions) {
-		return ApiResponse.success(productService.getProducts(regions));
+	public ApiResponse<ProductPageResponse> getProducts(
+			@RequestParam(required = false) List<String> regions,
+			@RequestParam(required = false) Long cursor,
+			@RequestParam(defaultValue = "30") int size) {
+		return ApiResponse.success(productService.getProducts(regions, cursor, size));
 	}
 
 	@Operation(summary = "상품 검색", description = "상품을 키워드, 카테고리, 가격 범위, 거래 상태로 검색합니다.")

@@ -271,24 +271,26 @@ class ProductControllerTest {
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
-		mockMvc.perform(get("/api/products"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.status").value(200))
-				.andExpect(jsonPath("$.data.length()").value(2))
-				.andExpect(jsonPath("$.data[0].productId").value(newProduct.getId()))
-				.andExpect(jsonPath("$.data[0].title").value("최신 상품"))
-				.andExpect(jsonPath("$.data[0].description").doesNotExist())
-				.andExpect(jsonPath("$.data[0].price").value(20000))
-				.andExpect(jsonPath("$.data[0].tradeStatus").value("ON_SALE"))
-				.andExpect(jsonPath("$.data[0].region").value("서울 서초구"))
-				.andExpect(jsonPath("$.data[0].viewCount").value(0))
-				.andExpect(jsonPath("$.data[0].hidden").value(false))
-				.andExpect(jsonPath("$.data[1].productId").value(oldProduct.getId()))
-				.andExpect(jsonPath("$.data[1].title").value("오래된 상품"));
-	}
+			mockMvc.perform(get("/api/products"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.status").value(200))
+					.andExpect(jsonPath("$.data.items.length()").value(2))
+					.andExpect(jsonPath("$.data.items[0].productId").value(newProduct.getId()))
+					.andExpect(jsonPath("$.data.items[0].title").value("최신 상품"))
+					.andExpect(jsonPath("$.data.items[0].description").doesNotExist())
+					.andExpect(jsonPath("$.data.items[0].price").value(20000))
+					.andExpect(jsonPath("$.data.items[0].tradeStatus").value("ON_SALE"))
+					.andExpect(jsonPath("$.data.items[0].region").value("서울 서초구"))
+					.andExpect(jsonPath("$.data.items[0].viewCount").value(0))
+					.andExpect(jsonPath("$.data.items[0].hidden").value(false))
+					.andExpect(jsonPath("$.data.items[1].productId").value(oldProduct.getId()))
+					.andExpect(jsonPath("$.data.items[1].title").value("오래된 상품"))
+					.andExpect(jsonPath("$.data.hasNext").value(false))
+					.andExpect(jsonPath("$.data.nextCursor").doesNotExist());
+		}
 
-	@Test
-	@DisplayName("상품 목록은 지역 2개로 필터링해 최신 등록순으로 조회한다")
+		@Test
+		@DisplayName("상품 목록은 지역 2개로 필터링해 최신 등록순으로 조회한다")
 	void getsProductsFilteredByTwoRegions() throws Exception {
 		Member member = memberRepository.save(Member.createUser("region-list-controller@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리지역목록"));
@@ -317,13 +319,162 @@ class ProductControllerTest {
 				"서울 송파구"
 		));
 
-		mockMvc.perform(get("/api/products")
-						.param("regions", "서울 강남구", "서울 마포구"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.length()").value(2))
-				.andExpect(jsonPath("$.data[0].productId").value(mapoProduct.getId()))
-				.andExpect(jsonPath("$.data[1].productId").value(gangnamProduct.getId()));
-	}
+			mockMvc.perform(get("/api/products")
+							.param("regions", "서울 강남구", "서울 마포구"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.data.items.length()").value(2))
+					.andExpect(jsonPath("$.data.items[0].productId").value(mapoProduct.getId()))
+					.andExpect(jsonPath("$.data.items[1].productId").value(gangnamProduct.getId()))
+					.andExpect(jsonPath("$.data.hasNext").value(false))
+					.andExpect(jsonPath("$.data.nextCursor").doesNotExist());
+		}
+
+		@Test
+		@DisplayName("상품 목록은 커서로 다음 페이지를 이어 조회한다")
+		void getsProductsWithCursorPagination() throws Exception {
+			Member member = memberRepository.save(Member.createUser("cursor-list-controller@example.com", "encodedPassword", "판매자"));
+			Category category = categoryRepository.save(new Category("테스트카테고리커서목록"));
+			Product firstProduct = productRepository.save(Product.create(
+					member,
+					category,
+					"첫번째 상품",
+					"첫번째 상품 설명",
+					BigDecimal.valueOf(10000),
+					"서울 강남구"
+			));
+			Product secondProduct = productRepository.save(Product.create(
+					member,
+					category,
+					"두번째 상품",
+					"두번째 상품 설명",
+					BigDecimal.valueOf(20000),
+					"서울 강남구"
+			));
+			Product thirdProduct = productRepository.saveAndFlush(Product.create(
+					member,
+					category,
+					"세번째 상품",
+					"세번째 상품 설명",
+					BigDecimal.valueOf(30000),
+					"서울 강남구"
+			));
+
+			mockMvc.perform(get("/api/products")
+							.param("size", "2"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.data.items.length()").value(2))
+					.andExpect(jsonPath("$.data.items[0].productId").value(thirdProduct.getId()))
+					.andExpect(jsonPath("$.data.items[1].productId").value(secondProduct.getId()))
+					.andExpect(jsonPath("$.data.hasNext").value(true))
+					.andExpect(jsonPath("$.data.nextCursor").value(secondProduct.getId()));
+
+			mockMvc.perform(get("/api/products")
+							.param("size", "2")
+							.param("cursor", String.valueOf(secondProduct.getId())))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.data.items.length()").value(1))
+					.andExpect(jsonPath("$.data.items[0].productId").value(firstProduct.getId()))
+					.andExpect(jsonPath("$.data.hasNext").value(false))
+					.andExpect(jsonPath("$.data.nextCursor").doesNotExist());
+		}
+
+		@Test
+		@DisplayName("상품 목록은 지역 필터와 커서를 함께 적용한다")
+		void getsProductsWithRegionsAndCursor() throws Exception {
+			Member member = memberRepository.save(Member.createUser("cursor-region-list-controller@example.com", "encodedPassword", "판매자"));
+			Category category = categoryRepository.save(new Category("테스트카테고리커서지역목록"));
+			Product gangnamOldProduct = productRepository.save(Product.create(
+					member,
+					category,
+					"강남 오래된 상품",
+					"강남 오래된 상품 설명",
+					BigDecimal.valueOf(10000),
+					"서울 강남구"
+			));
+			Product mapoProduct = productRepository.save(Product.create(
+					member,
+					category,
+					"마포 상품",
+					"마포 상품 설명",
+					BigDecimal.valueOf(20000),
+					"서울 마포구"
+			));
+			productRepository.save(Product.create(
+					member,
+					category,
+					"송파 상품",
+					"송파 상품 설명",
+					BigDecimal.valueOf(30000),
+					"서울 송파구"
+			));
+			Product gangnamNewProduct = productRepository.saveAndFlush(Product.create(
+					member,
+					category,
+					"강남 최신 상품",
+					"강남 최신 상품 설명",
+					BigDecimal.valueOf(40000),
+					"서울 강남구"
+			));
+
+			mockMvc.perform(get("/api/products")
+							.param("regions", "서울 강남구")
+							.param("cursor", String.valueOf(gangnamNewProduct.getId()))
+							.param("size", "2"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.data.items.length()").value(1))
+					.andExpect(jsonPath("$.data.items[0].productId").value(gangnamOldProduct.getId()))
+					.andExpect(jsonPath("$.data.hasNext").value(false))
+					.andExpect(jsonPath("$.data.nextCursor").doesNotExist())
+					.andExpect(jsonPath("$.data.items[?(@.productId == " + mapoProduct.getId() + ")]").isEmpty());
+		}
+
+		@Test
+		@DisplayName("상품 목록 size가 0 이하이면 기본 크기로 조회한다")
+		void getsProductsWithDefaultSizeWhenSizeIsNotPositive() throws Exception {
+			Member member = memberRepository.save(Member.createUser("cursor-default-size-controller@example.com", "encodedPassword", "판매자"));
+			Category category = categoryRepository.save(new Category("테스트카테고리기본크기"));
+			for (int i = 1; i <= 31; i++) {
+				productRepository.save(Product.create(
+						member,
+						category,
+						"상품 " + i,
+						"상품 설명 " + i,
+						BigDecimal.valueOf(i * 1000L),
+						"서울 강남구"
+				));
+			}
+			productRepository.flush();
+
+			mockMvc.perform(get("/api/products")
+							.param("size", "0"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.data.items.length()").value(30))
+					.andExpect(jsonPath("$.data.hasNext").value(true));
+		}
+
+		@Test
+		@DisplayName("상품 목록 size가 100보다 크면 최대 100개로 제한한다")
+		void getsProductsWithMaxSizeWhenSizeIsOverLimit() throws Exception {
+			Member member = memberRepository.save(Member.createUser("cursor-max-size-controller@example.com", "encodedPassword", "판매자"));
+			Category category = categoryRepository.save(new Category("테스트카테고리최대크기"));
+			for (int i = 1; i <= 101; i++) {
+				productRepository.save(Product.create(
+						member,
+						category,
+						"상품 " + i,
+						"상품 설명 " + i,
+						BigDecimal.valueOf(i * 1000L),
+						"서울 강남구"
+				));
+			}
+			productRepository.flush();
+
+			mockMvc.perform(get("/api/products")
+							.param("size", "101"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.data.items.length()").value(100))
+					.andExpect(jsonPath("$.data.hasNext").value(true));
+		}
 
 	@Test
 	@DisplayName("상품 목록 지역 필터가 3개이면 INVALID_INPUT_VALUE를 반환한다")
