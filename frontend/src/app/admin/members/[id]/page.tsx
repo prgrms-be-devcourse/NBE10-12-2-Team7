@@ -29,7 +29,7 @@ function statusTagCls(s: MemberStatus) {
 
 export default function AdminMemberDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const [status, setStatus] = useState<Status>('loading')
+  const [status, setStatus] = useState<Status>(() => (getAccessToken() ? 'loading' : 'error'))
   const [member, setMember] = useState<Member | null>(null)
   const [reportCount, setReportCount] = useState(0)
   const [selectVal, setSelectVal] = useState<MemberStatus>('ACTIVE')
@@ -47,7 +47,7 @@ export default function AdminMemberDetailPage() {
 
   useEffect(() => {
     const token = getAccessToken()
-    if (!token) { setStatus('error'); return }
+    if (!token) return
     const headers = { Authorization: `Bearer ${token}` }
 
     let cancelled = false

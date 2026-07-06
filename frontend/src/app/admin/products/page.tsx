@@ -31,7 +31,7 @@ function tradeTagCls(s: TradeStatus) {
 }
 
 export default function AdminProductsPage() {
-  const [status, setStatus] = useState<Status>('loading')
+  const [status, setStatus] = useState<Status>(() => (getAccessToken() ? 'loading' : 'error'))
   const [products, setProducts] = useState<Product[]>([])
   const [reportCounts, setReportCounts] = useState<Record<number, number>>({})
 
@@ -42,7 +42,7 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     const token = getAccessToken()
-    if (!token) { setStatus('error'); return }
+    if (!token) return
     const headers = { Authorization: `Bearer ${token}` }
 
     let cancelled = false

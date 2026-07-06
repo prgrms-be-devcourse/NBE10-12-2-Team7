@@ -140,6 +140,7 @@ export default function ProductsPage() {
   /* 상품 목록 — 활성 동네가 있으면 해당 지역으로 필터링해 조회 */
   useEffect(() => {
     let cancelled = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- activeRegion 변경 시 재조회 로딩 표시(커서 페이지네이션 도입 시 재검토 예정)
     setStatus('loading')
     const url = activeRegion ? `/api/products?regions=${encodeURIComponent(activeRegion)}` : '/api/products'
     fetch(url)

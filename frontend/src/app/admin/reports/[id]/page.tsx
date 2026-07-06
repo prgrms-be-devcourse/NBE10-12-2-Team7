@@ -34,7 +34,7 @@ function typeTagCls(t: ReportType) {
 
 export default function AdminReportDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const [status, setStatus] = useState<Status>('loading')
+  const [status, setStatus] = useState<Status>(() => (getAccessToken() ? 'loading' : 'error'))
   const [report, setReport] = useState<Report | null>(null)
   const [reporterName, setReporterName] = useState('')
   const [targetName, setTargetName] = useState('')
@@ -54,7 +54,7 @@ export default function AdminReportDetailPage() {
 
   useEffect(() => {
     const token = getAccessToken()
-    if (!token) { setStatus('error'); return }
+    if (!token) return
     const headers = { Authorization: `Bearer ${token}` }
 
     let cancelled = false

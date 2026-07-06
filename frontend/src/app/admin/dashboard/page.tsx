@@ -38,7 +38,7 @@ function reportTypeTagCls(t: ReportType) {
 }
 
 export default function AdminDashboardPage() {
-  const [status, setStatus] = useState<Status>('loading')
+  const [status, setStatus] = useState<Status>(() => (getAccessToken() ? 'loading' : 'error'))
   const [dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [recentMembers, setRecentMembers] = useState<MemberRow[]>([])
   const [recentProducts, setRecentProducts] = useState<ProductRow[]>([])
@@ -46,7 +46,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     const token = getAccessToken()
-    if (!token) { setStatus('error'); return }
+    if (!token) return
     const headers = { Authorization: `Bearer ${token}` }
 
     let cancelled = false
