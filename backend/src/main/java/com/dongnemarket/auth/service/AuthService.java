@@ -5,6 +5,7 @@ import com.dongnemarket.auth.dto.LoginResponse;
 import com.dongnemarket.auth.dto.SignupRequest;
 import com.dongnemarket.auth.dto.SignupResponse;
 import com.dongnemarket.auth.dto.TokenResponse;
+import com.dongnemarket.auth.repository.EmailVerificationRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.global.security.jwt.JwtTokenProvider;
@@ -24,19 +25,25 @@ public class AuthService {
 	private final PasswordEncoder passwordEncoder;
 	private final JwtTokenProvider jwtTokenProvider;
 	private final RefreshTokenService refreshTokenService;
+	private final EmailVerificationRepository emailVerificationRepository;
 
 	public AuthService(MemberRepository memberRepository, PasswordEncoder passwordEncoder,
-			JwtTokenProvider jwtTokenProvider, RefreshTokenService refreshTokenService) {
+			JwtTokenProvider jwtTokenProvider, RefreshTokenService refreshTokenService,
+			EmailVerificationRepository emailVerificationRepository) {
 		this.memberRepository = memberRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.jwtTokenProvider = jwtTokenProvider;
 		this.refreshTokenService = refreshTokenService;
+		this.emailVerificationRepository = emailVerificationRepository;
 	}
 
 	@Transactional
 	public SignupResponse signup(SignupRequest request) {
 		if (memberRepository.existsByEmail(request.getEmail())) {
 			throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
+		}
+		if (!emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())) {
+			throw new BusinessException(ErrorCode.EMAIL_NOT_VERIFIED);
 		}
 		if (memberRepository.existsByNickname(request.getNickname())) {
 			throw new BusinessException(ErrorCode.DUPLICATE_NICKNAME);

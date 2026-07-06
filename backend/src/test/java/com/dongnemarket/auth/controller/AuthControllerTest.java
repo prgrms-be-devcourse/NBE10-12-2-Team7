@@ -1,5 +1,7 @@
 package com.dongnemarket.auth.controller;
 
+import com.dongnemarket.auth.entity.EmailVerification;
+import com.dongnemarket.auth.repository.EmailVerificationRepository;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
@@ -13,6 +15,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -36,11 +40,15 @@ class AuthControllerTest {
 	MemberRepository memberRepository;
 
 	@Autowired
+	EmailVerificationRepository emailVerificationRepository;
+
+	@Autowired
 	ObjectMapper objectMapper;
 
 	@AfterEach
 	void cleanUp() {
 		memberRepository.deleteAll();
+		emailVerificationRepository.deleteAll();
 	}
 
 	private String extractRefreshTokenCookie(MvcResult result) {
@@ -48,9 +56,18 @@ class AuthControllerTest {
 		return cookie != null ? cookie.getValue() : null;
 	}
 
+	/** 회원가입은 이메일 인증 완료를 전제로 하므로, signup을 호출하는 테스트는 먼저 인증 완료 상태를 만들어둔다. */
+	private void verifyEmail(String email) {
+		EmailVerification verification = EmailVerification.issue(
+				email, "000000", LocalDateTime.now(), LocalDateTime.now().plusMinutes(5));
+		verification.verify(LocalDateTime.now());
+		emailVerificationRepository.save(verification);
+	}
+
 	@Test
 	@DisplayName("회원가입 성공 시 201과 회원 정보를 반환한다")
 	void signup_success() throws Exception {
+		verifyEmail("test@example.com");
 		String body = "{ \"email\": \"test@example.com\", \"password\": \"password123\", \"nickname\": \"tester\" }";
 
 		mockMvc.perform(post("/api/auth/signup")
@@ -66,6 +83,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("이메일이 중복되면 409와 DUPLICATE_EMAIL을 반환한다")
 	void signup_duplicateEmail() throws Exception {
+		verifyEmail("dup@example.com");
 		String first = "{ \"email\": \"dup@example.com\", \"password\": \"password123\", \"nickname\": \"first\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(first));
 
@@ -76,8 +94,20 @@ class AuthControllerTest {
 	}
 
 	@Test
+	@DisplayName("이메일 인증을 완료하지 않으면 400과 EMAIL_NOT_VERIFIED를 반환한다")
+	void signup_emailNotVerified() throws Exception {
+		String body = "{ \"email\": \"unverified@example.com\", \"password\": \"password123\", \"nickname\": \"unverifiedUser\" }";
+
+		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("EMAIL_NOT_VERIFIED"));
+	}
+
+	@Test
 	@DisplayName("닉네임이 중복되면 409와 DUPLICATE_NICKNAME을 반환한다")
 	void signup_duplicateNickname() throws Exception {
+		verifyEmail("a@example.com");
+		verifyEmail("b@example.com");
 		String first = "{ \"email\": \"a@example.com\", \"password\": \"password123\", \"nickname\": \"dupNick\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(first));
 
@@ -102,6 +132,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("올바른 이메일·비밀번호로 로그인하면 200과 accessToken을 반환하고, Refresh Token은 HttpOnly 쿠키로 내려간다")
 	void login_success() throws Exception {
+		verifyEmail("login@example.com");
 		String signup = "{ \"email\": \"login@example.com\", \"password\": \"password123\", \"nickname\": \"loginUser\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
@@ -120,6 +151,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("autoLogin=true로 로그인하면 Refresh Token 쿠키에 Max-Age(7일)가 설정된 영속 쿠키로 내려간다")
 	void login_autoLoginTrue_setsPersistentCookieWithMaxAge() throws Exception {
+		verifyEmail("autologin-true@example.com");
 		String signup = "{ \"email\": \"autologin-true@example.com\", \"password\": \"password123\", \"nickname\": \"autoLoginTrue\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
@@ -134,6 +166,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("autoLogin=false(또는 미지정)로 로그인하면 Refresh Token 쿠키가 Max-Age 없는 세션 쿠키로 내려간다")
 	void login_autoLoginFalse_setsSessionCookieWithoutMaxAge() throws Exception {
+		verifyEmail("autologin-false@example.com");
 		String signup = "{ \"email\": \"autologin-false@example.com\", \"password\": \"password123\", \"nickname\": \"autoLoginFalse\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
@@ -158,6 +191,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("비밀번호가 틀리면 401과 INVALID_PASSWORD를 반환한다")
 	void login_wrongPassword() throws Exception {
+		verifyEmail("pw@example.com");
 		String signup = "{ \"email\": \"pw@example.com\", \"password\": \"password123\", \"nickname\": \"pwUser\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
@@ -193,6 +227,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("유효한 Refresh Token 쿠키로 재발급하면 200과 새 accessToken을 반환한다")
 	void reissue_success() throws Exception {
+		verifyEmail("reissue@example.com");
 		String signup = "{ \"email\": \"reissue@example.com\", \"password\": \"password123\", \"nickname\": \"reissueUser\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
@@ -211,6 +246,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("Access Token을 쿠키에 담아 재발급을 시도하면 401과 INVALID_REFRESH_TOKEN을 반환한다")
 	void reissue_withAccessToken_returnsInvalidRefreshToken() throws Exception {
+		verifyEmail("reissue-access@example.com");
 		String signup = "{ \"email\": \"reissue-access@example.com\", \"password\": \"password123\", \"nickname\": \"reissueAccess\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
@@ -247,6 +283,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("로그인한 사용자가 로그아웃하면 200을 반환하고 Refresh Token 쿠키를 만료시킨다")
 	void logout_success() throws Exception {
+		verifyEmail("logout@example.com");
 		String signup = "{ \"email\": \"logout@example.com\", \"password\": \"password123\", \"nickname\": \"logoutUser\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
@@ -277,6 +314,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("로그아웃을 여러 번 호출해도 항상 200을 반환한다(멱등)")
 	void logout_calledTwice_bothReturn200() throws Exception {
+		verifyEmail("logout-twice@example.com");
 		String signup = "{ \"email\": \"logout-twice@example.com\", \"password\": \"password123\", \"nickname\": \"logoutTwice\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
@@ -296,6 +334,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("로그아웃 이후 기존 Refresh Token으로 재발급을 시도하면 401과 REFRESH_TOKEN_NOT_FOUND를 반환한다")
 	void logout_thenReissueWithOldRefreshToken_returns401RefreshTokenNotFound() throws Exception {
+		verifyEmail("logout-reissue@example.com");
 		String signup = "{ \"email\": \"logout-reissue@example.com\", \"password\": \"password123\", \"nickname\": \"logoutReissue\" }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());

@@ -4,6 +4,18 @@
 > 실제 `dongne-mysql` + 실제 Gmail SMTP에 연결된 서버(`./gradlew bootRun`)에 curl로 직접 요청해 확인했다(2026-07-06).
 > SMTP 자격증명은 `.env`(Git 미추적)로 로컬 셸에만 주입했고, 이 문서·커밋·테스트 코드 어디에도 실제 비밀번호 값은 남기지 않았다.
 
+## 회원가입과의 연결 (그룹 2-4)
+
+`POST /api/auth/signup`은 이제 `email`이 인증 완료(`verified=true`) 상태여야만 성공한다(순서: 이메일 중복 → 이메일 인증 여부 → 닉네임 중복). 전체 흐름:
+
+```
+1. POST /api/auth/email-verifications        { "email": "..." }        → 코드 발송
+2. POST /api/auth/email-verifications/confirm { "email": "...", "code": "..." } → 인증 완료
+3. POST /api/auth/signup                      { "email": "...", ... }  → 회원가입 성공
+```
+
+1~2단계를 건너뛰고 3단계만 호출하면 400 `EMAIL_NOT_VERIFIED`가 반환된다. 실제 검증 결과는 `docs/postman/auth-signup.md` 5번 섹션 참고. 이미 가입된 이메일은 이메일 인증 여부와 무관하게(검사 순서상 먼저 걸려) 기존과 동일하게 409 `DUPLICATE_EMAIL`을 반환한다.
+
 ## 현재 검증 상태
 - [x] `email_verifications` 테이블 생성 확인 완료
 - [x] 신규 이메일 인증 코드 발송 → 201, 실제 Gmail SMTP로 발송 성공(인증 통과, 메시지 전송 완료) 확인

@@ -26,6 +26,7 @@ public enum ErrorCode {
 	EMAIL_VERIFICATION_NOT_FOUND(404, "AUTH_010", "이메일 인증 요청 내역을 찾을 수 없습니다."),
 	INVALID_VERIFICATION_CODE(400, "AUTH_011", "인증 코드가 일치하지 않습니다."),
 	EXPIRED_VERIFICATION_CODE(400, "AUTH_012", "인증 코드가 만료되었습니다. 다시 요청해주세요."),
+	EMAIL_NOT_VERIFIED(400, "AUTH_013", "이메일 인증을 먼저 완료해주세요."),
 
 	// ===== MEMBER ERROR (김대연) =====
 	MEMBER_NOT_FOUND(404, "MEMBER_001", "회원을 찾을 수 없습니다."),

@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.dongnemarket.auth.entity.EmailVerification;
+import com.dongnemarket.auth.repository.EmailVerificationRepository;
 import com.dongnemarket.member.repository.MemberLocationRepository;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.region.entity.Region;
@@ -22,6 +24,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.LocalDateTime;
+
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -37,6 +41,9 @@ class MemberLocationControllerTest {
 	MemberRepository memberRepository;
 
 	@Autowired
+	EmailVerificationRepository emailVerificationRepository;
+
+	@Autowired
 	MemberLocationRepository memberLocationRepository;
 
 	@Autowired
@@ -46,6 +53,15 @@ class MemberLocationControllerTest {
 	void cleanUp() {
 		memberLocationRepository.deleteAll();
 		memberRepository.deleteAll();
+		emailVerificationRepository.deleteAll();
+	}
+
+	/** 회원가입은 이메일 인증 완료를 전제로 하므로, signup을 호출하기 전에 인증 완료 상태를 만들어둔다. */
+	private void verifyEmail(String email) {
+		EmailVerification verification = EmailVerification.issue(
+				email, "000000", LocalDateTime.now(), LocalDateTime.now().plusMinutes(5));
+		verification.verify(LocalDateTime.now());
+		emailVerificationRepository.save(verification);
 	}
 
 	@Test
@@ -201,6 +217,7 @@ class MemberLocationControllerTest {
 	}
 
 	private String getAccessToken(String email, String password, String nickname) throws Exception {
+		verifyEmail(email);
 		String signup = String.format(
 				"{\"email\":\"%s\",\"password\":\"%s\",\"nickname\":\"%s\"}", email, password, nickname);
 		mockMvc.perform(post("/api/auth/signup")

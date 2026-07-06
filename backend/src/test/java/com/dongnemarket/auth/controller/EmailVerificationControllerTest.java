@@ -3,6 +3,7 @@ package com.dongnemarket.auth.controller;
 import com.dongnemarket.auth.entity.EmailVerification;
 import com.dongnemarket.auth.mail.EmailSender;
 import com.dongnemarket.auth.repository.EmailVerificationRepository;
+import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -71,9 +72,8 @@ class EmailVerificationControllerTest {
 	@Test
 	@DisplayName("이미 가입된 이메일로 요청하면 409와 DUPLICATE_EMAIL을 반환한다")
 	void requestVerification_duplicateEmail_returns409() throws Exception {
-		mockMvc.perform(post("/api/auth/signup")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("{ \"email\": \"taken@example.com\", \"password\": \"password123!\", \"nickname\": \"taken\" }"));
+		// 이 테스트는 "이미 가입된 회원"이라는 전제만 필요하므로, signup API(이메일 인증 선행 필요)를 거치지 않고 직접 저장한다.
+		memberRepository.save(Member.createUser("taken@example.com", "encoded-password", "taken"));
 
 		String body = "{ \"email\": \"taken@example.com\" }";
 		mockMvc.perform(post("/api/auth/email-verifications")
