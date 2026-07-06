@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 public class SmtpEmailSender implements EmailSender {
 
 	private static final Logger log = LoggerFactory.getLogger(SmtpEmailSender.class);
+	private static final String SENDER_DISPLAY_NAME = "마켓온";
 
 	private final JavaMailSender javaMailSender;
 	private final String fromAddress;
@@ -26,7 +27,7 @@ public class SmtpEmailSender implements EmailSender {
 	@Override
 	public void send(String to, String subject, String content) {
 		SimpleMailMessage message = new SimpleMailMessage();
-		message.setFrom(fromAddress);
+		message.setFrom(SENDER_DISPLAY_NAME + " <" + fromAddress + ">");
 		message.setTo(to);
 		message.setSubject(subject);
 		message.setText(content);

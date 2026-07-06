@@ -62,9 +62,19 @@ public class EmailVerificationService {
 						() -> emailVerificationRepository.save(EmailVerification.issue(email, code, now, expiresAt))
 				);
 
-		emailSender.send(email, "[동네마켓] 이메일 인증 코드", "인증 코드: " + code + " (5분 이내에 입력해주세요)");
+		emailSender.send(email, "[마켓온] 이메일 인증 코드 안내", buildVerificationEmailBody(code));
 
 		return new EmailVerificationResponse(email, expiresAt);
+	}
+
+	private String buildVerificationEmailBody(String code) {
+		return "안녕하세요, 마켓온입니다.\n\n"
+				+ "요청하신 이메일 인증 코드를 안내드립니다.\n\n"
+				+ "인증 코드: " + code + "\n\n"
+				+ "이 코드는 발급 시점으로부터 " + CODE_TTL_MINUTES + "분간 유효합니다.\n"
+				+ "본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다.\n\n"
+				+ "감사합니다.\n"
+				+ "마켓온 드림";
 	}
 
 	/**

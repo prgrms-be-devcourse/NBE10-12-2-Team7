@@ -26,7 +26,7 @@ class SmtpEmailSenderTest {
 	SmtpEmailSender emailSender;
 
 	@Test
-	@DisplayName("발송에 성공하면 발신자·수신자·제목·본문이 담긴 메일을 JavaMailSender로 전달한다")
+	@DisplayName("발송에 성공하면 발신자 표시 이름 포함 발신자·수신자·제목·본문이 담긴 메일을 JavaMailSender로 전달한다")
 	void send_success() {
 		emailSender = new SmtpEmailSender(javaMailSender, "noreply@example.com");
 
@@ -35,7 +35,7 @@ class SmtpEmailSenderTest {
 		ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
 		verify(javaMailSender).send(captor.capture());
 		SimpleMailMessage sent = captor.getValue();
-		assertThat(sent.getFrom()).isEqualTo("noreply@example.com");
+		assertThat(sent.getFrom()).isEqualTo("마켓온 <noreply@example.com>");
 		assertThat(sent.getTo()).containsExactly("test@example.com");
 		assertThat(sent.getSubject()).isEqualTo("인증 코드");
 		assertThat(sent.getText()).isEqualTo("코드: 123456");
