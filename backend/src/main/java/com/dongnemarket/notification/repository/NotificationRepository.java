@@ -24,6 +24,9 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     /** 내 알림 목록을 최근 발생순으로 조회한다. 읽은 알림이 누적되므로 상한을 둔다(개인 목록이라 바운드가 작다). */
     List<Notification> findByRecipient_IdOrderByLastNotifiedAtDesc(Long recipientId, Limit limit);
 
+    /** 내 안읽은 (저장형) 알림 수. 배지의 안읽음 카운트에 채팅 파생분과 합산한다. */
+    long countByRecipient_IdAndIsReadFalse(Long recipientId);
+
     /** 내 안읽은 알림을 한 번에 읽음 처리한다(패널 열람 = 전체 읽음). */
     @Modifying
     @Query("UPDATE Notification n SET n.isRead = true WHERE n.recipient.id = :recipientId AND n.isRead = false")

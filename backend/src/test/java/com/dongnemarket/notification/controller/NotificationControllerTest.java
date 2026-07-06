@@ -4,6 +4,10 @@ import java.math.BigDecimal;
 
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
+import com.dongnemarket.chat.entity.ChatMessage;
+import com.dongnemarket.chat.entity.ChatRoom;
+import com.dongnemarket.chat.repository.ChatMessageRepository;
+import com.dongnemarket.chat.repository.ChatRoomRepository;
 import com.dongnemarket.comment.repository.CommentRepository;
 import com.dongnemarket.global.security.jwt.JwtTokenProvider;
 import com.dongnemarket.member.entity.Member;
@@ -23,7 +27,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -62,8 +68,17 @@ class NotificationControllerTest {
     @Autowired
     NotificationRepository notificationRepository;
 
+    @Autowired
+    ChatRoomRepository chatRoomRepository;
+
+    @Autowired
+    ChatMessageRepository chatMessageRepository;
+
     private Long productId;
     private Long categoryId;
+    private Member seller;
+    private Member buyer;
+    private Product product;
     /** 상품 소유자 = 알림 수신자 */
     private String sellerToken;
     /** 댓글 작성자(구매자) = 알림 유발자 */
@@ -71,11 +86,11 @@ class NotificationControllerTest {
 
     @BeforeEach
     void setUp() {
-        Member seller = memberRepository.save(Member.createUser("seller@example.com", "encoded-pw", "seller"));
-        Member buyer = memberRepository.save(Member.createUser("buyer@example.com", "encoded-pw", "buyer"));
+        seller = memberRepository.save(Member.createUser("seller@example.com", "encoded-pw", "seller"));
+        buyer = memberRepository.save(Member.createUser("buyer@example.com", "encoded-pw", "buyer"));
         // 시드된 기본 카테고리(CategoryInitializer)와 이름이 겹치지 않도록 테스트 전용 카테고리를 만든다.
         Category category = categoryRepository.save(new Category("알림테스트전용카테고리"));
-        Product product = productRepository.save(
+        product = productRepository.save(
                 Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), "서울 강남구"));
 
         categoryId = category.getId();
@@ -87,6 +102,8 @@ class NotificationControllerTest {
     @AfterEach
     void cleanUp() {
         notificationRepository.deleteAll();
+        chatMessageRepository.deleteAll();
+        chatRoomRepository.deleteAll();
         commentRepository.deleteAll();
         productRepository.deleteAll();
         memberRepository.deleteAll();
@@ -101,6 +118,13 @@ class NotificationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{ \"content\": \"" + content + "\" }"))
                 .andExpect(status().isCreated());
+    }
+
+    /** 구매자가 상품 방을 열고 메시지 1건을 보낸다 → 판매자에게 안읽음이 생긴다(채팅 알림의 원천). */
+    private ChatRoom openRoomWithUnreadMessage(Member roomBuyer) {
+        ChatRoom room = chatRoomRepository.save(ChatRoom.of(product, roomBuyer, seller));
+        chatMessageRepository.save(ChatMessage.of(room, roomBuyer, "구매 문의드립니다"));
+        return room;
     }
 
     @Nested
@@ -182,6 +206,100 @@ class NotificationControllerTest {
         @DisplayName("토큰 없이 요청하면 401과 UNAUTHORIZED를 반환한다")
         void withoutToken_returns401() throws Exception {
             mockMvc.perform(post("/api/notifications/read"))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
+        }
+    }
+
+    @Nested
+    @DisplayName("채팅 알림 파생 (GET /api/notifications)")
+    class ChatFeed {
+
+        @Test
+        @DisplayName("안읽은 채팅방이 있으면 피드에 채팅 알림(roomId 포함)이 나타난다")
+        void unreadRoom_appearsAsChatItem() throws Exception {
+            ChatRoom room = openRoomWithUnreadMessage(buyer);
+
+            mockMvc.perform(get("/api/notifications")
+                            .header("Authorization", sellerToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.length()").value(1))
+                    .andExpect(jsonPath("$.data[0].type").value("CHAT"))
+                    .andExpect(jsonPath("$.data[0].roomId").value(room.getId().intValue()))
+                    .andExpect(jsonPath("$.data[0].productId").value(productId.intValue()))
+                    .andExpect(jsonPath("$.data[0].message").value(containsString("맥북 프로")))
+                    .andExpect(jsonPath("$.data[0].message").value(containsString("buyer")))
+                    .andExpect(jsonPath("$.data[0].isRead").value(false));
+        }
+
+        @Test
+        @DisplayName("구매자가 여럿이면 방(구매자)마다 별도의 채팅 알림이 나타난다")
+        void multipleBuyers_eachHasOwnChatItem() throws Exception {
+            Member buyer2 = memberRepository.save(Member.createUser("buyer2@example.com", "encoded-pw", "buyer2"));
+            ChatRoom room1 = openRoomWithUnreadMessage(buyer);
+            ChatRoom room2 = openRoomWithUnreadMessage(buyer2);
+
+            mockMvc.perform(get("/api/notifications")
+                            .header("Authorization", sellerToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.length()").value(2))
+                    .andExpect(jsonPath("$.data[0].type").value("CHAT"))
+                    .andExpect(jsonPath("$.data[1].type").value("CHAT"))
+                    .andExpect(jsonPath("$.data[*].roomId",
+                            containsInAnyOrder(room1.getId().intValue(), room2.getId().intValue())))
+                    .andExpect(jsonPath("$.data[*].message", hasItem(containsString("buyer2"))));
+        }
+
+        @Test
+        @DisplayName("방을 읽음 처리하면 해당 채팅 알림이 피드에서 사라진다")
+        void afterRoomRead_chatItemDisappears() throws Exception {
+            ChatRoom room = openRoomWithUnreadMessage(buyer);
+
+            mockMvc.perform(post("/api/chat-rooms/{roomId}/read", room.getId())
+                            .header("Authorization", sellerToken))
+                    .andExpect(status().isOk());
+
+            mockMvc.perform(get("/api/notifications")
+                            .header("Authorization", sellerToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.length()").value(0));
+        }
+
+        @Test
+        @DisplayName("댓글 알림과 채팅 알림이 하나의 피드로 병합된다")
+        void commentAndChat_merged() throws Exception {
+            postComment(buyerToken, "댓글 알림입니다");
+            openRoomWithUnreadMessage(buyer);
+
+            mockMvc.perform(get("/api/notifications")
+                            .header("Authorization", sellerToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.length()").value(2))
+                    .andExpect(jsonPath("$.data[?(@.type=='COMMENT')]").exists())
+                    .andExpect(jsonPath("$.data[?(@.type=='CHAT')]").exists());
+        }
+    }
+
+    @Nested
+    @DisplayName("안읽은 알림 개수 (GET /api/notifications/unread-count)")
+    class UnreadCount {
+
+        @Test
+        @DisplayName("안읽은 댓글 알림과 안읽은 채팅방 수를 합산한다")
+        void sumsUnreadCommentsAndRooms() throws Exception {
+            postComment(buyerToken, "댓글 하나");
+            openRoomWithUnreadMessage(buyer);
+
+            mockMvc.perform(get("/api/notifications/unread-count")
+                            .header("Authorization", sellerToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.unreadCount").value(2));
+        }
+
+        @Test
+        @DisplayName("토큰 없이 요청하면 401과 UNAUTHORIZED를 반환한다")
+        void withoutToken_returns401() throws Exception {
+            mockMvc.perform(get("/api/notifications/unread-count"))
                     .andExpect(status().isUnauthorized())
                     .andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
         }

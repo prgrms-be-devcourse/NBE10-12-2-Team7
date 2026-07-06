@@ -1,5 +1,7 @@
 package com.dongnemarket.notification.service;
 
+import com.dongnemarket.chat.dto.ChatRoomListResponse;
+import com.dongnemarket.chat.service.ChatService;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.notification.dto.NotificationResponse;
 import com.dongnemarket.notification.entity.Notification;
@@ -10,7 +12,10 @@ import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Service
 @Transactional(readOnly = true)
@@ -20,10 +25,14 @@ public class NotificationService {
     private static final Limit MY_NOTIFICATIONS_LIMIT = Limit.of(100);
 
     private final NotificationRepository notificationRepository;
+    private final ChatService chatService;
     private final EntityManager entityManager;
 
-    public NotificationService(NotificationRepository notificationRepository, EntityManager entityManager) {
+    public NotificationService(NotificationRepository notificationRepository,
+                               ChatService chatService,
+                               EntityManager entityManager) {
         this.notificationRepository = notificationRepository;
+        this.chatService = chatService;
         this.entityManager = entityManager;
     }
 
@@ -52,22 +61,55 @@ public class NotificationService {
         }
     }
 
-    /** 내 알림 목록을 최근 발생순으로 조회한다. */
+    /**
+     * 내 알림 피드를 최근 발생순으로 조회한다.
+     * <p>저장형 <b>댓글 알림</b>과, 저장하지 않고 안읽은 채팅방에서 파생한 <b>채팅 알림</b>(방마다 1건)을 합쳐
+     * {@code occurredAt} DESC로 정렬한다. 채팅은 방 입장(읽음 처리) 시 안읽음이 0이 되어 자동으로 사라진다.
+     */
     public List<NotificationResponse> getMyNotifications(Long memberId) {
-        return notificationRepository
+        Stream<NotificationResponse> comments = notificationRepository
                 .findByRecipient_IdOrderByLastNotifiedAtDesc(memberId, MY_NOTIFICATIONS_LIMIT)
                 .stream()
-                .map(NotificationResponse::from)
+                .map(NotificationResponse::from);
+        Stream<NotificationResponse> chats = unreadRooms(memberId)
+                .map(this::toChatNotification);
+        return Stream.concat(comments, chats)
+                .sorted(Comparator.comparing(NotificationResponse::getOccurredAt, Comparator.reverseOrder()))
                 .toList();
     }
 
-    /** 내 안읽은 알림을 전부 읽음 처리한다(알림 패널 열람 시). */
+    /** 안읽은 알림 총 개수(안읽은 댓글 알림 + 안읽은 채팅방 수). 헤더 배지용. */
+    public long getUnreadCount(Long memberId) {
+        long unreadComments = notificationRepository.countByRecipient_IdAndIsReadFalse(memberId);
+        long unreadRooms = unreadRooms(memberId).count();
+        return unreadComments + unreadRooms;
+    }
+
+    /** 내 안읽은 알림을 전부 읽음 처리한다(알림 패널 열람 시). 채팅 알림은 방 읽음 처리로 사라지므로 여기서 건드리지 않는다. */
     @Transactional
     public void markAllRead(Long memberId) {
         notificationRepository.markAllReadByRecipientId(memberId);
     }
 
+    /** 내가 참여한 방 중 안읽은 메시지가 있는 방(채팅 알림의 원천). 상대·상품·마지막 메시지를 그대로 재사용한다. */
+    private Stream<ChatRoomListResponse> unreadRooms(Long memberId) {
+        return chatService.getMyRooms(memberId).stream()
+                .filter(room -> room.getUnreadCount() > 0);
+    }
+
+    private NotificationResponse toChatNotification(ChatRoomListResponse room) {
+        LocalDateTime occurredAt = room.getLastMessage() != null
+                ? room.getLastMessage().getCreatedAt()
+                : room.getCreatedAt();
+        String message = buildChatMessage(room.getProduct().getTitle(), room.getOpponent().getNickname());
+        return NotificationResponse.chat(message, room.getProduct().getProductId(), room.getRoomId(), occurredAt);
+    }
+
     private String buildCommentMessage(String productTitle) {
         return "\"" + productTitle + "\" 글에 새로운 댓글이 작성되었습니다.";
+    }
+
+    private String buildChatMessage(String productTitle, String opponentNickname) {
+        return "\"" + productTitle + "\"에 대해 \"" + opponentNickname + "\"님의 새로운 채팅이 도착했습니다!";
     }
 }
