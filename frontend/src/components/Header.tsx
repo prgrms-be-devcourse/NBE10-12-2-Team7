@@ -3,8 +3,10 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { logout } from '@/lib/apiClient'
+import { apiFetch, logout } from '@/lib/apiClient'
 import { AUTH_CHANGED_EVENT, getAccessToken } from '@/lib/auth'
+
+const UNREAD_POLL_MS = 20000
 
 const NAV_LINKS = [
   { href: '/products',     label: '상품목록' },
@@ -19,14 +21,32 @@ export default function Header() {
   const pathname = usePathname()
   const [dark, setDark] = useState(false)
   const [loggedIn, setLoggedIn] = useState(() => !!getAccessToken())
-  /* 실제 알림 API가 없어 아직은 항상 false — 알림 기능이 생기면 이 값을 실제 미확인 알림 여부로 채운다. */
-  const [hasUnreadNotification] = useState(false)
+  const [hasUnreadNotification, setHasUnreadNotification] = useState(false)
 
   useEffect(() => {
     const handler = () => setLoggedIn(!!getAccessToken())
     window.addEventListener(AUTH_CHANGED_EVENT, handler)
     return () => window.removeEventListener(AUTH_CHANGED_EVENT, handler)
   }, [])
+
+  useEffect(() => {
+    if (!loggedIn) { setHasUnreadNotification(false); return }
+
+    let cancelled = false
+    function fetchUnreadCount() {
+      apiFetch('/api/notifications/unread-count')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (cancelled || data == null) return
+          setHasUnreadNotification((data?.data?.unreadCount ?? 0) > 0)
+        })
+        .catch(() => {})
+    }
+
+    fetchUnreadCount()
+    const timer = setInterval(fetchUnreadCount, UNREAD_POLL_MS)
+    return () => { cancelled = true; clearInterval(timer) }
+  }, [loggedIn])
 
   async function handleLogout() {
     try {
