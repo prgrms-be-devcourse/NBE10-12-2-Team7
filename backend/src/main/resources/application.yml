@@ -34,6 +34,19 @@ spring:
           model: ${OLLAMA_MODEL:qwen3:14b}
           temperature: 0.1
 
+  # 이메일 인증 / 비밀번호 재설정 메일 발송 (SMTP). 자격증명은 기본값 없이 환경변수로만 주입.
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 jwt:
   secret: ${JWT_SECRET:dongne-market-local-dev-secret-key-please-change-in-production-0123456789}
   access-token-validity-seconds: ${JWT_ACCESS_TTL:900}
