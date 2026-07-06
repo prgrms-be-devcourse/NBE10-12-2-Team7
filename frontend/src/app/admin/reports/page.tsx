@@ -32,14 +32,14 @@ function typeTagCls(t: ReportType) {
 }
 
 export default function AdminReportsPage() {
-  const [status, setStatus] = useState<Status>('loading')
+  const [status, setStatus] = useState<Status>(() => (getAccessToken() ? 'loading' : 'error'))
   const [reports, setReports] = useState<Report[]>([])
   const [statusFilter, setStatusFilter] = useState<'ALL' | ReportStatus>('ALL')
   const [typeFilter, setTypeFilter] = useState<'ALL' | ReportType>('ALL')
 
   useEffect(() => {
     const token = getAccessToken()
-    if (!token) { setStatus('error'); return }
+    if (!token) return
     let cancelled = false
     fetch('/api/admin/reports', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())

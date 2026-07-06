@@ -18,7 +18,7 @@ interface Member { memberId: number; nickname: string }
 type Status = 'loading' | 'ready' | 'error'
 
 export default function AdminCommentsPage() {
-  const [status, setStatus] = useState<Status>('loading')
+  const [status, setStatus] = useState<Status>(() => (getAccessToken() ? 'loading' : 'error'))
   const [comments, setComments] = useState<Comment[]>([])
   const [nicknames, setNicknames] = useState<Record<number, string>>({})
 
@@ -28,7 +28,7 @@ export default function AdminCommentsPage() {
 
   useEffect(() => {
     const token = getAccessToken()
-    if (!token) { setStatus('error'); return }
+    if (!token) return
     const headers = { Authorization: `Bearer ${token}` }
 
     let cancelled = false

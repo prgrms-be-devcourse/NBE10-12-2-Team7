@@ -42,7 +42,7 @@ function memberTagCls(s: MemberStatus) {
 
 export default function AdminProductDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const [status, setStatus] = useState<Status>('loading')
+  const [status, setStatus] = useState<Status>(() => (getAccessToken() ? 'loading' : 'error'))
   const [product, setProduct] = useState<Product | null>(null)
   const [categoryName, setCategoryName] = useState('')
   const [seller, setSeller] = useState<Seller | null>(null)
@@ -61,7 +61,7 @@ export default function AdminProductDetailPage() {
 
   useEffect(() => {
     const token = getAccessToken()
-    if (!token) { setStatus('error'); return }
+    if (!token) return
     const headers = { Authorization: `Bearer ${token}` }
 
     let cancelled = false

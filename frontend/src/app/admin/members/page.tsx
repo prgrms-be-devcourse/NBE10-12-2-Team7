@@ -27,7 +27,7 @@ function statusTagCls(s: MemberStatus) {
 }
 
 export default function AdminMembersPage() {
-  const [status, setStatus] = useState<Status>('loading')
+  const [status, setStatus] = useState<Status>(() => (getAccessToken() ? 'loading' : 'error'))
   const [members, setMembers] = useState<Member[]>([])
   const [reportCounts, setReportCounts] = useState<Record<number, number>>({})
 
@@ -37,7 +37,7 @@ export default function AdminMembersPage() {
 
   useEffect(() => {
     const token = getAccessToken()
-    if (!token) { setStatus('error'); return }
+    if (!token) return
     const headers = { Authorization: `Bearer ${token}` }
 
     let cancelled = false

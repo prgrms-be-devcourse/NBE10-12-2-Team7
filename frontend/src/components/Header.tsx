@@ -18,12 +18,11 @@ const NAV_LINKS = [
 export default function Header() {
   const pathname = usePathname()
   const [dark, setDark] = useState(false)
-  const [loggedIn, setLoggedIn] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(() => !!getAccessToken())
   /* 실제 알림 API가 없어 아직은 항상 false — 알림 기능이 생기면 이 값을 실제 미확인 알림 여부로 채운다. */
   const [hasUnreadNotification] = useState(false)
 
   useEffect(() => {
-    setLoggedIn(!!getAccessToken())
     const handler = () => setLoggedIn(!!getAccessToken())
     window.addEventListener(AUTH_CHANGED_EVENT, handler)
     return () => window.removeEventListener(AUTH_CHANGED_EVENT, handler)
@@ -39,6 +38,7 @@ export default function Header() {
     })()
     const system = window.matchMedia?.('(prefers-color-scheme: dark)').matches
     const isDark = saved ? saved === 'dark' : system
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage/matchMedia는 클라이언트에서만 읽을 수 있어 SSR 하이드레이션 이후에만 계산 가능
     setDark(isDark)
     applyTheme(isDark)
 
