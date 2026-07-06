@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/apiClient'
 import { clearAccessToken } from '@/lib/auth'
 import styles from './page.module.css'
@@ -42,7 +42,8 @@ export default function MyProfilePage() {
 
   const [regionOptions, setRegionOptions] = useState<RegionOption[]>([])
   const [selectedRegions, setSelectedRegions] = useState<string[]>([])
-  const [addRegion, setAddRegion] = useState('')
+  const [regionModalOpen, setRegionModalOpen] = useState(false)
+  const [regionQuery, setRegionQuery] = useState('')
   const [locMsg, setLocMsg] = useState<{ text: string; type: MsgType } | null>(null)
   const [locSaving, setLocSaving] = useState(false)
 
@@ -93,12 +94,14 @@ export default function MyProfilePage() {
     return () => { cancelled = true }
   }, [])
 
-  function addSelectedRegion() {
-    if (!addRegion) return
+  function openRegionModal() { setRegionModalOpen(true); setRegionQuery('') }
+  function closeRegionModal() { setRegionModalOpen(false); setRegionQuery('') }
+
+  function addSelectedRegion(region: string) {
     if (selectedRegions.length >= 2) { showToast('동네는 최대 2개까지 설정할 수 있어요'); return }
-    if (selectedRegions.includes(addRegion)) { showToast('이미 추가된 동네예요'); return }
-    setSelectedRegions(prev => [...prev, addRegion])
-    setAddRegion('')
+    if (selectedRegions.includes(region)) { showToast('이미 추가된 동네예요'); return }
+    setSelectedRegions(prev => [...prev, region])
+    closeRegionModal()
   }
 
   function removeSelectedRegion(region: string) {
@@ -191,6 +194,12 @@ export default function MyProfilePage() {
       setWithdrawing(false)
     }
   }
+
+  const regionSearchResults = useMemo(() => {
+    const pool = regionOptions.filter(r => !selectedRegions.includes(r.name))
+    const q = regionQuery.trim()
+    return q ? pool.filter(r => r.name.includes(q)) : pool
+  }, [regionOptions, selectedRegions, regionQuery])
 
   const hintClass = (kind?: string) =>
     [styles.hint, kind ? styles[kind] : ''].filter(Boolean).join(' ')
@@ -318,22 +327,10 @@ export default function MyProfilePage() {
         )}
 
         {selectedRegions.length < 2 && (
-          <div className={styles.locAddRow}>
-            <select
-              value={addRegion}
-              onChange={e => setAddRegion(e.target.value)}
-              className={styles.locSelect}
-              aria-label="동네 선택"
-            >
-              <option value="">동네 선택</option>
-              {regionOptions.filter(r => !selectedRegions.includes(r.name)).map(r => (
-                <option key={r.regionId} value={r.name}>{r.name}</option>
-              ))}
-            </select>
-            <button type="button" className="btn ghost" onClick={addSelectedRegion} disabled={!addRegion}>
-              추가
-            </button>
-          </div>
+          <button type="button" className={styles.addRegionBtn} onClick={openRegionModal}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"><path d="M12 5v14M5 12h14" /></svg>
+            동네 추가
+          </button>
         )}
 
         <button
@@ -347,6 +344,46 @@ export default function MyProfilePage() {
         </button>
         <div className={styles.apiNote}>GET/PUT /api/members/me/locations · GET /api/regions</div>
       </div>
+
+      {/* 동네 추가 모달 */}
+      {regionModalOpen && (
+        <div className={styles.modalOverlay} onClick={closeRegionModal}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHead}>
+              <div>
+                <div className={styles.modalTitle}>동네 추가</div>
+                <div className={styles.modalDesc}>등록하고 싶은 동네를 검색해서 선택하세요.</div>
+              </div>
+              <button type="button" className={styles.modalClose} aria-label="닫기" onClick={closeRegionModal}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className={styles.searchWrap}>
+              <div className={styles.searchInputRow}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+                <input
+                  placeholder="동네 이름을 검색하세요 (예: 강남구)"
+                  autoFocus
+                  value={regionQuery}
+                  onChange={e => setRegionQuery(e.target.value)}
+                />
+              </div>
+              <div className={styles.resultsList}>
+                {regionSearchResults.map(r => (
+                  <button key={r.regionId} type="button" className={styles.resultItem} onClick={() => addSelectedRegion(r.name)}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.2"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z" /><circle cx="12" cy="10" r="2.4" fill="var(--primary)" stroke="none" /></svg>
+                    {r.name}
+                  </button>
+                ))}
+                {regionSearchResults.length === 0 && (
+                  <div className={styles.noResults}>검색 결과가 없어요.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 계정 관리 카드 */}
       <div className={styles.card}>
