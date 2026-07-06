@@ -2,6 +2,7 @@ package com.dongnemarket.product.service;
 
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
+import com.dongnemarket.global.common.event.ProductPriceChangedEvent;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.entity.Member;
@@ -21,6 +22,7 @@ import com.dongnemarket.product.repository.ProductImageRepository;
 import com.dongnemarket.product.repository.ProductRepository;
 import com.dongnemarket.product.repository.spec.ProductSpecification;
 import com.dongnemarket.region.repository.RegionRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,17 +44,20 @@ public class ProductService {
 	private final MemberRepository memberRepository;
 	private final CategoryRepository categoryRepository;
 	private final RegionRepository regionRepository;
+	private final ApplicationEventPublisher eventPublisher;
 
 	public ProductService(ProductRepository productRepository,
 						  ProductImageRepository productImageRepository,
 						  MemberRepository memberRepository,
 						  CategoryRepository categoryRepository,
-						  RegionRepository regionRepository) {
+						  RegionRepository regionRepository,
+						  ApplicationEventPublisher eventPublisher) {
 		this.productRepository = productRepository;
 		this.productImageRepository = productImageRepository;
 		this.memberRepository = memberRepository;
 		this.categoryRepository = categoryRepository;
 		this.regionRepository = regionRepository;
+		this.eventPublisher = eventPublisher;
 	}
 
 	@Transactional
@@ -192,6 +197,7 @@ public class ProductService {
 		Category category = categoryRepository.findById(request.getCategoryId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND));
 		validateRegionExists(request.getRegion());
+		BigDecimal oldPrice = product.getPrice(); // update() 로 덮이기 전에 캡처
 		product.update(
 				category,
 				request.getTitle(),
@@ -201,6 +207,13 @@ public class ProductService {
 		);
 		productImageRepository.deleteAllByProductId(productId);
 		saveProductImages(product, request.getImageUrls(), request.getThumbnailIndex());
+
+		// 가격이 실제로 바뀐 경우에만 알림 이벤트 발행. BigDecimal은 scale 민감이라 compareTo 로 비교한다(equals X).
+		// 커밋 후(AFTER_COMMIT) 별도 트랜잭션에서 처리되어 알림 실패가 상품 수정을 롤백하지 않는다(best-effort).
+		if (oldPrice.compareTo(request.getPrice()) != 0) {
+			eventPublisher.publishEvent(new ProductPriceChangedEvent(
+					productId, product.getTitle(), oldPrice, request.getPrice()));
+		}
 		return ProductResponse.from(product, request.getImageUrls());
 	}
 

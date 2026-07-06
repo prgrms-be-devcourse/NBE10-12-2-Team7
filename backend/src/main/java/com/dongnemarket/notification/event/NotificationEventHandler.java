@@ -1,6 +1,7 @@
 package com.dongnemarket.notification.event;
 
 import com.dongnemarket.global.common.event.CommentCreatedEvent;
+import com.dongnemarket.global.common.event.ProductPriceChangedEvent;
 import com.dongnemarket.notification.service.NotificationService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -30,5 +31,11 @@ public class NotificationEventHandler {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleCommentCreated(CommentCreatedEvent event) {
         notificationService.notifyComment(event.recipientId(), event.productId(), event.productTitle());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void handlePriceChanged(ProductPriceChangedEvent event) {
+        notificationService.notifyPriceChange(event.productId(), event.productTitle());
     }
 }

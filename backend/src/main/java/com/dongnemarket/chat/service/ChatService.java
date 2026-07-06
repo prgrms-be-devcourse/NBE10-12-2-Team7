@@ -68,6 +68,12 @@ public class ChatService {
         return ChatRoomDetailResponse.of(room);
     }
 
+    /** 특정 상품에 채팅방을 연 구매자 id들. 가격 변경 알림 수신자(그 상품에 관심 있는 구매자) 조회용. */
+    @Transactional(readOnly = true)
+    public List<Long> findBuyerIdsForProduct(Long productId) {
+        return chatRoomRepository.findBuyerIdsByProduct_Id(productId);
+    }
+
     /** 내가 참여한 방 목록(최근 활동순 = 마지막 메시지 시각). 상품 요약·상대방·방별 마지막 메시지를 함께 담는다. */
     @Transactional(readOnly = true)
     public List<ChatRoomListResponse> getMyRooms(Long memberId) {
