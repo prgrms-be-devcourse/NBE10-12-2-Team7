@@ -28,6 +28,8 @@ public enum ErrorCode {
 	EXPIRED_VERIFICATION_CODE(400, "AUTH_012", "인증 코드가 만료되었습니다. 다시 요청해주세요."),
 	EMAIL_NOT_VERIFIED(400, "AUTH_013", "이메일 인증을 먼저 완료해주세요."),
 	SAME_AS_OLD_PASSWORD(400, "AUTH_014", "새 비밀번호는 현재 비밀번호와 달라야 합니다."),
+	INVALID_RESET_TOKEN(400, "AUTH_015", "유효하지 않은 비밀번호 재설정 링크입니다. 다시 요청해주세요."),
+	EXPIRED_RESET_TOKEN(400, "AUTH_016", "비밀번호 재설정 링크가 만료되었습니다. 다시 요청해주세요."),
 
 	// ===== MEMBER ERROR (김대연) =====
 	MEMBER_NOT_FOUND(404, "MEMBER_001", "회원을 찾을 수 없습니다."),
