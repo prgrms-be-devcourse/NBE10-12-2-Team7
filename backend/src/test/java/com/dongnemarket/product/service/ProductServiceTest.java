@@ -20,12 +20,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
+import com.dongnemarket.global.common.event.ProductPriceChangedEvent;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.member.entity.Member;
@@ -68,6 +70,9 @@ class ProductServiceTest {
 
 	@Mock
 	RegionRepository regionRepository;
+
+	@Mock
+	ApplicationEventPublisher eventPublisher;
 
 	@InjectMocks
 	ProductService productService;
@@ -546,6 +551,37 @@ class ProductServiceTest {
 			assertThat(response.getPrice()).isEqualByComparingTo("1500000");
 			assertThat(response.getRegion()).isEqualTo("서울 서초구");
 			assertThat(product.getCategory()).isEqualTo(newCategory);
+		}
+
+		@Test
+		@DisplayName("가격이 변경되면 가격 변경 이벤트를 발행한다")
+		void publishesEventWhenPriceChanged() {
+			Product product = product("아이폰 15", BigDecimal.valueOf(800000));
+			Category newCategory = category("생활가전");
+			ProductUpdateRequest request = updateRequest("맥북 프로", BigDecimal.valueOf(1500000));
+			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
+			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
+			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
+
+			productService.updateProduct(SELLER_ID, PRODUCT_ID, request);
+
+			verify(eventPublisher).publishEvent(any(ProductPriceChangedEvent.class));
+		}
+
+		@Test
+		@DisplayName("가격이 그대로면 가격 변경 이벤트를 발행하지 않는다")
+		void doesNotPublishEventWhenPriceUnchanged() {
+			Product product = product("아이폰 15", BigDecimal.valueOf(800000));
+			Category newCategory = category("생활가전");
+			// 가격만 동일(다른 필드는 변경). BigDecimal scale 달라도(800000 vs 800000.00) 발행되면 안 된다.
+			ProductUpdateRequest request = updateRequest("맥북 프로", new BigDecimal("800000.00"));
+			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
+			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
+			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
+
+			productService.updateProduct(SELLER_ID, PRODUCT_ID, request);
+
+			verify(eventPublisher, never()).publishEvent(any());
 		}
 
 		@Test

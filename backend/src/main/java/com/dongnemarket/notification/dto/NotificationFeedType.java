@@ -7,5 +7,6 @@ package com.dongnemarket.notification.dto;
  */
 public enum NotificationFeedType {
     COMMENT,
-    CHAT
+    CHAT,
+    PRICE_CHANGE
 }

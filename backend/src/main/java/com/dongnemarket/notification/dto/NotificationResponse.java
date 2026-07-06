@@ -32,10 +32,10 @@ public class NotificationResponse {
         this.occurredAt = occurredAt;
     }
 
-    /** 저장된 댓글 알림 → 피드 아이템. */
+    /** 저장된 알림(댓글·가격변경) → 피드 아이템. 저장 타입을 동일 이름의 피드 타입으로 매핑한다. */
     public static NotificationResponse from(Notification notification) {
         return new NotificationResponse(
-                NotificationFeedType.COMMENT,
+                NotificationFeedType.valueOf(notification.getType().name()),
                 notification.getMessage(),
                 notification.getProductId(),
                 null,

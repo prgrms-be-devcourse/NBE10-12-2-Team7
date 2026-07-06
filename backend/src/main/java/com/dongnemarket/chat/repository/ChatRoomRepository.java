@@ -42,4 +42,11 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "JOIN FETCH r.seller " +
             "WHERE r.product.id = :productId AND r.buyer.id = :buyerId")
     Optional<ChatRoom> findDetailByProductAndBuyer(@Param("productId") Long productId, @Param("buyerId") Long buyerId);
+
+    /**
+     * 특정 상품에 채팅방을 연 구매자들의 id. 가격 변경 알림 수신자(이 상품에 관심 있는 구매자) 조회용.
+     * {@code UNIQUE(product_id, buyer_id)}라 구매자당 방이 최대 1개이므로 결과에 중복이 없다.
+     */
+    @Query("SELECT r.buyer.id FROM ChatRoom r WHERE r.product.id = :productId")
+    List<Long> findBuyerIdsByProduct_Id(@Param("productId") Long productId);
 }

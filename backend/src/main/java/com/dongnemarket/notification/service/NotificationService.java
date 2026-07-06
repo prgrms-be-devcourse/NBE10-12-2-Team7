@@ -43,14 +43,34 @@ public class NotificationService {
      */
     @Transactional
     public void notifyComment(Long recipientId, Long productId, String productTitle) {
+        coalesceOrSave(recipientId, productId, NotificationType.COMMENT, buildCommentMessage(productTitle));
+    }
+
+    /**
+     * 상품 가격 변경 알림을 저장한다. 그 상품에 채팅방을 연 <b>구매자들</b>에게 각각 상품별 코얼레싱으로 저장한다.
+     * 판매자는 자기 상품 구매 불가(CANNOT_CHAT_WITH_SELF)라 수신자에 포함되지 않는다.
+     */
+    @Transactional
+    public void notifyPriceChange(Long productId, String productTitle) {
+        String message = buildPriceChangeMessage(productTitle);
+        for (Long buyerId : chatService.findBuyerIdsForProduct(productId)) {
+            coalesceOrSave(buyerId, productId, NotificationType.PRICE_CHANGE, message);
+        }
+    }
+
+    /**
+     * 수신자·상품·타입 단위로 저장하되, 안읽은 알림이 이미 있으면 새 row 대신 발생 시각만 갱신(코얼레싱)한다.
+     * 동시 이벤트 레이스로 안읽은 알림이 2행 이상이면 최신 1개만 갱신하고 나머지는 삭제해 1행으로 수렴시킨다
+     * (DB 부분 유니크로 못 막는 대신 애플리케이션이 수렴). 문구는 상품 삭제·개명에도 안정적이도록 스냅샷으로 저장한다.
+     */
+    private void coalesceOrSave(Long recipientId, Long productId, NotificationType type, String message) {
         List<Notification> unread = notificationRepository
                 .findByRecipient_IdAndProductIdAndTypeAndIsReadFalseOrderByLastNotifiedAtDesc(
-                        recipientId, productId, NotificationType.COMMENT);
+                        recipientId, productId, type);
 
         if (unread.isEmpty()) {
             Member recipient = entityManager.getReference(Member.class, recipientId);
-            notificationRepository.save(
-                    Notification.of(recipient, NotificationType.COMMENT, buildCommentMessage(productTitle), productId));
+            notificationRepository.save(Notification.of(recipient, type, message, productId));
             return;
         }
 
@@ -107,6 +127,11 @@ public class NotificationService {
 
     private String buildCommentMessage(String productTitle) {
         return "\"" + productTitle + "\" 글에 새로운 댓글이 작성되었습니다.";
+    }
+
+    private String buildPriceChangeMessage(String productTitle) {
+        // 가격 수치를 문구에 넣지 않는다: 코얼레싱 시 renotify()가 message를 갱신하지 않아 옛 가격이 남기 때문.
+        return "\"" + productTitle + "\"의 가격이 변경되었습니다.";
     }
 
     private String buildChatMessage(String productTitle, String opponentNickname) {
