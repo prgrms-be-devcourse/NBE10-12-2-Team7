@@ -65,6 +65,11 @@ public class Member extends BaseTimeEntity {
 		this.nickname = nickname;
 	}
 
+	/** 비밀번호 변경. 이미 인코딩된 값을 받는다(인코딩 책임은 Service). */
+	public void changePassword(String encodedPassword) {
+		this.password = encodedPassword;
+	}
+
 	public void softDelete() {
 		this.status = MemberStatus.DELETED;
 		this.deletedAt = LocalDateTime.now();
