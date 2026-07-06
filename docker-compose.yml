@@ -45,6 +45,11 @@ services:
       DB_USERNAME: ${DB_USERNAME:-dongne}
       DB_PASSWORD: ${DB_PASSWORD:-dongne1234}
       JWT_SECRET: ${JWT_SECRET:-dongne-market-local-dev-secret-please-change-0123456789}
+      # 이메일 인증/비밀번호 재설정 메일 발송. HOST/PORT는 Gmail 기본값, 계정 정보는 기본값 없이 서버 .env에서만 관리.
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
     volumes:
       - dongne-report-evidence:/app/uploads/report-evidence   # 신고 증빙 이미지: 컨테이너 재시작에도 유지
     expose:
