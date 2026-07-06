@@ -29,7 +29,11 @@ export default function Header() {
   }, [])
 
   async function handleLogout() {
-    await logout()
+    try {
+      await logout()
+    } finally {
+      window.location.href = '/login'
+    }
   }
 
   useEffect(() => {

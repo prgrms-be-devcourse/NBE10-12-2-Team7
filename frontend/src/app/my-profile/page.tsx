@@ -5,6 +5,8 @@ import { apiFetch } from '@/lib/apiClient'
 import { clearAccessToken } from '@/lib/auth'
 import styles from './page.module.css'
 
+const NEW_PW_RE = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{10,64}$/
+
 type MsgType = 'success' | 'error'
 type PageStatus = 'loading' | 'ready' | 'error'
 
@@ -39,6 +41,14 @@ export default function MyProfilePage() {
   const [formMsg, setFormMsg] = useState<{ text: string; type: MsgType } | null>(null)
   const [saving, setSaving] = useState(false)
   const [withdrawing, setWithdrawing] = useState(false)
+
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
+  const [newPasswordHint, setNewPasswordHint] = useState<{ text: string; kind?: string }>({ text: '영문·숫자·특수문자를 모두 포함해 10~64자로 입력하세요.' })
+  const [newPasswordConfirmHint, setNewPasswordConfirmHint] = useState<{ text: string; kind?: string }>({ text: '' })
+  const [pwMsg, setPwMsg] = useState<{ text: string; type: MsgType } | null>(null)
+  const [pwSaving, setPwSaving] = useState(false)
 
   const [regionOptions, setRegionOptions] = useState<RegionOption[]>([])
   const [selectedRegions, setSelectedRegions] = useState<string[]>([])
@@ -171,6 +181,60 @@ export default function MyProfilePage() {
       setFormMsg({ text: '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.', type: 'error' })
     } finally {
       setSaving(false)
+    }
+  }
+
+  function validateNewPassword() {
+    if (!NEW_PW_RE.test(newPassword)) {
+      setNewPasswordHint({ text: '영문·숫자·특수문자를 모두 포함해 10~64자로 입력하세요.', kind: 'err' })
+      return false
+    }
+    setNewPasswordHint({ text: '사용 가능한 비밀번호입니다.', kind: 'ok' })
+    return true
+  }
+
+  function validateNewPasswordConfirm() {
+    if (newPasswordConfirm !== newPassword) {
+      setNewPasswordConfirmHint({ text: '비밀번호가 일치하지 않습니다.', kind: 'err' })
+      return false
+    }
+    setNewPasswordConfirmHint({ text: '비밀번호가 일치합니다.', kind: 'ok' })
+    return true
+  }
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault()
+    setPwMsg(null)
+
+    if (!currentPassword) {
+      setPwMsg({ text: '현재 비밀번호를 입력해주세요.', type: 'error' })
+      return
+    }
+    const valid = [validateNewPassword(), validateNewPasswordConfirm()].every(Boolean)
+    if (!valid) {
+      setPwMsg({ text: '입력값을 다시 확인해주세요.', type: 'error' })
+      return
+    }
+
+    setPwSaving(true)
+    try {
+      const res = await apiFetch('/api/members/me/password', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setPwMsg({ text: data?.message ?? '비밀번호 변경 중 오류가 발생했습니다.', type: 'error' })
+        return
+      }
+      showToast('비밀번호를 변경했어요. 다시 로그인해주세요.')
+      clearAccessToken()
+      setTimeout(() => { window.location.href = '/login' }, 1200)
+    } catch {
+      setPwMsg({ text: '서버에 연결할 수 없습니다.', type: 'error' })
+    } finally {
+      setPwSaving(false)
     }
   }
 
@@ -384,6 +448,61 @@ export default function MyProfilePage() {
           </div>
         </div>
       )}
+
+      {/* 비밀번호 변경 카드 */}
+      <div className={styles.card}>
+        <h2>비밀번호 변경</h2>
+        {pwMsg && (
+          <div className={[styles.formMsg, styles.show, styles[pwMsg.type]].join(' ')} role="alert">
+            {pwMsg.text}
+          </div>
+        )}
+        <form onSubmit={handleChangePassword} noValidate>
+          <div className={styles.field}>
+            <label htmlFor="currentPassword">현재 비밀번호<span style={{ color: 'var(--primary)', marginLeft: 3 }}>*</span></label>
+            <input
+              type="password"
+              id="currentPassword"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={e => setCurrentPassword(e.target.value)}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor="newPassword">새 비밀번호<span style={{ color: 'var(--primary)', marginLeft: 3 }}>*</span></label>
+            <input
+              type="password"
+              id="newPassword"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              onBlur={validateNewPassword}
+              aria-invalid={newPasswordHint.kind === 'err' ? 'true' : 'false'}
+            />
+            <div className={hintClass(newPasswordHint.kind)}>{newPasswordHint.text}</div>
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor="newPasswordConfirm">새 비밀번호 확인<span style={{ color: 'var(--primary)', marginLeft: 3 }}>*</span></label>
+            <input
+              type="password"
+              id="newPasswordConfirm"
+              autoComplete="new-password"
+              value={newPasswordConfirm}
+              onChange={e => setNewPasswordConfirm(e.target.value)}
+              onBlur={validateNewPasswordConfirm}
+              aria-invalid={newPasswordConfirmHint.kind === 'err' ? 'true' : 'false'}
+            />
+            <div className={hintClass(newPasswordConfirmHint.kind)}>{newPasswordConfirmHint.text}</div>
+          </div>
+
+          <button type="submit" className="btn block" disabled={pwSaving}>
+            {pwSaving ? '변경 중...' : '비밀번호 변경'}
+          </button>
+          <div className={styles.apiNote}>PATCH /api/members/me/password</div>
+        </form>
+      </div>
 
       {/* 계정 관리 카드 */}
       <div className={styles.card}>
