@@ -10,6 +10,10 @@ spring:
   sql:
     init:
       mode: never
+  # 통합테스트도 EmailSender를 @MockitoBean으로 대체하므로 값 없이 빈 문자열로 고정해 컨텍스트 로딩을 보장한다.
+  mail:
+    username:
+    password:
 
 logging:
   level:

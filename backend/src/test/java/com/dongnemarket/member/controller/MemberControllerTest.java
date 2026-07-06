@@ -1,5 +1,7 @@
 package com.dongnemarket.member.controller;
 
+import com.dongnemarket.auth.entity.EmailVerification;
+import com.dongnemarket.auth.repository.EmailVerificationRepository;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -13,6 +15,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+
+import java.time.LocalDateTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -36,6 +40,9 @@ class MemberControllerTest {
 	MemberRepository memberRepository;
 
 	@Autowired
+	EmailVerificationRepository emailVerificationRepository;
+
+	@Autowired
 	JdbcTemplate jdbcTemplate;
 
 	@Autowired
@@ -44,9 +51,19 @@ class MemberControllerTest {
 	@AfterEach
 	void cleanUp() {
 		memberRepository.deleteAll();
+		emailVerificationRepository.deleteAll();
+	}
+
+	/** 회원가입은 이메일 인증 완료를 전제로 하므로, signup을 호출하기 전에 인증 완료 상태를 만들어둔다. */
+	private void verifyEmail(String email) {
+		EmailVerification verification = EmailVerification.issue(
+				email, "000000", LocalDateTime.now(), LocalDateTime.now().plusMinutes(5));
+		verification.verify(LocalDateTime.now());
+		emailVerificationRepository.save(verification);
 	}
 
 	private String getAccessToken(String email, String password, String nickname) throws Exception {
+		verifyEmail(email);
 		String signup = String.format(
 				"{\"email\":\"%s\",\"password\":\"%s\",\"nickname\":\"%s\"}", email, password, nickname);
 		mockMvc.perform(post("/api/auth/signup")
@@ -126,6 +143,7 @@ class MemberControllerTest {
 	@Test
 	@DisplayName("다른 회원이 사용 중인 닉네임으로 수정하면 409와 DUPLICATE_NICKNAME을 반환한다")
 	void updateMyInfo_duplicateNickname_returns409() throws Exception {
+		verifyEmail("other@example.com");
 		mockMvc.perform(post("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"email\":\"other@example.com\",\"password\":\"password123\",\"nickname\":\"takenNick\"}"));

@@ -6,6 +6,7 @@ import com.dongnemarket.auth.dto.SignupRequest;
 import com.dongnemarket.auth.dto.SignupResponse;
 import com.dongnemarket.auth.dto.TokenResponse;
 import com.dongnemarket.auth.entity.RefreshToken;
+import com.dongnemarket.auth.repository.EmailVerificationRepository;
 import com.dongnemarket.auth.repository.RefreshTokenRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
@@ -48,6 +49,9 @@ class AuthServiceTest {
 	@Mock
 	RefreshTokenRepository refreshTokenRepository;
 
+	@Mock
+	EmailVerificationRepository emailVerificationRepository;
+
 	PasswordEncoder passwordEncoder;
 	JwtTokenProvider jwtTokenProvider;
 	RefreshTokenService refreshTokenService;
@@ -59,16 +63,18 @@ class AuthServiceTest {
 		jwtTokenProvider = new JwtTokenProvider(
 				"test-jwt-secret-key-for-auth-service-unit-test-0123456789", 3600L, 604800L);
 		refreshTokenService = new RefreshTokenService(refreshTokenRepository, jwtTokenProvider);
-		authService = new AuthService(memberRepository, passwordEncoder, jwtTokenProvider, refreshTokenService);
+		authService = new AuthService(
+				memberRepository, passwordEncoder, jwtTokenProvider, refreshTokenService, emailVerificationRepository);
 	}
 
 	// ===== signup =====
 
 	@Test
-	@DisplayName("이메일·닉네임이 중복되지 않으면 회원가입에 성공한다")
+	@DisplayName("이메일·닉네임이 중복되지 않고 이메일 인증이 완료됐으면 회원가입에 성공한다")
 	void signup_success() {
 		SignupRequest request = new SignupRequest("test@example.com", "password123", "tester");
 		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false);
+		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(true);
 		given(memberRepository.existsByNickname(request.getNickname())).willReturn(false);
 		given(memberRepository.save(any(Member.class))).willAnswer(invocation -> invocation.getArgument(0));
 
@@ -92,10 +98,39 @@ class AuthServiceTest {
 	}
 
 	@Test
+	@DisplayName("이메일 인증을 완료하지 않았으면 EMAIL_NOT_VERIFIED 예외가 발생한다")
+	void signup_emailNotVerified_throwsException() {
+		SignupRequest request = new SignupRequest("unverified@example.com", "password123", "unverifiedUser");
+		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false);
+		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(false);
+
+		assertThatThrownBy(() -> authService.signup(request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_NOT_VERIFIED);
+
+		verify(memberRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("이메일 인증 요청 이력 자체가 없으면 EMAIL_NOT_VERIFIED 예외가 발생한다")
+	void signup_noVerificationHistory_throwsException() {
+		SignupRequest request = new SignupRequest("never-requested@example.com", "password123", "neverRequestedUser");
+		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false);
+		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(false);
+
+		assertThatThrownBy(() -> authService.signup(request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_NOT_VERIFIED);
+
+		verify(memberRepository, never()).save(any());
+	}
+
+	@Test
 	@DisplayName("이미 사용 중인 닉네임이면 DUPLICATE_NICKNAME 예외가 발생한다")
 	void signup_duplicateNickname_throwsException() {
 		SignupRequest request = new SignupRequest("test@example.com", "password123", "tester");
 		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false);
+		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(true);
 		given(memberRepository.existsByNickname(request.getNickname())).willReturn(true);
 
 		assertThatThrownBy(() -> authService.signup(request))
@@ -110,6 +145,7 @@ class AuthServiceTest {
 	void signup_raceConditionDuplicateEmail_throwsDuplicateEmail() {
 		SignupRequest request = new SignupRequest("race@example.com", "password123", "racer");
 		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false, true);
+		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(true);
 		given(memberRepository.existsByNickname(request.getNickname())).willReturn(false);
 		given(memberRepository.save(any(Member.class))).willThrow(new DataIntegrityViolationException("duplicate entry"));
 
@@ -123,6 +159,7 @@ class AuthServiceTest {
 	void signup_raceConditionDuplicateNickname_throwsDuplicateNickname() {
 		SignupRequest request = new SignupRequest("racer2@example.com", "password123", "raceNick");
 		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false);
+		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(true);
 		given(memberRepository.existsByNickname(request.getNickname())).willReturn(false, true);
 		given(memberRepository.save(any(Member.class))).willThrow(new DataIntegrityViolationException("duplicate entry"));
 
@@ -136,6 +173,7 @@ class AuthServiceTest {
 	void signup_unclassifiableIntegrityViolation_rethrowsOriginal() {
 		SignupRequest request = new SignupRequest("unknown@example.com", "password123", "unknown");
 		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false);
+		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(true);
 		given(memberRepository.existsByNickname(request.getNickname())).willReturn(false);
 		DataIntegrityViolationException original = new DataIntegrityViolationException("unknown constraint");
 		given(memberRepository.save(any(Member.class))).willThrow(original);

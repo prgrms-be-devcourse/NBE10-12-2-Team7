@@ -3,6 +3,10 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
+# IntelliJ 자체 컴파일러 사용 시 출력 경로(Gradle 위임 빌드가 아닐 때). 소스 리소스 변경 후에도
+# 재빌드 전까지 여기 있는 옛 application.yml 등이 그대로 실행돼 혼란을 유발하므로 추적하지 않는다.
+bin/
+
 # IDE
 .idea/
 *.iml
