@@ -2,6 +2,7 @@ package com.dongnemarket.product.repository.spec;
 
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
+import com.dongnemarket.member.entity.MemberStatus;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
@@ -31,12 +32,19 @@ public class ProductSpecification {
 				.and(priceGreaterThanOrEqualTo(minPrice))
 				.and(priceLessThanOrEqualTo(maxPrice))
 				.and(tradeStatusEquals(tradeStatus))
-				.and(regionIn(regions));
+					.and(regionIn(regions));
+	}
+
+	public static Specification<Product> categoryList(Long categoryId) {
+		return visibleProducts()
+				.and(categoryEquals(categoryId));
 	}
 
 	private static Specification<Product> visibleProducts() {
 		return notDeleted()
-				.and(notHidden());
+				.and(notHidden())
+				.and(notCompleted())
+				.and(activeSeller());
 	}
 
 	private static Specification<Product> notDeleted() {
@@ -45,6 +53,14 @@ public class ProductSpecification {
 
 	private static Specification<Product> notHidden() {
 		return (root, query, criteriaBuilder) -> criteriaBuilder.isFalse(root.get("hidden"));
+	}
+
+	private static Specification<Product> notCompleted() {
+		return (root, query, criteriaBuilder) -> criteriaBuilder.notEqual(root.get("tradeStatus"), TradeStatus.COMPLETED);
+	}
+
+	private static Specification<Product> activeSeller() {
+		return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("member").get("status"), MemberStatus.ACTIVE);
 	}
 
 	private static Specification<Product> keywordContains(String keyword) {

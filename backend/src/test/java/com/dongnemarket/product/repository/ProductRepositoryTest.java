@@ -6,6 +6,7 @@ import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
 import com.dongnemarket.global.config.JpaAuditingConfig;
 import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
@@ -331,7 +332,10 @@ class ProductRepositoryTest {
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
-		List<Product> products = productRepository.findAllByCategoryIdAndDeletedAtIsNullAndHiddenFalseOrderByIdDesc(targetCategory.getId());
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.categoryList(targetCategory.getId()),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
 
 		assertThat(products).containsExactly(newProduct, oldProduct);
 	}
@@ -488,6 +492,55 @@ class ProductRepositoryTest {
 
 		assertThat(products).containsExactly(newProduct, oldProduct);
 		assertThat(products).doesNotContain(hiddenProduct, deletedProduct);
+	}
+
+	@Test
+	@DisplayName("상품 목록 조건은 탈퇴·정지 판매자 상품과 거래완료 상품을 제외한다")
+	void excludesInactiveSellerProductsAndCompletedProductsFromList() {
+		Member activeMember = memberRepository.save(Member.createUser("visible-active@example.com", "encodedPassword", "활성판매자"));
+		Member deletedMember = memberRepository.save(Member.createUser("visible-deleted@example.com", "encodedPassword", "탈퇴판매자"));
+		deletedMember.changeStatus(MemberStatus.DELETED);
+		Member suspendedMember = memberRepository.save(Member.createUser("visible-suspended@example.com", "encodedPassword", "정지판매자"));
+		suspendedMember.changeStatus(MemberStatus.SUSPENDED);
+		Category category = categoryRepository.save(new Category("공개목록정책"));
+		Product onSaleProduct = productRepository.save(Product.create(
+				activeMember,
+				category,
+				"판매중 공개 상품",
+				"판매중 공개 상품 설명",
+				BigDecimal.valueOf(10000),
+				"서울 강남구"
+		));
+		Product reservedProduct = Product.create(activeMember, category, "예약중 공개 상품", "예약중 공개 상품 설명", BigDecimal.valueOf(20000), "서울 마포구");
+		reservedProduct.changeTradeStatus(TradeStatus.RESERVED);
+		Product savedReservedProduct = productRepository.save(reservedProduct);
+		Product completedProduct = Product.create(activeMember, category, "거래완료 상품", "거래완료 상품 설명", BigDecimal.valueOf(30000), "서울 서초구");
+		completedProduct.complete();
+		productRepository.save(completedProduct);
+		Product deletedSellerProduct = productRepository.save(Product.create(
+				deletedMember,
+				category,
+				"탈퇴 판매자 상품",
+				"탈퇴 판매자 상품 설명",
+				BigDecimal.valueOf(40000),
+				"서울 송파구"
+		));
+		Product suspendedSellerProduct = productRepository.saveAndFlush(Product.create(
+				suspendedMember,
+				category,
+				"정지 판매자 상품",
+				"정지 판매자 상품 설명",
+				BigDecimal.valueOf(50000),
+				"서울 용산구"
+		));
+
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.list(null, null),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+
+		assertThat(products).containsExactly(savedReservedProduct, onSaleProduct);
+		assertThat(products).doesNotContain(completedProduct, deletedSellerProduct, suspendedSellerProduct);
 	}
 
 	@Test
@@ -706,4 +759,120 @@ class ProductRepositoryTest {
 		assertThat(products).containsExactly(matchedProduct);
 		assertThat(products).doesNotContain(wrongRegionProduct, wrongKeywordProduct);
 	}
-}
+
+	@Test
+	@DisplayName("상품 검색 조건은 탈퇴·정지 판매자 상품과 거래완료 상품을 제외한다")
+	void excludesInactiveSellerProductsAndCompletedProductsFromSearch() {
+		Member activeMember = memberRepository.save(Member.createUser("search-visible-active@example.com", "encodedPassword", "활성검색판매자"));
+		Member deletedMember = memberRepository.save(Member.createUser("search-visible-deleted@example.com", "encodedPassword", "탈퇴검색판매자"));
+		deletedMember.changeStatus(MemberStatus.DELETED);
+		Member suspendedMember = memberRepository.save(Member.createUser("search-visible-suspended@example.com", "encodedPassword", "정지검색판매자"));
+		suspendedMember.changeStatus(MemberStatus.SUSPENDED);
+		Category category = categoryRepository.save(new Category("공개검색정책"));
+		Product visibleProduct = productRepository.save(Product.create(
+				activeMember,
+				category,
+				"정책 맥북",
+				"공개 검색 상품입니다.",
+				BigDecimal.valueOf(1000000),
+				"서울 강남구"
+		));
+		Product completedProduct = Product.create(activeMember, category, "정책 완료 맥북", "거래완료 검색 상품입니다.", BigDecimal.valueOf(900000), "서울 강남구");
+		completedProduct.complete();
+		productRepository.save(completedProduct);
+		Product deletedSellerProduct = productRepository.save(Product.create(
+				deletedMember,
+				category,
+				"정책 탈퇴 맥북",
+				"탈퇴 판매자 검색 상품입니다.",
+				BigDecimal.valueOf(800000),
+				"서울 강남구"
+		));
+		Product suspendedSellerProduct = productRepository.saveAndFlush(Product.create(
+				suspendedMember,
+				category,
+				"정책 정지 맥북",
+				"정지 판매자 검색 상품입니다.",
+				BigDecimal.valueOf(700000),
+				"서울 강남구"
+		));
+
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.search("정책", null, null, null, null, List.of("서울 강남구")),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+
+		assertThat(products).containsExactly(visibleProduct);
+		assertThat(products).doesNotContain(completedProduct, deletedSellerProduct, suspendedSellerProduct);
+	}
+
+	@Test
+	@DisplayName("상품 검색 조건은 거래완료 상태를 요청하면 빈 목록을 반환한다")
+	void returnsEmptyWhenSearchingCompletedProducts() {
+		Member member = memberRepository.save(Member.createUser("search-completed-empty@example.com", "encodedPassword", "완료검색판매자"));
+		Category category = categoryRepository.save(new Category("거래완료검색"));
+		Product completedProduct = Product.create(
+				member,
+				category,
+				"거래완료 맥북",
+				"거래완료 검색 상품입니다.",
+				BigDecimal.valueOf(1000000),
+				"서울 강남구"
+		);
+		completedProduct.complete();
+		productRepository.saveAndFlush(completedProduct);
+
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.search("맥북", null, null, null, TradeStatus.COMPLETED, null),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+
+		assertThat(products).isEmpty();
+	}
+
+	@Test
+	@DisplayName("카테고리별 상품 조건은 탈퇴·정지 판매자 상품과 거래완료 상품을 제외한다")
+	void excludesInactiveSellerProductsAndCompletedProductsFromCategoryList() {
+		Member activeMember = memberRepository.save(Member.createUser("category-visible-active@example.com", "encodedPassword", "활성카테고리판매자"));
+		Member deletedMember = memberRepository.save(Member.createUser("category-visible-deleted@example.com", "encodedPassword", "탈퇴카테고리판매자"));
+		deletedMember.changeStatus(MemberStatus.DELETED);
+		Member suspendedMember = memberRepository.save(Member.createUser("category-visible-suspended@example.com", "encodedPassword", "정지카테고리판매자"));
+		suspendedMember.changeStatus(MemberStatus.SUSPENDED);
+		Category category = categoryRepository.save(new Category("공개카테고리정책"));
+		Product visibleProduct = productRepository.save(Product.create(
+				activeMember,
+				category,
+				"카테고리 공개 상품",
+				"카테고리 공개 상품 설명",
+				BigDecimal.valueOf(10000),
+				"서울 강남구"
+		));
+		Product completedProduct = Product.create(activeMember, category, "카테고리 거래완료 상품", "카테고리 거래완료 상품 설명", BigDecimal.valueOf(20000), "서울 강남구");
+		completedProduct.complete();
+		productRepository.save(completedProduct);
+		Product deletedSellerProduct = productRepository.save(Product.create(
+				deletedMember,
+				category,
+				"카테고리 탈퇴 판매자 상품",
+				"카테고리 탈퇴 판매자 상품 설명",
+				BigDecimal.valueOf(30000),
+				"서울 강남구"
+		));
+		Product suspendedSellerProduct = productRepository.saveAndFlush(Product.create(
+				suspendedMember,
+				category,
+				"카테고리 정지 판매자 상품",
+				"카테고리 정지 판매자 상품 설명",
+				BigDecimal.valueOf(40000),
+				"서울 강남구"
+		));
+
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.categoryList(category.getId()),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+
+		assertThat(products).containsExactly(visibleProduct);
+		assertThat(products).doesNotContain(completedProduct, deletedSellerProduct, suspendedSellerProduct);
+	}
+	}
