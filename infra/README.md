@@ -1,8 +1,8 @@
 # infra — 클라우드 배포 자원
 
 AWS(EC2×2 + RDS + ECR) 클라우드 배포 전용 자원. dev/local-deploy는 리포 루트의
-`docker-compose.yml`이 담당하며 여기서 다루지 않는다. 설계 배경은
-[docs/deployment/05-aws-cicd-design.md](../docs/deployment/05-aws-cicd-design.md).
+`docker-compose.yml`이 담당하며 여기서 다루지 않는다. 배포·운영 절차는
+[docs/runbook/README.md](../docs/runbook/README.md).
 
 ## 구조
 
