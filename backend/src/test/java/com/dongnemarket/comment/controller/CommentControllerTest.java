@@ -203,7 +203,23 @@ class CommentControllerTest {
                     .andExpect(jsonPath("$.status").value(200))
                     .andExpect(jsonPath("$.data.length()").value(2))
                     .andExpect(jsonPath("$.data[0].content").value("첫 번째 댓글"))
-                    .andExpect(jsonPath("$.data[1].content").value("두 번째 댓글"));
+                    .andExpect(jsonPath("$.data[0].authorNickname").value("writer"))
+                    .andExpect(jsonPath("$.data[1].content").value("두 번째 댓글"))
+                    .andExpect(jsonPath("$.data[1].authorNickname").value("seller"));
+        }
+
+        @Test
+        @DisplayName("탈퇴한 작성자의 댓글은 닉네임이 '탈퇴한 사용자'로 마스킹되고 내용은 그대로 유지된다")
+        void withdrawnAuthor_maskedNicknameButContentKept() throws Exception {
+            commentRepository.save(Comment.of(writer, product, "탈퇴 전에 남긴 댓글"));
+            writer.softDelete();            // 작성자 탈퇴(회원 소프트 삭제는 댓글에 cascade 하지 않음)
+            memberRepository.save(writer);
+
+            mockMvc.perform(get("/api/products/{productId}/comments", productId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.length()").value(1))
+                    .andExpect(jsonPath("$.data[0].authorNickname").value("탈퇴한 사용자"))
+                    .andExpect(jsonPath("$.data[0].content").value("탈퇴 전에 남긴 댓글"));
         }
 
         @Test

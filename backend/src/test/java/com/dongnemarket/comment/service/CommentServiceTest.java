@@ -96,7 +96,7 @@ class CommentServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
 
-            verify(commentRepository, never()).findAllByProduct_IdAndDeletedAtIsNullOrderByCreatedAtAsc(any());
+            verify(commentRepository, never()).findAllWithMemberByProduct_Id(any());
         }
     }
 
