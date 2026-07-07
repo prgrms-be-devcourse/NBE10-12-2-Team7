@@ -75,7 +75,7 @@ export default function AdminAiPage() {
   return (
     <>
       <div className={styles.ptitle}>AI 어시스턴트 <span className={`${styles.tag} ${styles.tagPink}`}>읽기 전용</span></div>
-      <div className={styles.pdesc}>자연어로 관리 데이터를 조회합니다 · POST /api/admin/ai/chat</div>
+      <div className={styles.pdesc}>자연어로 관리 데이터를 조회합니다</div>
 
       <div className={styles.note}>
         조회 전용(v1) 어시스턴트예요. 회원 정지, 상품 삭제 같은 변경 작업은 처리할 수 없고,

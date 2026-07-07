@@ -126,15 +126,15 @@ public class NotificationService {
     }
 
     private String buildCommentMessage(String productTitle) {
-        return "\"" + productTitle + "\" 글에 새로운 댓글이 작성되었습니다.";
+        return "💬 \"" + productTitle + "\" 글에 새로운 댓글이 작성되었습니다.";
     }
 
     private String buildPriceChangeMessage(String productTitle) {
         // 가격 수치를 문구에 넣지 않는다: 코얼레싱 시 renotify()가 message를 갱신하지 않아 옛 가격이 남기 때문.
-        return "\"" + productTitle + "\"의 가격이 변경되었습니다.";
+        return "🏷️ \"" + productTitle + "\"의 가격이 변경되었습니다.";
     }
 
     private String buildChatMessage(String productTitle, String opponentNickname) {
-        return "\"" + productTitle + "\"에 대해 \"" + opponentNickname + "\"님의 새로운 채팅이 도착했습니다!";
+        return "🔔 \"" + productTitle + "\"에 대해 \"" + opponentNickname + "\"님의 새로운 채팅이 도착했습니다!";
     }
 }

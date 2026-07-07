@@ -75,7 +75,7 @@ export default function AdminDashboardPage() {
   return (
     <>
       <div className={styles.ptitle}>운영 대시보드</div>
-      <div className={styles.pdesc}>서비스 전체 현황 요약 · GET /api/admin/dashboard</div>
+      <div className={styles.pdesc}>서비스 전체 현황 요약</div>
 
       <div className={styles.statGrid}>
         <div className={styles.stat}><div className={styles.statL}>전체 회원 수</div><div className={styles.statN}>{dashboard.totalMembers.toLocaleString()}</div></div>

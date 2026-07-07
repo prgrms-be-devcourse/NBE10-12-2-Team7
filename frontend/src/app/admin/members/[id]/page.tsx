@@ -100,7 +100,6 @@ export default function AdminMemberDetailPage() {
   return (
     <>
       <div className={styles.ptitle}>회원 상세 / 상태 변경</div>
-      <div className={styles.pdesc}>GET /api/admin/members/{'{memberId}'}</div>
       <div className={styles.cols2}>
         <div className={styles.panel}>
           <h3>회원 기본 정보</h3>

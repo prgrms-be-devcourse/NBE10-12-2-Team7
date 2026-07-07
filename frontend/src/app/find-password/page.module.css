@@ -4,6 +4,13 @@
   padding: 60px 24px 90px;
 }
 
+/* CSS Modules에서 animation-name도 스코프 해시가 붙어 globals.css의 전역 keyframes와
+   이름이 안 맞으므로, 여기서 동일 이름으로 다시 선언해 정의/사용 스코프를 맞춘다. */
+@keyframes mo-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* 인트로 */
 .intro {
   text-align: center;
@@ -15,7 +22,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--primary);
   background: var(--primary-soft);
@@ -24,14 +31,14 @@
 }
 .intro h1 {
   margin: 14px 0 6px;
-  font-size: 24px;
+  font-size: 30px;
   font-weight: 800;
   letter-spacing: -.03em;
 }
 .intro p {
   margin: 0;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 17px;
 }
 
 /* 카드 */

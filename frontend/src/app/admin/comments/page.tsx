@@ -78,7 +78,7 @@ export default function AdminCommentsPage() {
   return (
     <>
       <div className={styles.ptitle}>댓글 목록 관리</div>
-      <div className={styles.pdesc}>전체 댓글 검색 및 삭제 처리 · GET /api/admin/comments</div>
+      <div className={styles.pdesc}>전체 댓글 검색 및 삭제 처리</div>
       <div className={styles.panel}>
         <form className={styles.filter} onSubmit={handleSearch}>
           <div className={styles.field}>

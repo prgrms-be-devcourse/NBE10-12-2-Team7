@@ -30,8 +30,8 @@ const TABS: { key: FilterTab; label: string }[] = [
 
 function typeTag(type: ReportType) {
   return type === 'MEMBER'
-    ? { cls: styles.tagMember, label: '사용자 신고' }
-    : { cls: styles.tagProduct, label: '상품 신고' }
+    ? { cls: styles.tagMember, label: '사용자 신고', icon: '👤' }
+    : { cls: styles.tagProduct, label: '상품 신고', icon: '📦' }
 }
 
 function statusTag(status: ReportStatus) {
@@ -43,6 +43,78 @@ function statusTag(status: ReportStatus) {
 
 function formatDate(iso: string) {
   return iso.slice(0, 10)
+}
+
+function formatRelative(iso: string) {
+  const diffMs = Date.now() - new Date(iso).getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 1) return '방금 전'
+  if (diffMin < 60) return `${diffMin}분 전`
+  const diffHour = Math.floor(diffMin / 60)
+  if (diffHour < 24) return `${diffHour}시간 전`
+  const diffDay = Math.floor(diffHour / 24)
+  if (diffDay < 7) return `${diffDay}일 전`
+  return `${formatDate(iso)} 접수`
+}
+
+const STATUS_ORDER: ReportStatus[] = ['RECEIVED', 'REVIEWING', 'COMPLETED', 'REJECTED']
+const STATUS_LABEL: Record<ReportStatus, string> = {
+  RECEIVED: '접수', REVIEWING: '처리중', COMPLETED: '처리완료', REJECTED: '반려',
+}
+/* 접수/처리중/반려는 상품목록 배지(나눔/예약중/판매중)와 동일 색상으로 맞춘다. */
+const STATUS_COLOR_VAR: Record<ReportStatus, string> = {
+  RECEIVED: '#1f9d57', REVIEWING: '#2f77e0', COMPLETED: '#3a3a3a', REJECTED: '#ec1451',
+}
+const STEPS: ReportStatus[] = ['RECEIVED', 'REVIEWING', 'COMPLETED']
+
+function buildDonutGradient(counts: Record<ReportStatus, number>, total: number) {
+  if (total === 0) return 'var(--surface-2)'
+  let acc = 0
+  const stops: string[] = []
+  for (const key of STATUS_ORDER) {
+    const c = counts[key]
+    if (c === 0) continue
+    const start = (acc / total) * 100
+    acc += c
+    const end = (acc / total) * 100
+    stops.push(`${STATUS_COLOR_VAR[key]} ${start}% ${end}%`)
+  }
+  return `conic-gradient(${stops.join(', ')})`
+}
+
+function AnimatedNumber({ value }: { value: number }) {
+  const [display, setDisplay] = useState(0)
+  useEffect(() => {
+    const dur = 900
+    const t0 = Date.now()
+    const ease = (x: number) => 1 - Math.pow(1 - x, 3)
+    const timer = setInterval(() => {
+      const p = Math.min(1, (Date.now() - t0) / dur)
+      setDisplay(Math.round(value * ease(p)))
+      if (p >= 1) clearInterval(timer)
+    }, 33)
+    return () => clearInterval(timer)
+  }, [value])
+  return <>{display.toLocaleString('ko-KR')}</>
+}
+
+function StatusStepper({ status }: { status: ReportStatus }) {
+  if (status === 'REJECTED') {
+    return <span className={styles.stepperRejected}>반려됨</span>
+  }
+  const idx = STEPS.indexOf(status)
+  return (
+    <div className={styles.stepper} aria-hidden="true">
+      {STEPS.map((s, i) => (
+        <span key={s} className={styles.stepperSeg}>
+          <span className={`${styles.stepperDot}${i <= idx ? ' ' + styles.stepperDotOn : ''}`} />
+          {i < STEPS.length - 1 && (
+            <span className={`${styles.stepperLine}${i < idx ? ' ' + styles.stepperLineOn : ''}`} />
+          )}
+        </span>
+      ))}
+    </div>
+  )
 }
 
 export default function MyReportsPage() {
@@ -132,6 +204,24 @@ export default function MyReportsPage() {
 
   const filtered = filter === '전체' ? reports : reports.filter(r => r.status === filter)
 
+  const counts: Record<ReportStatus, number> = {
+    RECEIVED: reports.filter(r => r.status === 'RECEIVED').length,
+    REVIEWING: reports.filter(r => r.status === 'REVIEWING').length,
+    COMPLETED: reports.filter(r => r.status === 'COMPLETED').length,
+    REJECTED: reports.filter(r => r.status === 'REJECTED').length,
+  }
+  const total = reports.length
+  const donutBg = buildDonutGradient(counts, total)
+
+  const reasonCounts: Partial<Record<ReportReason, number>> = {}
+  for (const r of reports) reasonCounts[r.reason] = (reasonCounts[r.reason] ?? 0) + 1
+  const topReasonEntry = (Object.entries(reasonCounts) as [ReportReason, number][])
+    .sort((a, b) => b[1] - a[1])[0]
+
+  const productCount = reports.filter(r => r.reportType === 'PRODUCT').length
+  const productPct = total > 0 ? Math.round((productCount / total) * 100) : 0
+  const memberPct = total > 0 ? 100 - productPct : 0
+
   return (
     <main className={styles.wrap}>
       {/* 헤더 */}
@@ -153,6 +243,57 @@ export default function MyReportsPage() {
 
       {status === 'ready' && (
         <>
+          {/* 통계 카드 */}
+          {total > 0 && (
+            <div className={styles.statsCard}>
+              <div className={styles.donutWrap}>
+                <div className={styles.donut} style={{ background: donutBg }}>
+                  <div className={styles.donutHole}>
+                    <span className={styles.donutTotal}><AnimatedNumber value={total} /></span>
+                    <span className={styles.donutTotalLabel}>총 신고</span>
+                  </div>
+                </div>
+              </div>
+              <div className={styles.legend}>
+                {STATUS_ORDER.map(key => (
+                  <div key={key} className={styles.legendRow}>
+                    <span className={styles.legendDot} style={{ background: STATUS_COLOR_VAR[key] }} />
+                    <span className={styles.legendLabel}>{STATUS_LABEL[key]}</span>
+                    <span className={styles.legendCount}><AnimatedNumber value={counts[key]} /></span>
+                  </div>
+                ))}
+              </div>
+              <div className={styles.insights}>
+                {topReasonEntry && (
+                  <div className={styles.reasonHighlight}>
+                    <span className={styles.reasonHighlightIcon}>💡</span>
+                    <div>
+                      <div className={styles.reasonHighlightLabel}>가장 많이 접수한 사유</div>
+                      <div className={styles.reasonHighlightValue}>
+                        {REPORT_REASON_LABEL[topReasonEntry[0]] ?? topReasonEntry[0]}
+                        <span className={styles.reasonHighlightCount}>{topReasonEntry[1]}건</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className={styles.reasonHighlight}>
+                  <span className={styles.reasonHighlightIcon}>📊</span>
+                  <div style={{ flex: 1 }}>
+                    <div className={styles.reasonHighlightLabel}>신고 유형 비율</div>
+                    <div className={styles.reasonHighlightValue}>
+                      상품 {productPct}%
+                      <span className={styles.reasonHighlightCount}>· 사용자 {memberPct}%</span>
+                    </div>
+                    <div className={styles.typeRatioBar}>
+                      <div className={styles.typeRatioProduct} style={{ width: `${productPct}%` }} />
+                      <div className={styles.typeRatioMember} style={{ width: `${memberPct}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 탭 필터 */}
           <div className={styles.tabs}>
             {TABS.map(tab => (
@@ -179,7 +320,7 @@ export default function MyReportsPage() {
                 return (
                   <div key={report.reportId} className={styles.rcard}>
                     <div className={styles.top}>
-                      <span className={tt.cls}>{tt.label}</span>
+                      <span className={tt.cls}>{tt.icon} {tt.label}</span>
                       <span className={st.cls}>{st.label}</span>
                       <span className={styles.rid}>#{report.reportId}</span>
                     </div>
@@ -197,8 +338,9 @@ export default function MyReportsPage() {
                         <img src={report.evidenceImageUrl} alt="증빙 이미지" />
                       </a>
                     )}
+                    <StatusStepper status={report.status} />
                     <div className={styles.foot}>
-                      <span className={styles.date}>{formatDate(report.createdAt)} 접수</span>
+                      <span className={styles.date}>{formatRelative(report.createdAt)}</span>
                       {report.status === 'RECEIVED' && (
                         <button
                           type="button"

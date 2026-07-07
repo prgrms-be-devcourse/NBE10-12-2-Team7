@@ -78,7 +78,7 @@ export default function AdminMembersPage() {
   return (
     <>
       <div className={styles.ptitle}>회원 목록 관리</div>
-      <div className={styles.pdesc}>전체 회원 검색 및 상태 관리 · GET /api/admin/members</div>
+      <div className={styles.pdesc}>전체 회원 검색 및 상태 관리</div>
       <div className={styles.panel}>
         <form className={styles.filter} onSubmit={handleSearch}>
           <div className={styles.field}>
