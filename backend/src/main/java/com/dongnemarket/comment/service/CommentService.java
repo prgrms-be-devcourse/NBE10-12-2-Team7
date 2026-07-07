@@ -58,7 +58,7 @@ public class CommentService {
     /** 댓글 목록 조회. 접근 가능한 상품의 삭제되지 않은 댓글을 조회한다. 비로그인도 가능하다. */
     public List<CommentResponse> getComments(Long productId) {
         productService.validateAccessibleProduct(productId);
-        return commentRepository.findAllByProduct_IdAndDeletedAtIsNullOrderByCreatedAtAsc(productId).stream()
+        return commentRepository.findAllWithMemberByProduct_Id(productId).stream()
                 .map(CommentResponse::from)
                 .toList();
     }
