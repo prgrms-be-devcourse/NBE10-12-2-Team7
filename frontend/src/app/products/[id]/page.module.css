@@ -230,7 +230,6 @@
 }
 .cCtrl button:hover { color: var(--danger); }
 
-.apiNote { margin-top: 12px; font-size: 11.5px; color: var(--text-muted); font-family: ui-monospace, Menlo, monospace; opacity: .7; }
 .cCountAccent { color: var(--primary); }
 
 .notice {

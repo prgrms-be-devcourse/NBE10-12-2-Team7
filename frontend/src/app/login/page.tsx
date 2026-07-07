@@ -132,7 +132,6 @@ export default function LoginPage() {
         </form>
 
         <div className={styles.foot}>아직 계정이 없으신가요? <Link href="/signup">회원가입</Link></div>
-        <div className={styles.apiNote}>POST /api/auth/login → accessToken</div>
       </div>
     </main>
   )

@@ -223,8 +223,6 @@ export default function MyReportsPage() {
         </>
       )}
 
-      <div className={styles.apiNote}>GET /api/members/me/reports</div>
-
       <div className={`toast${toastOn ? ' show' : ''}`}>{toastText}</div>
     </main>
   )

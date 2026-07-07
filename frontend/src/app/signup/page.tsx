@@ -331,7 +331,6 @@ export default function SignupPage() {
           <p>이미 계정이 있으신가요?</p>
           <Link href="/login" className="btn ghost block">로그인하기</Link>
         </div>
-        <div className={styles.apiNote}>POST /api/auth/signup</div>
       </div>
     </main>
   )

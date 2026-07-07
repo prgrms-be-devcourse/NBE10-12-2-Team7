@@ -94,7 +94,6 @@ export default function FindPasswordPage() {
           <p>비밀번호가 기억나셨나요?</p>
           <Link href="/login" className="btn ghost block">로그인하기</Link>
         </div>
-        <div className={styles.apiNote}>POST /api/auth/password-resets</div>
       </div>
     </main>
   )

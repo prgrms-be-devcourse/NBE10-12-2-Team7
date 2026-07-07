@@ -127,8 +127,6 @@ export default function ChatListPage() {
           </div>
         )
       )}
-
-      <div className={styles.apiNote}>GET /api/chat-rooms</div>
     </main>
   )
 }
