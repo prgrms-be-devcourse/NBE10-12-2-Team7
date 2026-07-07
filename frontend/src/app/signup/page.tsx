@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import AgreementSection from './AgreementSection'
 import styles from './page.module.css'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -23,6 +24,23 @@ export default function SignupPage() {
 
   const [formMsg, setFormMsg] = useState<{ text: string; type: MsgType } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  /* ── 약관 동의 ── */
+  const [termsAgreed, setTermsAgreed] = useState(false)
+  const [personalInfoCollectionAgreed, setPersonalInfoCollectionAgreed] = useState(false)
+  // 제출을 한 번이라도 시도했는지만 기록한다. 에러 문구 자체는 저장하지 않고
+  // termsAgreed/personalInfoCollectionAgreed 조합에서 매 렌더마다 파생해, 체크박스를 고치면
+  // 별도 클리어 없이 문구가 항상 현재 상태와 맞게 갱신된다.
+  const [agreementTouched, setAgreementTouched] = useState(false)
+  // allAgreed도 별도 state가 아니라 termsAgreed && personalInfoCollectionAgreed의 파생값이다(AgreementSection 내부도 동일).
+  const bothAgreed = termsAgreed && personalInfoCollectionAgreed
+  const agreementErrorText = !agreementTouched || bothAgreed
+    ? undefined
+    : !termsAgreed && !personalInfoCollectionAgreed
+      ? '이용약관과 개인정보 수집 및 이용 동의에 모두 동의해주세요.'
+      : !termsAgreed
+        ? '이용약관에 동의해주세요.'
+        : '개인정보 수집 및 이용 동의가 필요합니다.'
 
   /* ── 이메일 인증 ── */
   const [codeSent, setCodeSent] = useState(false)
@@ -117,10 +135,15 @@ export default function SignupPage() {
     return true
   }
 
+  function validateAgreements() {
+    setAgreementTouched(true)
+    return bothAgreed
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setFormMsg(null)
-    const valid = [validateEmail(), validatePassword(), validatePasswordConfirm(), validateNickname()].every(Boolean)
+    const valid = [validateEmail(), validatePassword(), validatePasswordConfirm(), validateNickname(), validateAgreements()].every(Boolean)
     if (!valid) { setFormMsg({ text: '입력값을 다시 확인해주세요.', type: 'error' }); return }
     if (!emailVerified) { setFormMsg({ text: '이메일 인증을 먼저 완료해주세요.', type: 'error' }); return }
 
@@ -133,6 +156,8 @@ export default function SignupPage() {
           email: email.trim(),
           password,
           nickname: nickname.trim(),
+          termsAgreed,
+          personalInfoCollectionAgreed,
         }),
       })
 
@@ -143,6 +168,14 @@ export default function SignupPage() {
         const message = data?.message ?? '이미 사용 중인 값이 있습니다.'
         if (code === 'DUPLICATE_NICKNAME') setNicknameHint({ text: message, kind: 'err' })
         else setEmailHint({ text: message, kind: 'err' })
+        setFormMsg({ text: message, type: 'error' })
+        setSubmitting(false)
+        return
+      }
+
+      if (data?.error === 'TERMS_NOT_AGREED' || data?.error === 'PERSONAL_INFO_COLLECTION_NOT_AGREED') {
+        const message = data?.message ?? '필수 약관에 동의해주세요.'
+        setAgreementTouched(true)
         setFormMsg({ text: message, type: 'error' })
         setSubmitting(false)
         return
@@ -273,8 +306,24 @@ export default function SignupPage() {
             <div className={hintClass(nicknameHint.kind)}>{nicknameHint.text}</div>
           </div>
 
-          <button type="submit" className="btn block" disabled={submitting || !emailVerified}>
-            {submitting ? '가입 처리 중...' : emailVerified ? '가입하기' : '이메일 인증을 완료해주세요'}
+          <div className={styles.field}>
+            <AgreementSection
+              termsAgreed={termsAgreed}
+              personalInfoCollectionAgreed={personalInfoCollectionAgreed}
+              onTermsChange={setTermsAgreed}
+              onPersonalInfoCollectionChange={setPersonalInfoCollectionAgreed}
+              errorText={agreementErrorText}
+            />
+          </div>
+
+          <button type="submit" className="btn block" disabled={submitting || !emailVerified || !bothAgreed}>
+            {submitting
+              ? '가입 처리 중...'
+              : !emailVerified
+                ? '이메일 인증을 완료해주세요'
+                : !bothAgreed
+                  ? '필수 약관에 동의해주세요'
+                  : '가입하기'}
           </button>
         </form>
 
