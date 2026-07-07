@@ -391,9 +391,6 @@ export default function ProductDetailPage() {
               </svg>
             </button>
           </div>
-          <div className={styles.apiNote}>
-            GET /api/products/&#123;productId&#125; · POST · DELETE /api/products/&#123;productId&#125;/favorites
-          </div>
         </div>
       </div>
 
@@ -423,9 +420,6 @@ export default function ProductDetailPage() {
                 ))}
               </select>
               <button type="button" className={styles.btnStatus} onClick={applyStatus}>상태 변경</button>
-            </div>
-            <div className={styles.apiNote}>
-              PATCH /api/products/&#123;productId&#125; · PATCH .../status · DELETE /api/products/&#123;productId&#125;
             </div>
           </div>
         </div>
@@ -495,9 +489,6 @@ export default function ProductDetailPage() {
               </div>
             )
           })}
-        </div>
-        <div className={styles.apiNote}>
-          GET · POST /api/products/&#123;productId&#125;/comments · PATCH · DELETE /api/comments/&#123;commentId&#125;
         </div>
       </div>
 

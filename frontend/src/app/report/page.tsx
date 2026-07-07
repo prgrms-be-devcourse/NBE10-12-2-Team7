@@ -32,9 +32,6 @@ function ReportForm() {
 
   const isProduct  = type === 'product'
   const cancelHref = isProduct ? `/products/${targetId}` : `/products`
-  const apiEndpoint = isProduct
-    ? `POST /api/products/${targetId}/reports`
-    : `POST /api/members/${targetId}/reports`
 
   const targetLabel = isProduct ? '상품 신고' : '사용자 신고'
   const targetName = `${isProduct ? '상품' : '회원'} #${targetId}`
@@ -300,7 +297,6 @@ function ReportForm() {
               {submitting ? '신고 접수 중...' : '신고하기'}
             </button>
           </div>
-          <div className={styles.apiNote}>{apiEndpoint}</div>
         </form>
       </div>
     </main>

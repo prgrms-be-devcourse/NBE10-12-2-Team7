@@ -467,9 +467,6 @@ export default function ProductForm({ editId }: Props) {
                 : (isEdit ? '수정 완료' : '등록하기')}
             </button>
           </div>
-          <div className={styles.apiNote}>
-            POST /api/products/images · {isEdit ? `PATCH /api/products/${editId}` : 'POST /api/products'}
-          </div>
         </form>
       </div>
     </main>

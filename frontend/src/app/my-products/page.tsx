@@ -234,10 +234,6 @@ export default function MyProductsPage() {
         </>
       )}
 
-      <div className={styles.apiNote}>
-        GET /api/products/me · PATCH .../status · DELETE /api/products/&#123;id&#125;
-      </div>
-
       {/* 토스트 */}
       <div className={`toast${toastOn ? ' show' : ''}`}>{toastText}</div>
     </main>

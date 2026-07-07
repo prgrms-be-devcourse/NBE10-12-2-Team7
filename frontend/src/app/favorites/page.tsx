@@ -152,10 +152,6 @@ export default function FavoritesPage() {
         )
       )}
 
-      <div className={styles.apiNote}>
-        GET /api/members/me/favorites · DELETE /api/products/&#123;id&#125;/favorites
-      </div>
-
       {/* 토스트 */}
       <div className={`toast${toastOn ? ' show' : ''}`}>{toastText}</div>
     </main>

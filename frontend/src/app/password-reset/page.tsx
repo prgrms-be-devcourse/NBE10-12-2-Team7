@@ -134,8 +134,6 @@ function PasswordResetForm() {
             </button>
           </form>
         )}
-
-        <div className={styles.apiNote}>POST /api/auth/password-resets/confirm</div>
       </div>
     </main>
   )

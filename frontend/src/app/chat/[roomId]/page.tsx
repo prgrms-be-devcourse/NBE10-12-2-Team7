@@ -221,8 +221,6 @@ export default function ChatRoomPage() {
       </form>
 
       <div className={`toast${toastOn ? ' show' : ''}`}>{toastText}</div>
-
-      <div className={styles.apiNote}>GET/POST /api/chat-rooms/{'{roomId}'}/messages (3초 폴링)</div>
     </main>
   )
 }

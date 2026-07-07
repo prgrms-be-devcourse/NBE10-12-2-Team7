@@ -349,7 +349,6 @@ export default function MyProfilePage() {
           <button type="submit" className="btn block" disabled={saving}>
             {saving ? '저장 중...' : '정보 수정'}
           </button>
-          <div className={styles.apiNote}>GET /api/members/me · PATCH /api/members/me</div>
         </form>
       </div>
 
@@ -406,7 +405,6 @@ export default function MyProfilePage() {
         >
           {locSaving ? '저장 중...' : '동네 저장'}
         </button>
-        <div className={styles.apiNote}>GET/PUT /api/members/me/locations · GET /api/regions</div>
       </div>
 
       {/* 동네 추가 모달 */}
@@ -500,7 +498,6 @@ export default function MyProfilePage() {
           <button type="submit" className="btn block" disabled={pwSaving}>
             {pwSaving ? '변경 중...' : '비밀번호 변경'}
           </button>
-          <div className={styles.apiNote}>PATCH /api/members/me/password</div>
         </form>
       </div>
 
@@ -514,7 +511,6 @@ export default function MyProfilePage() {
         <button className="btn danger" onClick={handleWithdraw} type="button" disabled={withdrawing}>
           {withdrawing ? '탈퇴 처리 중...' : '회원 탈퇴'}
         </button>
-        <div className={styles.apiNote}>DELETE /api/members/me</div>
       </div>
 
       {/* 토스트 */}

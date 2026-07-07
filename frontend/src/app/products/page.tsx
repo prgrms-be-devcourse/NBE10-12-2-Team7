@@ -537,8 +537,6 @@ export default function ProductsPage() {
         )
       )}
 
-      <div className={styles.apiNote}>GET /api/products · GET /api/categories · GET /api/regions</div>
-
       <div className={`toast${toastOn ? ' show' : ''}`}>{toastText}</div>
     </main>
   )
