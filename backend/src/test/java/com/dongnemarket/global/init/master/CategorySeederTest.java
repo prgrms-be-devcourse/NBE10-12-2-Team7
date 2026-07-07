@@ -1,4 +1,4 @@
-package com.dongnemarket.category.init;
+package com.dongnemarket.global.init.master;
 
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @ActiveProfiles("test")
-class CategoryInitializerTest {
+class CategorySeederTest {
 
 	private static final List<String> DEFAULT_CATEGORY_NAMES = List.of(
 			"디지털기기",
@@ -31,7 +31,7 @@ class CategoryInitializerTest {
 	CategoryRepository categoryRepository;
 
 	@Autowired
-	CategoryInitializer categoryInitializer;
+	CategorySeeder categorySeeder;
 
 	@Test
 	@DisplayName("애플리케이션 시작 시 기본 카테고리 8개가 저장된다")
@@ -45,9 +45,9 @@ class CategoryInitializerTest {
 	}
 
 	@Test
-	@DisplayName("초기화기를 다시 실행해도 기본 카테고리가 중복 저장되지 않는다")
+	@DisplayName("시더를 다시 실행해도 기본 카테고리가 중복 저장되지 않는다")
 	void doesNotDuplicateDefaultCategories() {
-		categoryInitializer.run(null);
+		categorySeeder.seed();
 
 		assertThat(categoryRepository.count()).isEqualTo(DEFAULT_CATEGORY_NAMES.size());
 	}

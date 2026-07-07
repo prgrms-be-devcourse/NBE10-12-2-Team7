@@ -76,7 +76,7 @@ class CommentControllerTest {
     void setUp() {
         writer = memberRepository.save(Member.createUser("writer@example.com", "encoded-pw", "writer"));
         seller = memberRepository.save(Member.createUser("seller@example.com", "encoded-pw", "seller"));
-        // 시드된 기본 카테고리(CategoryInitializer)와 이름이 겹치지 않도록 테스트 전용 카테고리를 만든다.
+        // 시드된 기본 카테고리(CategorySeeder)와 이름이 겹치지 않도록 테스트 전용 카테고리를 만든다.
         Category category = categoryRepository.save(new Category("댓글테스트전용카테고리"));
         product = productRepository.save(
                 Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), "서울 강남구"));
