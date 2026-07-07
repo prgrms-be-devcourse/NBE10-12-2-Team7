@@ -57,4 +57,27 @@ class MemberTest {
         assertThat(member.getStatus()).isEqualTo(MemberStatus.ACTIVE);
         assertThat(member.getDeletedAt()).isNull();
     }
+
+    // ===== getDisplayNickname =====
+
+    @Test
+    @DisplayName("DELETED 회원의 getDisplayNickname()은 실제 닉네임 대신 \"탈퇴한 사용자\"를 반환한다")
+    void getDisplayNickname_deleted_returnsFixedText() {
+        Member member = Member.createUser("user@example.com", "encoded-password", "tester");
+        member.changeStatus(MemberStatus.DELETED);
+
+        assertThat(member.getDisplayNickname()).isEqualTo("탈퇴한 사용자");
+    }
+
+    @Test
+    @DisplayName("ACTIVE/SUSPENDED 회원의 getDisplayNickname()은 실제 닉네임을 그대로 반환한다")
+    void getDisplayNickname_activeOrSuspended_returnsRealNickname() {
+        Member member = Member.createUser("user@example.com", "encoded-password", "tester");
+
+        assertThat(member.getDisplayNickname()).isEqualTo("tester");
+
+        member.changeStatus(MemberStatus.SUSPENDED);
+
+        assertThat(member.getDisplayNickname()).isEqualTo("tester");
+    }
 }

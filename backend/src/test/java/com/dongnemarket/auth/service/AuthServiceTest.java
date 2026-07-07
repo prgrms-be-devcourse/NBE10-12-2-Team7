@@ -11,13 +11,17 @@ import com.dongnemarket.auth.repository.RefreshTokenRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.global.security.jwt.JwtTokenProvider;
+import com.dongnemarket.member.entity.AgreementType;
 import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.member.entity.MemberAgreement;
 import com.dongnemarket.member.entity.MemberStatus;
+import com.dongnemarket.member.repository.MemberAgreementRepository;
 import com.dongnemarket.member.repository.MemberRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -34,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -52,10 +57,16 @@ class AuthServiceTest {
 	@Mock
 	EmailVerificationRepository emailVerificationRepository;
 
+	@Mock
+	MemberAgreementRepository memberAgreementRepository;
+
 	PasswordEncoder passwordEncoder;
 	JwtTokenProvider jwtTokenProvider;
 	RefreshTokenService refreshTokenService;
 	AuthService authService;
+
+	private static final String TEST_IP = "127.0.0.1";
+	private static final String TEST_USER_AGENT = "JUnit-Test-Agent";
 
 	@BeforeEach
 	void setUp() {
@@ -63,8 +74,8 @@ class AuthServiceTest {
 		jwtTokenProvider = new JwtTokenProvider(
 				"test-jwt-secret-key-for-auth-service-unit-test-0123456789", 3600L, 604800L);
 		refreshTokenService = new RefreshTokenService(refreshTokenRepository, jwtTokenProvider);
-		authService = new AuthService(
-				memberRepository, passwordEncoder, jwtTokenProvider, refreshTokenService, emailVerificationRepository);
+		authService = new AuthService(memberRepository, passwordEncoder, jwtTokenProvider, refreshTokenService,
+				emailVerificationRepository, memberAgreementRepository);
 	}
 
 	// ===== signup =====
@@ -72,25 +83,76 @@ class AuthServiceTest {
 	@Test
 	@DisplayName("이메일·닉네임이 중복되지 않고 이메일 인증이 완료됐으면 회원가입에 성공한다")
 	void signup_success() {
-		SignupRequest request = new SignupRequest("test@example.com", "password123", "tester");
+		SignupRequest request = new SignupRequest("test@example.com", "password123", "tester", true, true);
 		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false);
 		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(true);
 		given(memberRepository.existsByNickname(request.getNickname())).willReturn(false);
 		given(memberRepository.save(any(Member.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-		SignupResponse response = authService.signup(request);
+		SignupResponse response = authService.signup(request, TEST_IP, TEST_USER_AGENT);
 
 		assertThat(response.getEmail()).isEqualTo(request.getEmail());
 		assertThat(response.getNickname()).isEqualTo(request.getNickname());
 	}
 
 	@Test
+	@DisplayName("이용약관에 동의하지 않으면 TERMS_NOT_AGREED 예외가 발생하고 회원가입이 진행되지 않는다")
+	void signup_termsNotAgreed_throwsException() {
+		SignupRequest request = new SignupRequest("test@example.com", "password123", "tester", false, true);
+
+		assertThatThrownBy(() -> authService.signup(request, TEST_IP, TEST_USER_AGENT))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.TERMS_NOT_AGREED);
+
+		verify(memberRepository, never()).save(any());
+		verify(memberAgreementRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("개인정보 수집 및 이용에 동의하지 않으면 PERSONAL_INFO_COLLECTION_NOT_AGREED 예외가 발생하고 회원가입이 진행되지 않는다")
+	void signup_personalInfoCollectionNotAgreed_throwsException() {
+		SignupRequest request = new SignupRequest("test@example.com", "password123", "tester", true, false);
+
+		assertThatThrownBy(() -> authService.signup(request, TEST_IP, TEST_USER_AGENT))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PERSONAL_INFO_COLLECTION_NOT_AGREED);
+
+		verify(memberRepository, never()).save(any());
+		verify(memberAgreementRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("이용약관·개인정보 모두 동의하면 회원가입 성공과 함께 MemberAgreement가 항목별로 1건씩(총 2건) 저장된다")
+	void signup_bothAgreed_savesTwoMemberAgreements() {
+		SignupRequest request = new SignupRequest("test@example.com", "password123", "tester", true, true);
+		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false);
+		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(true);
+		given(memberRepository.existsByNickname(request.getNickname())).willReturn(false);
+		given(memberRepository.save(any(Member.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		authService.signup(request, TEST_IP, TEST_USER_AGENT);
+
+		ArgumentCaptor<MemberAgreement> captor = ArgumentCaptor.forClass(MemberAgreement.class);
+		verify(memberAgreementRepository, times(2)).save(captor.capture());
+		assertThat(captor.getAllValues())
+				.extracting(MemberAgreement::getAgreementType)
+				.containsExactlyInAnyOrder(AgreementType.TERMS_OF_SERVICE, AgreementType.PERSONAL_INFO_COLLECTION);
+		assertThat(captor.getAllValues())
+				.allSatisfy(agreement -> {
+					assertThat(agreement.getVersion()).isEqualTo("v1.0");
+					assertThat(agreement.getAgreedAt()).isNotNull();
+					assertThat(agreement.getIpAddress()).isEqualTo(TEST_IP);
+					assertThat(agreement.getUserAgent()).isEqualTo(TEST_USER_AGENT);
+				});
+	}
+
+	@Test
 	@DisplayName("이미 가입된 이메일이면 DUPLICATE_EMAIL 예외가 발생한다")
 	void signup_duplicateEmail_throwsException() {
-		SignupRequest request = new SignupRequest("test@example.com", "password123", "tester");
+		SignupRequest request = new SignupRequest("test@example.com", "password123", "tester", true, true);
 		given(memberRepository.existsByEmail(request.getEmail())).willReturn(true);
 
-		assertThatThrownBy(() -> authService.signup(request))
+		assertThatThrownBy(() -> authService.signup(request, TEST_IP, TEST_USER_AGENT))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_EMAIL);
 
@@ -100,11 +162,11 @@ class AuthServiceTest {
 	@Test
 	@DisplayName("이메일 인증을 완료하지 않았으면 EMAIL_NOT_VERIFIED 예외가 발생한다")
 	void signup_emailNotVerified_throwsException() {
-		SignupRequest request = new SignupRequest("unverified@example.com", "password123", "unverifiedUser");
+		SignupRequest request = new SignupRequest("unverified@example.com", "password123", "unverifiedUser", true, true);
 		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false);
 		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(false);
 
-		assertThatThrownBy(() -> authService.signup(request))
+		assertThatThrownBy(() -> authService.signup(request, TEST_IP, TEST_USER_AGENT))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_NOT_VERIFIED);
 
@@ -114,11 +176,11 @@ class AuthServiceTest {
 	@Test
 	@DisplayName("이메일 인증 요청 이력 자체가 없으면 EMAIL_NOT_VERIFIED 예외가 발생한다")
 	void signup_noVerificationHistory_throwsException() {
-		SignupRequest request = new SignupRequest("never-requested@example.com", "password123", "neverRequestedUser");
+		SignupRequest request = new SignupRequest("never-requested@example.com", "password123", "neverRequestedUser", true, true);
 		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false);
 		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(false);
 
-		assertThatThrownBy(() -> authService.signup(request))
+		assertThatThrownBy(() -> authService.signup(request, TEST_IP, TEST_USER_AGENT))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_NOT_VERIFIED);
 
@@ -128,12 +190,12 @@ class AuthServiceTest {
 	@Test
 	@DisplayName("이미 사용 중인 닉네임이면 DUPLICATE_NICKNAME 예외가 발생한다")
 	void signup_duplicateNickname_throwsException() {
-		SignupRequest request = new SignupRequest("test@example.com", "password123", "tester");
+		SignupRequest request = new SignupRequest("test@example.com", "password123", "tester", true, true);
 		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false);
 		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(true);
 		given(memberRepository.existsByNickname(request.getNickname())).willReturn(true);
 
-		assertThatThrownBy(() -> authService.signup(request))
+		assertThatThrownBy(() -> authService.signup(request, TEST_IP, TEST_USER_AGENT))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_NICKNAME);
 
@@ -143,13 +205,13 @@ class AuthServiceTest {
 	@Test
 	@DisplayName("중복 체크 통과 후 save() 시점에 이메일 unique 제약을 위반하면(race condition) DUPLICATE_EMAIL로 변환한다")
 	void signup_raceConditionDuplicateEmail_throwsDuplicateEmail() {
-		SignupRequest request = new SignupRequest("race@example.com", "password123", "racer");
+		SignupRequest request = new SignupRequest("race@example.com", "password123", "racer", true, true);
 		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false, true);
 		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(true);
 		given(memberRepository.existsByNickname(request.getNickname())).willReturn(false);
 		given(memberRepository.save(any(Member.class))).willThrow(new DataIntegrityViolationException("duplicate entry"));
 
-		assertThatThrownBy(() -> authService.signup(request))
+		assertThatThrownBy(() -> authService.signup(request, TEST_IP, TEST_USER_AGENT))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_EMAIL);
 	}
@@ -157,13 +219,13 @@ class AuthServiceTest {
 	@Test
 	@DisplayName("중복 체크 통과 후 save() 시점에 닉네임 unique 제약을 위반하면(race condition) DUPLICATE_NICKNAME으로 변환한다")
 	void signup_raceConditionDuplicateNickname_throwsDuplicateNickname() {
-		SignupRequest request = new SignupRequest("racer2@example.com", "password123", "raceNick");
+		SignupRequest request = new SignupRequest("racer2@example.com", "password123", "raceNick", true, true);
 		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false);
 		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(true);
 		given(memberRepository.existsByNickname(request.getNickname())).willReturn(false, true);
 		given(memberRepository.save(any(Member.class))).willThrow(new DataIntegrityViolationException("duplicate entry"));
 
-		assertThatThrownBy(() -> authService.signup(request))
+		assertThatThrownBy(() -> authService.signup(request, TEST_IP, TEST_USER_AGENT))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_NICKNAME);
 	}
@@ -171,14 +233,14 @@ class AuthServiceTest {
 	@Test
 	@DisplayName("원인을 식별할 수 없는 무결성 제약 위반은 원본 예외를 그대로 던진다")
 	void signup_unclassifiableIntegrityViolation_rethrowsOriginal() {
-		SignupRequest request = new SignupRequest("unknown@example.com", "password123", "unknown");
+		SignupRequest request = new SignupRequest("unknown@example.com", "password123", "unknown", true, true);
 		given(memberRepository.existsByEmail(request.getEmail())).willReturn(false);
 		given(emailVerificationRepository.existsByEmailAndVerifiedTrue(request.getEmail())).willReturn(true);
 		given(memberRepository.existsByNickname(request.getNickname())).willReturn(false);
 		DataIntegrityViolationException original = new DataIntegrityViolationException("unknown constraint");
 		given(memberRepository.save(any(Member.class))).willThrow(original);
 
-		assertThatThrownBy(() -> authService.signup(request))
+		assertThatThrownBy(() -> authService.signup(request, TEST_IP, TEST_USER_AGENT))
 				.isSameAs(original);
 	}
 

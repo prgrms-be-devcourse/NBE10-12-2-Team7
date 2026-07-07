@@ -4,6 +4,7 @@ import com.dongnemarket.auth.entity.EmailVerification;
 import com.dongnemarket.auth.mail.EmailSender;
 import com.dongnemarket.auth.repository.EmailVerificationRepository;
 import com.dongnemarket.auth.repository.PasswordResetTokenRepository;
+import com.dongnemarket.member.repository.MemberAgreementRepository;
 import com.dongnemarket.member.repository.MemberRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,6 +47,9 @@ class PasswordResetControllerTest {
 	@Autowired
 	PasswordResetTokenRepository passwordResetTokenRepository;
 
+	@Autowired
+	MemberAgreementRepository memberAgreementRepository;
+
 	@MockitoBean
 	EmailSender emailSender;
 
@@ -53,6 +57,7 @@ class PasswordResetControllerTest {
 	void cleanUp() {
 		passwordResetTokenRepository.deleteAll();
 		emailVerificationRepository.deleteAll();
+		memberAgreementRepository.deleteAll();
 		memberRepository.deleteAll();
 	}
 
@@ -67,7 +72,9 @@ class PasswordResetControllerTest {
 		verifyEmail(email);
 		mockMvc.perform(post("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(String.format("{\"email\":\"%s\",\"password\":\"%s\",\"nickname\":\"%s\"}", email, password, nickname)));
+				.content(String.format(
+						"{\"email\":\"%s\",\"password\":\"%s\",\"nickname\":\"%s\",\"termsAgreed\":true,\"personalInfoCollectionAgreed\":true}",
+						email, password, nickname)));
 	}
 
 	// ===== POST /api/auth/password-resets =====

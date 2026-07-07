@@ -9,36 +9,57 @@ import com.dongnemarket.auth.repository.EmailVerificationRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.global.security.jwt.JwtTokenProvider;
+import com.dongnemarket.member.entity.AgreementType;
 import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.member.entity.MemberAgreement;
 import com.dongnemarket.member.entity.MemberStatus;
+import com.dongnemarket.member.repository.MemberAgreementRepository;
 import com.dongnemarket.member.repository.MemberRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 @Service
 @Transactional(readOnly = true)
 public class AuthService {
+
+	/** 약관/개인정보 동의 버전. 별도 버전 관리 테이블 없이 우선 고정값으로 둔다(이후 약관 개정 시 재검토). */
+	private static final String AGREEMENT_VERSION = "v1.0";
 
 	private final MemberRepository memberRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtTokenProvider jwtTokenProvider;
 	private final RefreshTokenService refreshTokenService;
 	private final EmailVerificationRepository emailVerificationRepository;
+	private final MemberAgreementRepository memberAgreementRepository;
 
 	public AuthService(MemberRepository memberRepository, PasswordEncoder passwordEncoder,
 			JwtTokenProvider jwtTokenProvider, RefreshTokenService refreshTokenService,
-			EmailVerificationRepository emailVerificationRepository) {
+			EmailVerificationRepository emailVerificationRepository,
+			MemberAgreementRepository memberAgreementRepository) {
 		this.memberRepository = memberRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.jwtTokenProvider = jwtTokenProvider;
 		this.refreshTokenService = refreshTokenService;
 		this.emailVerificationRepository = emailVerificationRepository;
+		this.memberAgreementRepository = memberAgreementRepository;
 	}
 
+	/**
+	 * @param ipAddress 약관 동의 이력 증적용. 요청자 식별 목적이 아니라 동의 시점 증빙 목적이다.
+	 * @param userAgent 약관 동의 이력 증적용(위와 동일한 목적).
+	 */
 	@Transactional
-	public SignupResponse signup(SignupRequest request) {
+	public SignupResponse signup(SignupRequest request, String ipAddress, String userAgent) {
+		if (!request.isTermsAgreed()) {
+			throw new BusinessException(ErrorCode.TERMS_NOT_AGREED);
+		}
+		if (!request.isPersonalInfoCollectionAgreed()) {
+			throw new BusinessException(ErrorCode.PERSONAL_INFO_COLLECTION_NOT_AGREED);
+		}
 		if (memberRepository.existsByEmail(request.getEmail())) {
 			throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
 		}
@@ -54,10 +75,20 @@ public class AuthService {
 
 		try {
 			Member savedMember = memberRepository.save(member);
+			saveAgreements(savedMember, ipAddress, userAgent);
 			return SignupResponse.from(savedMember);
 		} catch (DataIntegrityViolationException e) {
 			throw resolveDuplicateException(request, e);
 		}
+	}
+
+	/** 필수 동의 항목(이용약관/개인정보 수집·이용) 각각을 별도 이력 row로 저장한다. */
+	private void saveAgreements(Member member, String ipAddress, String userAgent) {
+		LocalDateTime agreedAt = LocalDateTime.now();
+		memberAgreementRepository.save(MemberAgreement.of(
+				member, AgreementType.TERMS_OF_SERVICE, AGREEMENT_VERSION, agreedAt, ipAddress, userAgent));
+		memberAgreementRepository.save(MemberAgreement.of(
+				member, AgreementType.PERSONAL_INFO_COLLECTION, AGREEMENT_VERSION, agreedAt, ipAddress, userAgent));
 	}
 
 	@Transactional
