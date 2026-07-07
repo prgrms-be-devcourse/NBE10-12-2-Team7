@@ -1,0 +1,5 @@
+export type { PolicyDocument, PolicySection, PolicyTable } from './types'
+export { TERMS_OF_SERVICE } from './terms'
+export { PRIVACY_POLICY } from './privacy'
+export { PRIVACY_COLLECTION_CONSENT } from './consent'
+export { WITHDRAWAL_AND_DESTRUCTION_POLICY } from './withdrawal'

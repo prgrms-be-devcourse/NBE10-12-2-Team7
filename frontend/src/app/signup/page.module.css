@@ -48,10 +48,16 @@
 .formCol { display: flex; flex-direction: column; }
 
 .field { margin-bottom: 18px; }
-.field label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+/* 직계 자식(> )으로 한정: 이 필드 자신의 라벨/텍스트 인풋에만 적용되고, AgreementSection처럼 .field
+   안에 중첩되는 자식 컴포넌트의 label/checkbox까지 descendant selector로 새어 들어가지 않게 한다.
+   (실제로 .field label / .field input의 descendant 스코프가 AgreementSection의 체크박스를
+   width:100%로, label을 font-size:13px/margin-bottom:8px로 덮어써 레이아웃이 깨졌었다.) */
+.field > label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
 .req { color: var(--primary); margin-left: 3px; }
 
-.field input {
+/* 이메일 필드처럼 .inlineRow에 한 단계 더 감싸인 인풋도 계속 스타일이 적용돼야 해서 여기는 자식
+   결합자 대신 :not([type='checkbox'])로 체크박스만 제외한다. */
+.field input:not([type='checkbox']) {
   width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--border);
@@ -63,9 +69,9 @@
   outline: none;
   transition: border-color .15s, box-shadow .15s;
 }
-.field input::placeholder { color: var(--text-muted); opacity: .8; }
-.field input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
-.field input[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+.field input:not([type='checkbox'])::placeholder { color: var(--text-muted); opacity: .8; }
+.field input:not([type='checkbox']):focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.field input:not([type='checkbox'])[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
 
 .inlineRow { display: flex; gap: 8px; }
 .inlineRow input { flex: 1; min-width: 0; }
