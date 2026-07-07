@@ -1,4 +1,4 @@
-package com.dongnemarket.region.init;
+package com.dongnemarket.global.init.master;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -14,7 +14,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @ActiveProfiles("test")
-class RegionInitializerTest {
+class RegionSeederTest {
 
 	private static final List<String> REPRESENTATIVE_REGION_NAMES = List.of(
 			"서울 강남구",
@@ -40,7 +40,7 @@ class RegionInitializerTest {
 	RegionRepository regionRepository;
 
 	@Autowired
-	RegionInitializer regionInitializer;
+	RegionSeeder regionSeeder;
 
 	@Test
 	@DisplayName("애플리케이션 시작 시 전국 지역 마스터가 저장된다")
@@ -55,11 +55,11 @@ class RegionInitializerTest {
 	}
 
 	@Test
-	@DisplayName("초기화기를 다시 실행해도 지역이 중복 저장되지 않는다")
+	@DisplayName("시더를 다시 실행해도 지역이 중복 저장되지 않는다")
 	void doesNotDuplicateRegions() {
 		long beforeCount = regionRepository.count();
 
-		regionInitializer.run(null);
+		regionSeeder.seed();
 
 		assertThat(regionRepository.count()).isEqualTo(beforeCount);
 	}
@@ -71,7 +71,7 @@ class RegionInitializerTest {
 		regionRepository.save(new Region("서울 강남구"));
 		regionRepository.save(new Region("서울 마포구"));
 
-		regionInitializer.run(null);
+		regionSeeder.seed();
 
 		List<String> regionNames = regionRepository.findAllByOrderByNameAsc()
 				.stream()

@@ -1,9 +1,10 @@
-package com.dongnemarket.global.init;
+package com.dongnemarket.global.init.demo;
 
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
 import com.dongnemarket.comment.entity.Comment;
 import com.dongnemarket.comment.repository.CommentRepository;
+import com.dongnemarket.global.init.DataSeeder;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.member.repository.MemberRepository;
@@ -14,28 +15,30 @@ import com.dongnemarket.report.entity.Report;
 import com.dongnemarket.report.entity.ReportReason;
 import com.dongnemarket.report.entity.ReportStatus;
 import com.dongnemarket.report.repository.ReportRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Profile;
-import org.springframework.context.event.EventListener;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import java.math.BigDecimal;
 
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
  * [개발/검증 전용] 관리자 콘솔 확인용 더미 데이터 시더.
- * 실행 조건: app.seed.base-data=true 이면서 test 프로파일이 아닐 때만.
- * ApplicationReadyEvent 로 실행 → CategoryInitializer 등 모든 ApplicationRunner 완료 후 동작(카테고리 존재 보장).
- * 명세: docs/testing/09-base-init-data.md
+ * 실행 조건: app.seed.demo=true 이면서 test 프로파일이 아닐 때만.
+ * SeedOrchestrator 가 마스터/부트스트랩 시더(order 10~20) 커밋 이후(order 30) 호출하므로
+ * 카테고리 존재가 보장된다. 멱등 가드로 재실행 시 중복 시딩을 막는다.
  */
 @Component
 @Profile("!test")
-@ConditionalOnProperty(name = "app.seed.base-data", havingValue = "true")
-public class BaseInitDataInitializer {
+@ConditionalOnProperty(name = "app.seed.demo", havingValue = "true")
+public class DemoDataSeeder implements DataSeeder {
+
+    private static final Logger log = LoggerFactory.getLogger(DemoDataSeeder.class);
 
     private static final String SENTINEL_EMAIL = "user01@dongnemarket.com";
 
@@ -46,12 +49,12 @@ public class BaseInitDataInitializer {
     private final ReportRepository reportRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public BaseInitDataInitializer(MemberRepository memberRepository,
-                                   CategoryRepository categoryRepository,
-                                   ProductRepository productRepository,
-                                   CommentRepository commentRepository,
-                                   ReportRepository reportRepository,
-                                   PasswordEncoder passwordEncoder) {
+    public DemoDataSeeder(MemberRepository memberRepository,
+                          CategoryRepository categoryRepository,
+                          ProductRepository productRepository,
+                          CommentRepository commentRepository,
+                          ReportRepository reportRepository,
+                          PasswordEncoder passwordEncoder) {
         this.memberRepository = memberRepository;
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
@@ -60,7 +63,12 @@ public class BaseInitDataInitializer {
         this.passwordEncoder = passwordEncoder;
     }
 
-    @EventListener(ApplicationReadyEvent.class)
+    @Override
+    public int order() {
+        return 30;
+    }
+
+    @Override
     @Transactional
     public void seed() {
         // 멱등 가드: 이미 시드돼 있으면 아무것도 하지 않는다.
@@ -143,7 +151,7 @@ public class BaseInitDataInitializer {
         reportRepository.save(Report.ofMember(
                 user01, user02, ReportReason.ETC, "기타 신고"));                    // RECEIVED
 
-        System.out.println("[BaseInitData] seeded: members=6, products=6, comments=5, reports=5");
+        log.info("[DemoData] seeded: members=6, products=6, comments=5, reports=5");
     }
 
     /** viewCount 세터가 없어 증가 메서드를 반복 호출(검증용, 소량). */
