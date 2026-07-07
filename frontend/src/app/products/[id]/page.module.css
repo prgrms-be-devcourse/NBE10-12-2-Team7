@@ -4,6 +4,13 @@
   padding: 28px 24px 90px;
 }
 
+/* CSS Modules에서 animation-name도 스코프 해시가 붙어 globals.css의 전역 keyframes와
+   이름이 안 맞으므로, 여기서 동일 이름으로 다시 선언해 정의/사용 스코프를 맞춘다. */
+@keyframes mo-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* 브레드크럼 */
 .crumb {
   display: flex; align-items: center; gap: 7px;
@@ -54,10 +61,10 @@
 .statusReserved { background: var(--blue-soft);    color: var(--blue); }
 .statusDone     { background: var(--neutral-soft); color: var(--neutral); }
 
-.thumbs { display: flex; gap: 10px; }
+.thumbs { display: flex; gap: 10px; flex-wrap: wrap; }
 .thumb {
   position: relative;
-  flex: 1; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden;
+  flex: 0 1 80px; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden;
   border: 1px solid var(--border); background-color: var(--surface-2);
   background-image: repeating-linear-gradient(
     135deg, transparent, transparent 9px,

@@ -29,6 +29,7 @@ interface Product {
 interface Comment {
   id: number
   memberId: number
+  authorNickname: string
   productId: number
   content: string
   createdAt: string
@@ -448,7 +449,7 @@ export default function ProductDetailPage() {
           {comments.map(c => {
             const isMine = myMemberId !== null && c.memberId === myMemberId
             const isSeller = c.memberId === product.memberId
-            const who = isMine ? '나' : `회원 #${c.memberId}`
+            const who = c.authorNickname
             return (
               <div key={c.id} className={styles.comment}>
                 <div className={`${styles.cAvatar}${isMine || isSeller ? ' ' + styles.cAvatarMine : ''}`}>

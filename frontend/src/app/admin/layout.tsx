@@ -25,6 +25,41 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [status, setStatus] = useState<GuardStatus>('checking')
   const [me, setMe] = useState<Me | null>(null)
   const [retryKey, setRetryKey] = useState(0)
+  const [dark, setDark] = useState(false)
+
+  useEffect(() => {
+    const saved = (() => {
+      try { return localStorage.getItem('marketon-theme') } catch { return null }
+    })()
+    const system = window.matchMedia?.('(prefers-color-scheme: dark)').matches
+    const isDark = saved ? saved === 'dark' : system
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage/matchMedia는 클라이언트에서만 읽을 수 있어 SSR 하이드레이션 이후에만 계산 가능
+    setDark(isDark)
+    applyTheme(isDark)
+
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)')
+    if (!mq) return
+    const handler = (e: MediaQueryListEvent) => {
+      if (!localStorage.getItem('marketon-theme')) {
+        setDark(e.matches)
+        applyTheme(e.matches)
+      }
+    }
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  function applyTheme(isDark: boolean) {
+    if (isDark) document.documentElement.setAttribute('data-theme', 'dark')
+    else document.documentElement.removeAttribute('data-theme')
+  }
+
+  function toggleTheme() {
+    const next = !dark
+    setDark(next)
+    applyTheme(next)
+    try { localStorage.setItem('marketon-theme', next ? 'dark' : 'light') } catch {}
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -108,6 +143,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className={styles.amain}>
         <div className={styles.atop}>
           <div className={styles.nm}>{me?.nickname ?? '관리자'} <span>권한: 관리자</span></div>
+          <button className="icon-btn" onClick={toggleTheme} aria-label="테마 전환" type="button">
+            {dark ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z" />
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="4.2" />
+                <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4" />
+              </svg>
+            )}
+          </button>
           <button type="button" className="btn ghost" onClick={handleLogout}>로그아웃</button>
         </div>
         <div className={styles.acontent}>{children}</div>

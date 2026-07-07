@@ -144,7 +144,6 @@ export default function AdminProductDetailPage() {
   return (
     <>
       <div className={styles.ptitle}>상품 상세 / 숨김 처리</div>
-      <div className={styles.pdesc}>GET /api/admin/products/{'{productId}'}</div>
       <div className={styles.cols2}>
         <div className={styles.panel}>
           <h3>상품 기본 정보</h3>

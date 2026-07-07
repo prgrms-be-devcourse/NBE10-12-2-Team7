@@ -165,7 +165,6 @@ export default function AdminReportDetailPage() {
   return (
     <>
       <div className={styles.ptitle}>신고 상세 / 처리 상태 변경</div>
-      <div className={styles.pdesc}>GET /api/admin/reports/{'{reportId}'}</div>
       <div className={styles.cols2}>
         <div className={styles.panel}>
           <h3>신고 상세 정보</h3>

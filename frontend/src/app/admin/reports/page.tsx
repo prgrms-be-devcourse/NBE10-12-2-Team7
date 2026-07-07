@@ -61,7 +61,7 @@ export default function AdminReportsPage() {
   return (
     <>
       <div className={styles.ptitle}>신고 목록 관리</div>
-      <div className={styles.pdesc}>접수된 신고 조회 및 상태 관리 · GET /api/admin/reports</div>
+      <div className={styles.pdesc}>접수된 신고 조회 및 상태 관리</div>
       <div className={styles.panel}>
         <div className={styles.filter}>
           <div className={styles.field}>

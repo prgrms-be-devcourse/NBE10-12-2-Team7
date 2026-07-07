@@ -111,7 +111,7 @@ export default function AdminProductsPage() {
   return (
     <>
       <div className={styles.ptitle}>상품 목록 관리</div>
-      <div className={styles.pdesc}>전체 상품 검색, 숨김 / 삭제 처리 · GET /api/admin/products</div>
+      <div className={styles.pdesc}>전체 상품 검색, 숨김 / 삭제 처리</div>
       <div className={styles.panel}>
         <form className={styles.filter} onSubmit={handleSearch}>
           <div className={styles.field}>

@@ -4,6 +4,30 @@
   padding: 0 24px 64px;
 }
 
+/*
+ * CSS Modules 스코프 안에서 animation-name을 참조하면 Turbopack이 로컬 파일 내
+ * @keyframes 정의가 없어도 이름에 해시를 붙여버려서, globals.css에만 있는
+ * 전역 keyframes(mo-rise 등)를 그대로 못 쓴다. 여기서 동일 이름으로 다시
+ * 선언해서 스코프 해시가 정의/사용 양쪽에 똑같이 붙게 만든다.
+ */
+@keyframes mo-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes mo-pop {
+  from { opacity: 0; transform: translateY(22px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes mo-wave {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes mo-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.5); opacity: .35; }
+}
+
 /* 활동 배너 */
 .band {
   margin-top: 24px;
@@ -11,16 +35,16 @@
     color-mix(in srgb, var(--primary) 18%, var(--surface)),
     color-mix(in srgb, var(--warm) 58%, var(--surface)),
     color-mix(in srgb, var(--primary) 18%, var(--surface)));
-  background-size: 250% 250%;
+  background-size: 300% 300%;
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) + 4px);
-  padding: 24px 26px;
+  padding: 20px 26px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 20px 36px;
-  animation: mo-rise .65s cubic-bezier(.2,.7,.3,1) .1s backwards, mo-wave 7s ease-in-out infinite;
+  animation: mo-rise .65s cubic-bezier(.2,.7,.3,1) .1s backwards, mo-wave 5s ease-in-out infinite;
 }
 .bandLead { flex: 1 1 240px; min-width: 240px; }
 .bandTag {
@@ -30,11 +54,10 @@
 .pulseDot { position: relative; width: 8px; height: 8px; flex-shrink: 0; }
 .pulseDot span:first-child {
   position: absolute; inset: 0; border-radius: 50%; background: var(--primary);
-  animation: mo-pulse 1s ease-in-out infinite;
+  animation: mo-pulse 1.8s ease-in-out infinite;
 }
 .pulseDot span:last-child {
   position: absolute; inset: 2px; border-radius: 50%; background: var(--primary);
-  animation: mo-blink 1s ease-in-out infinite;
 }
 .bandHead { margin-top: 7px; font-size: 21px; font-weight: 800; letter-spacing: -.03em; line-height: 1.3; }
 .bandStats { flex: 0 1 auto; display: grid; grid-template-columns: repeat(3, auto); gap: 12px 34px; align-items: end; }
@@ -54,7 +77,7 @@
 .locBtn {
   flex-shrink: 0;
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 11px 16px;
+  padding: 9px 16px;
   border: 1px solid var(--border);
   background: var(--surface); color: var(--text);
   border-radius: 999px; font-size: 14px; font-weight: 600;
@@ -66,7 +89,7 @@
   flex: 1; min-width: 0;
   display: flex; align-items: center; gap: 9px;
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: 999px; padding: 11px 18px;
+  border-radius: 999px; padding: 9px 18px;
 }
 .searchBar input {
   border: none; outline: none; background: transparent;
@@ -169,7 +192,7 @@
   animation-delay: .18s;
 }
 .tab {
-  padding: 9px 15px; border-radius: 999px;
+  padding: 7px 15px; border-radius: 999px;
   font-size: 13.5px; font-weight: 600; font-family: inherit;
   white-space: nowrap; border: 1px solid var(--border);
   background: var(--surface); color: var(--text-muted);
@@ -220,7 +243,7 @@
 
 /* 썸네일 */
 .thumb {
-  position: relative; aspect-ratio: 1 / 1;
+  position: relative; aspect-ratio: 5 / 4;
   background-color: var(--surface-2);
   background-image: repeating-linear-gradient(
     135deg, transparent, transparent 11px,
