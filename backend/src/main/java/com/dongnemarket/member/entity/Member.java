@@ -16,6 +16,9 @@ import java.time.LocalDateTime;
 @Table(name = "members")
 public class Member extends BaseTimeEntity {
 
+	/** 탈퇴 회원의 표시용 닉네임 마스킹 문구. */
+	private static final String WITHDRAWN_NICKNAME = "탈퇴한 사용자";
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
@@ -95,6 +98,15 @@ public class Member extends BaseTimeEntity {
 
 	public String getNickname() {
 		return nickname;
+	}
+
+	/**
+	 * 화면 표시용 닉네임. 탈퇴(DELETED)한 회원은 실명 닉네임 대신 마스킹 문구를 반환한다.
+	 * 닉네임이 노출되는 모든 지점(채팅 상대·판매자 등)에서 이 메서드를 사용해 마스킹을 일관 적용한다.
+	 * (SUSPENDED는 관리자 정지일 뿐 탈퇴가 아니므로 마스킹하지 않는다.)
+	 */
+	public String getDisplayNickname() {
+		return status == MemberStatus.DELETED ? WITHDRAWN_NICKNAME : nickname;
 	}
 
 	public Role getRole() {
