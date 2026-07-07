@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 @Table(name = "members")
 public class Member extends BaseTimeEntity {
 
+	private static final String DELETED_DISPLAY_NAME = "탈퇴한 회원입니다";
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
@@ -95,6 +97,11 @@ public class Member extends BaseTimeEntity {
 
 	public String getNickname() {
 		return nickname;
+	}
+
+	/** 다른 도메인이 작성자·상대방 닉네임을 노출할 때 쓰는 표시용 닉네임. 탈퇴 회원은 실제 닉네임 대신 고정 문구를 반환한다. */
+	public String getDisplayNickname() {
+		return status == MemberStatus.DELETED ? DELETED_DISPLAY_NAME : nickname;
 	}
 
 	public Role getRole() {

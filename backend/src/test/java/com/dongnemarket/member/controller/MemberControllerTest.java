@@ -2,6 +2,7 @@ package com.dongnemarket.member.controller;
 
 import com.dongnemarket.auth.entity.EmailVerification;
 import com.dongnemarket.auth.repository.EmailVerificationRepository;
+import com.dongnemarket.member.repository.MemberAgreementRepository;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
@@ -41,6 +42,9 @@ class MemberControllerTest {
 	MemberRepository memberRepository;
 
 	@Autowired
+	MemberAgreementRepository memberAgreementRepository;
+
+	@Autowired
 	EmailVerificationRepository emailVerificationRepository;
 
 	@Autowired
@@ -51,6 +55,7 @@ class MemberControllerTest {
 
 	@AfterEach
 	void cleanUp() {
+		memberAgreementRepository.deleteAll();
 		memberRepository.deleteAll();
 		emailVerificationRepository.deleteAll();
 	}
@@ -66,7 +71,8 @@ class MemberControllerTest {
 	private String getAccessToken(String email, String password, String nickname) throws Exception {
 		verifyEmail(email);
 		String signup = String.format(
-				"{\"email\":\"%s\",\"password\":\"%s\",\"nickname\":\"%s\"}", email, password, nickname);
+				"{\"email\":\"%s\",\"password\":\"%s\",\"nickname\":\"%s\",\"termsAgreed\":true,\"personalInfoCollectionAgreed\":true}",
+				email, password, nickname);
 		mockMvc.perform(post("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(signup));
@@ -147,7 +153,8 @@ class MemberControllerTest {
 		verifyEmail("other@example.com");
 		mockMvc.perform(post("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"email\":\"other@example.com\",\"password\":\"password123\",\"nickname\":\"takenNick\"}"));
+				.content("{\"email\":\"other@example.com\",\"password\":\"password123\",\"nickname\":\"takenNick\","
+						+ "\"termsAgreed\":true,\"personalInfoCollectionAgreed\":true}"));
 
 		String token = getAccessToken("me2@example.com", "password123", "myNick");
 
@@ -207,7 +214,8 @@ class MemberControllerTest {
 	@DisplayName("비밀번호 변경에 성공하면 기존 Refresh Token이 삭제되어 재발급이 REFRESH_TOKEN_NOT_FOUND로 실패한다")
 	void changePassword_success_invalidatesExistingRefreshToken() throws Exception {
 		verifyEmail("pwchange-token@example.com");
-		String signup = "{ \"email\": \"pwchange-token@example.com\", \"password\": \"password123!\", \"nickname\": \"pwChangeToken\" }";
+		String signup = "{ \"email\": \"pwchange-token@example.com\", \"password\": \"password123!\", \"nickname\": \"pwChangeToken\", "
+				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup));
 
 		String login = "{ \"email\": \"pwchange-token@example.com\", \"password\": \"password123!\" }";

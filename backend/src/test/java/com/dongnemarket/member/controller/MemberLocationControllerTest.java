@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.dongnemarket.auth.entity.EmailVerification;
 import com.dongnemarket.auth.repository.EmailVerificationRepository;
+import com.dongnemarket.member.repository.MemberAgreementRepository;
 import com.dongnemarket.member.repository.MemberLocationRepository;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.region.entity.Region;
@@ -49,9 +50,13 @@ class MemberLocationControllerTest {
 	@Autowired
 	RegionRepository regionRepository;
 
+	@Autowired
+	MemberAgreementRepository memberAgreementRepository;
+
 	@AfterEach
 	void cleanUp() {
 		memberLocationRepository.deleteAll();
+		memberAgreementRepository.deleteAll();
 		memberRepository.deleteAll();
 		emailVerificationRepository.deleteAll();
 	}
@@ -219,7 +224,8 @@ class MemberLocationControllerTest {
 	private String getAccessToken(String email, String password, String nickname) throws Exception {
 		verifyEmail(email);
 		String signup = String.format(
-				"{\"email\":\"%s\",\"password\":\"%s\",\"nickname\":\"%s\"}", email, password, nickname);
+				"{\"email\":\"%s\",\"password\":\"%s\",\"nickname\":\"%s\",\"termsAgreed\":true,\"personalInfoCollectionAgreed\":true}",
+				email, password, nickname);
 		mockMvc.perform(post("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(signup));

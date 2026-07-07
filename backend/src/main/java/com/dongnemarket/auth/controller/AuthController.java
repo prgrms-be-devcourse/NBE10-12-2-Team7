@@ -12,6 +12,7 @@ import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,12 +49,24 @@ public class AuthController {
 		this.cookieSecure = cookieSecure;
 	}
 
-	@Operation(summary = "회원가입", description = "이메일/비밀번호/닉네임으로 회원가입을 진행한다.")
+	@Operation(summary = "회원가입", description = "이메일/비밀번호/닉네임으로 회원가입을 진행한다. 이용약관·개인정보 수집 및 이용 동의는 필수이며, " +
+			"동의 이력(버전/동의시각/IP/User-Agent)이 함께 저장된다.")
 	@PostMapping("/signup")
-	public ResponseEntity<ApiResponse<SignupResponse>> signup(@Valid @RequestBody SignupRequest request) {
-		SignupResponse response = authService.signup(request);
+	public ResponseEntity<ApiResponse<SignupResponse>> signup(
+			@Valid @RequestBody SignupRequest request, HttpServletRequest httpRequest) {
+		SignupResponse response = authService.signup(
+				request, extractIpAddress(httpRequest), httpRequest.getHeader("User-Agent"));
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(ApiResponse.success(HttpStatus.CREATED.value(), "회원가입이 완료되었습니다.", response));
+	}
+
+	/** 리버스 프록시(nginx 등) 뒤에 있으면 X-Forwarded-For의 첫 값을 우선한다. 동의 이력 증적용이라 엄격한 신뢰 검증까지는 하지 않는다. */
+	private String extractIpAddress(HttpServletRequest httpRequest) {
+		String forwardedFor = httpRequest.getHeader("X-Forwarded-For");
+		if (forwardedFor != null && !forwardedFor.isBlank()) {
+			return forwardedFor.split(",")[0].trim();
+		}
+		return httpRequest.getRemoteAddr();
 	}
 
 	@Operation(summary = "로그인", description = "이메일/비밀번호로 로그인하고 JWT Access Token을 발급한다. Refresh Token은 HttpOnly 쿠키로 내려간다 " +
