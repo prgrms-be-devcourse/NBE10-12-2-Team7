@@ -2,11 +2,33 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { apiFetch, logout } from '@/lib/apiClient'
 import { AUTH_CHANGED_EVENT, getAccessToken } from '@/lib/auth'
 
 const UNREAD_POLL_MS = 20000
+
+interface NotificationItem {
+  type: 'COMMENT' | 'CHAT' | 'PRICE_CHANGE'
+  message: string
+  productId: number
+  roomId: number | null
+  isRead: boolean
+  occurredAt: string
+}
+
+function notificationHref(n: NotificationItem) {
+  return n.type === 'CHAT' ? `/chat/${n.roomId}` : `/products/${n.productId}`
+}
+
+function formatNotifTime(iso: string) {
+  const d = new Date(iso)
+  const now = new Date()
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+  }
+  return iso.slice(5, 10).replace('-', '.')
+}
 
 const NAV_LINKS = [
   { href: '/products',     label: '상품목록' },
@@ -22,6 +44,10 @@ export default function Header() {
   const [dark, setDark] = useState(false)
   const [loggedIn, setLoggedIn] = useState(() => !!getAccessToken())
   const [hasUnreadNotification, setHasUnreadNotification] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [notifLoading, setNotifLoading] = useState(false)
+  const notifWrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handler = () => setLoggedIn(!!getAccessToken())
@@ -47,6 +73,35 @@ export default function Header() {
     const timer = setInterval(fetchUnreadCount, UNREAD_POLL_MS)
     return () => { cancelled = true; clearInterval(timer) }
   }, [loggedIn])
+
+  useEffect(() => {
+    if (!notifOpen) return
+    function handleClickOutside(e: MouseEvent) {
+      if (notifWrapRef.current && !notifWrapRef.current.contains(e.target as Node)) {
+        setNotifOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [notifOpen])
+
+  async function toggleNotifPanel() {
+    const next = !notifOpen
+    setNotifOpen(next)
+    if (!next) return
+
+    setNotifLoading(true)
+    try {
+      const res = await apiFetch('/api/notifications')
+      const data = await res.json().catch(() => null)
+      setNotifications(res.ok ? (data?.data ?? []) : [])
+    } finally {
+      setNotifLoading(false)
+    }
+
+    setHasUnreadNotification(false)
+    apiFetch('/api/notifications/read', { method: 'POST' }).catch(() => {})
+  }
 
   async function handleLogout() {
     try {
@@ -120,13 +175,40 @@ export default function Header() {
             </svg>
           )}
         </button>
-        <button className="icon-btn notif-btn" aria-label="알림" type="button">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9z" />
-            <path d="M13.7 21a2 2 0 0 1-3.4 0" />
-          </svg>
-          {loggedIn && hasUnreadNotification && <span className="notif-dot" />}
-        </button>
+        <div className="notif-wrap" ref={notifWrapRef}>
+          <button className="icon-btn notif-btn" onClick={toggleNotifPanel} aria-label="알림" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9z" />
+              <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+            </svg>
+            {loggedIn && hasUnreadNotification && <span className="notif-dot" />}
+          </button>
+          {notifOpen && (
+            <div className="notif-panel">
+              <div className="notif-panel-head">알림</div>
+              {notifLoading ? (
+                <div className="notif-empty">불러오는 중...</div>
+              ) : notifications.length === 0 ? (
+                <div className="notif-empty">새로운 알림이 없어요.</div>
+              ) : (
+                <ul className="notif-list">
+                  {notifications.map((n, i) => (
+                    <li key={i}>
+                      <Link
+                        href={notificationHref(n)}
+                        className={`notif-item${n.isRead ? '' : ' unread'}`}
+                        onClick={() => setNotifOpen(false)}
+                      >
+                        <span className="notif-item-msg">{n.message}</span>
+                        <span className="notif-item-time">{formatNotifTime(n.occurredAt)}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
         <Link className="icon-btn" href="/chat" aria-label="채팅">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 11.5a8.5 8.5 0 0 1-12.3 7.6L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5z" />

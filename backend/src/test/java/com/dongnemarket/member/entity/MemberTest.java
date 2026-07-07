@@ -61,12 +61,12 @@ class MemberTest {
     // ===== getDisplayNickname =====
 
     @Test
-    @DisplayName("DELETED 회원의 getDisplayNickname()은 실제 닉네임 대신 \"탈퇴한 회원입니다\"를 반환한다")
+    @DisplayName("DELETED 회원의 getDisplayNickname()은 실제 닉네임 대신 \"탈퇴한 사용자\"를 반환한다")
     void getDisplayNickname_deleted_returnsFixedText() {
         Member member = Member.createUser("user@example.com", "encoded-password", "tester");
         member.changeStatus(MemberStatus.DELETED);
 
-        assertThat(member.getDisplayNickname()).isEqualTo("탈퇴한 회원입니다");
+        assertThat(member.getDisplayNickname()).isEqualTo("탈퇴한 사용자");
     }
 
     @Test

@@ -14,7 +14,7 @@ public class ChatMemberSummary {
     }
 
     public static ChatMemberSummary of(Member member) {
-        return new ChatMemberSummary(member.getId(), member.getNickname());
+        return new ChatMemberSummary(member.getId(), member.getDisplayNickname());
     }
 
     public Long getMemberId() { return memberId; }

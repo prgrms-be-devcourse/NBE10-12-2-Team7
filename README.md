@@ -2,7 +2,7 @@
 
 지역 기반 중고거래 서비스. **모노레포**(Spring Boot 백엔드 + Next.js 프론트 + 인프라).
 
-> 처음이라면 이 문서로 **띄우고**, 팀 협업 방식은 [docs/README.md](docs/README.md), 배포는 [docs/deployment](docs/deployment/README.md)를 본다.
+> 처음이라면 이 문서로 **띄우고**, 시스템 구조·아키텍처 등 기술 문서는 [docs/README.md](docs/README.md)에서 본다.
 
 ---
 
@@ -48,7 +48,7 @@ cd frontend && npm install && npm run dev   # 프론트 :3000 (/api는 :8080으�
 
 ### B. local-deploy — 전부 Docker로 (운영 패리티·시연·공유)
 
-프론트·백엔드·DB·관측까지 컨테이너로. **자세한 절차·트러블슈팅은 → [docs/deployment/03-local-deploy.md](docs/deployment/03-local-deploy.md)**
+프론트·백엔드·DB·관측까지 컨테이너로. (배포·운영 런북은 `docs/runbook/`에 정리 예정 — [docs/README.md](docs/README.md) 인덱스 참고)
 
 ```bash
 cd backend && ./gradlew clean build -x test && cd ..   # 앱 이미지용 JAR 선행 빌드(필수)
@@ -79,11 +79,16 @@ docker compose --profile web --profile observability --profile edge down   # 데
 
 ## 문서
 
-| 문서 | 내용 |
+기술 문서는 모두 **[docs/](docs/README.md)** 에 있다 (Docs-as-Code — 코드와 함께 관리). 세부 폴더는 develop 기준으로 단계적으로 채우는 중이며, 최신 상태·링크는 인덱스에서 확인한다.
+
+| 영역 | 내용 |
 |---|---|
-| [docs/README.md](docs/README.md) | 팀 협업 방식(AI Native), 역할 분담, 개발 흐름 |
-| [docs/architecture](docs/architecture) | 시스템 구조(C4), ERD, 주요 흐름 |
-| [docs/deployment](docs/deployment/README.md) | 배포 — [로컬 배포 런북](docs/deployment/03-local-deploy.md), AWS 캐패시티 |
+| [docs/README.md](docs/README.md) | 문서 인덱스 · "무엇을 어디에 두나" 경계 |
+| architecture | 시스템 구조(C4) · ERD · 컴포넌트 관계 |
+| adr | 기술 결정 기록 — "왜 이렇게 정했나" |
+| api | API 명세 (OpenAPI/Swagger 기준) |
+| runbook | 배포 · 운영 · 장애 대응 |
+| conventions | 코딩 · 커밋 · 브랜치 규칙 |
 
 ---
 

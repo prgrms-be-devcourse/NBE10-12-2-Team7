@@ -244,6 +244,19 @@ class ChatControllerTest {
         }
 
         @Test
+        @DisplayName("탈퇴한 상대는 닉네임이 '탈퇴한 사용자'로 마스킹된다")
+        void withdrawnOpponent_maskedNickname() throws Exception {
+            saveRoom(buyer, seller);
+            seller.softDelete();            // 상대(판매자) 탈퇴
+            memberRepository.save(seller);
+
+            mockMvc.perform(get("/api/chat-rooms").header("Authorization", buyerToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.length()").value(1))
+                    .andExpect(jsonPath("$.data[0].opponent.nickname").value("탈퇴한 사용자"));
+        }
+
+        @Test
         @DisplayName("참여하지 않은 사용자에게는 방이 보이지 않는다")
         void outsiderSeesNothing() throws Exception {
             saveRoom(buyer, seller);

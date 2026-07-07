@@ -1,50 +1,76 @@
-# L2 · 컨테이너 구성 (시스템 구성도)
+# C4 L2 — 컨테이너
 
-시스템을 이루는 **실행 단위와 데이터스토어**, 그리고 그 사이의 통신을 본다. 한국 실무에서 "시스템 구성도"라고 할 때 보통 이 그림을 가리킨다.
+> 최종 수정일: 2026-07-07 · 상태: draft
+
+배포 단위(컨테이너)와 통신 경로. 실체는 루트 [`docker-compose.yml`](../../docker-compose.yml)이며, 프로파일로 계층을 켠다.
 
 ```mermaid
-flowchart LR
-    Client["클라이언트<br/>브라우저 · 모바일 · Postman"]
+graph TB
+    browser["👤 브라우저"]
 
-    subgraph app["Spring Boot 애플리케이션 — dongnemarket"]
-        API["REST API<br/>Spring MVC (:8080)"]
-        Sec["Spring Security + JWT<br/>stateless 인증/인가"]
-        JPA["Spring Data JPA<br/>Hibernate"]
-        Doc["Swagger UI / OpenAPI<br/>/swagger-ui.html"]
+    subgraph web["profile: web (기본 앱 계층)"]
+        nginx["nginx :80<br/>단일 현관·리버스 프록시"]
+        next["next :3000<br/>Next.js 16 프론트"]
+        app["app :8080<br/>Spring Boot 3.5 / Java 21"]
+        mysql[("mysql :3306<br/>MySQL 8 · dongne_market")]
     end
 
-    DB[("MySQL 8<br/>dongne_market (:3306)")]
+    subgraph obs["profile: observability (선택)"]
+        promtail["promtail<br/>컨테이너 로그 수집"]
+        loki["loki :3100<br/>로그 저장"]
+        prometheus["prometheus :9090<br/>메트릭 수집"]
+        grafana["grafana :3001<br/>대시보드"]
+    end
 
-    Client -->|"JSON · Authorization: Bearer"| API
-    API --> Sec
-    API --> JPA
-    JPA -->|"JDBC"| DB
-    Client -.->|"API 문서 열람"| Doc
+    gmail["✉️ Gmail SMTP"]
+    ollama["🤖 사내 Ollama"]
+    cf["☁️ cloudflared (profile: edge)"]
 
-    classDef app fill:#E1F5EE,stroke:#0F6E56,color:#04342C
-    classDef store fill:#FBF0E6,stroke:#A5601F,color:#532C04
-    class API,Sec,JPA,Doc app
-    class DB store
+    browser -->|"HTTP :80"| nginx
+    nginx -->|"/ (정적·SSR)"| next
+    nginx -->|"/api → 프록시"| app
+    app -->|"JDBC"| mysql
+    app -->|"SMTP"| gmail
+    app -->|"Spring AI"| ollama
+
+    app -.->|"/actuator/prometheus"| prometheus
+    promtail -->|"push"| loki
+    prometheus --> grafana
+    loki --> grafana
+
+    cf -.->|"tunnel → nginx:80"| nginx
 ```
 
-## 컨테이너
+## 컨테이너 목록
 
-| 컨테이너 | 기술 | 책임 |
+| 컨테이너 | 이미지 | 포트 | 프로파일 | 역할 |
+| --- | --- | --- | --- | --- |
+| **nginx** | `nginx:1.27-alpine` | `80:80` | web | 단일 origin 현관. `/`→next, `/api`→app 프록시 |
+| **next** | (빌드) `frontend/` | expose 3000 | web | Next.js 16 프론트 (App Router, SSR) |
+| **app** | (빌드) `backend/` | expose 8080 | web | Spring Boot REST API |
+| **mysql** | `mysql:8.0` | `3306:3306` | (기본) | 데이터 저장. DB `dongne_market`, utf8mb4 |
+| **prometheus** | `prom/prometheus:v2.53.2` | `9090` | observability | 메트릭 수집(7d 보존) |
+| **grafana** | `grafana/grafana:11.1.4` | `3001:3000` | observability | 메트릭·로그 대시보드 |
+| **loki** | `grafana/loki:3.1.1` | `3100` | observability | 로그 저장 |
+| **promtail** | `grafana/promtail:3.1.1` | — | observability | 컨테이너 로그 → loki |
+| **cloudflared** | `cloudflare/cloudflared` | — | edge | 임시 외부 URL(Quick Tunnel) |
+
+## 실행 모드 (프로파일 조합)
+
+| 모드 | 명령 | 구성 |
 | --- | --- | --- |
-| 애플리케이션 | Spring Boot 3.5.15 / Java 21 | REST API, 인증/인가, 도메인 로직 |
-| 데이터베이스 | MySQL 8.0 | 영속 데이터 저장 (운영·개발) |
-| (테스트 전용) | H2 in-memory | 테스트 시 DB 대체 |
-| API 문서 | springdoc-openapi (Swagger UI) | `/swagger-ui.html`, `/v3/api-docs` |
+| **dev** (매일 개발) | `docker compose up -d --wait` | mysql만 컨테이너, app·next는 호스트에서 직접 실행 |
+| **local-deploy** | `docker compose --profile web up -d --build` | nginx+next+app+mysql |
+| **+관측** | `... --profile web --profile observability ...` | 위 + Prometheus·Loki·Grafana |
+| **+외부노출** | `... --profile edge ...` | 위 + Cloudflare 퀵터널 |
 
-## 통신·인증
+> 실행 절차의 상세는 루트 [README.md](../../README.md) 참고.
 
-- 클라이언트 ↔ 앱: HTTP/JSON. 인증은 `Authorization: Bearer <JWT>` 헤더 기반(stateless, 서버 세션 없음).
-- 앱 ↔ DB: JDBC (MySQL Connector/J).
+## 핵심 설계 결정
 
-## 실행·환경 (로컬 기준)
+- **단일 origin (nginx 현관 하나)**: 브라우저는 항상 한 origin만 호출하고 `/api`는 nginx가 프록시한다. 그래서 **CORS 설정이 없다**. dev 모드에서는 Next dev 서버가 같은 역할(`/api`→:8080 프록시)을 한다.
+- **app은 외부 미노출**: `expose`만 하고 `ports` 매핑 없음 → nginx 통해서만 접근.
+- **관측·엣지는 선택 프로파일**: 개발 기본 경로를 가볍게 유지.
+- **영속 볼륨**: mysql 데이터, 신고 증빙 이미지(`report-evidence`)는 볼륨으로 컨테이너 재시작에도 유지.
 
-- **로컬 MySQL**: `backend/docker-compose.yml` (`docker compose up -d`) — DB `dongne_market`, 포트 3306.
-- **환경변수 주입 지점**(`application.yml`): `DB_URL`·`DB_USERNAME`·`DB_PASSWORD`, `JWT_SECRET`, `JWT_ACCESS_TTL`(기본 3600초). 미주입 시 로컬 개발 기본값으로 폴백한다(운영 배포 시 `JWT_SECRET` 주입 필수).
-- `spring.jpa.hibernate.ddl-auto=update` — 엔티티 기준으로 스키마를 자동 반영(초기 개발 편의, 운영 전 `validate` 권장). `open-in-view=false`.
-
-> 현재는 **단일 모놀리식** 구성이다. 추후 모듈화·분리 시 이 그림을 우선 갱신한다(상위 레벨이라 변경 빈도가 낮다).
+> 백엔드 내부(도메인/계층)는 [03-component.md](03-component.md) 참고.
