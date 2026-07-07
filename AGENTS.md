@@ -48,7 +48,8 @@
 | 시스템 구조·ERD | [`docs/architecture/`](docs/architecture/README.md) |
 | 실행·환경 세팅 | [`docs/getting-started/`](docs/getting-started/README.md) |
 | 기술 결정의 이유 | [`docs/adr/`](docs/adr/README.md) |
-| 배포·운영 | [`docs/runbook/`](docs/runbook/README.md) |
+| 배포·운영 | [`docs/runbook/`](docs/runbook/README.md) — 로컬 / [클라우드(AWS)](docs/runbook/cloud-deploy.md) / [CI/CD](docs/runbook/ci-cd.md) |
+| 배포 토폴로지·테스트 전략 | [architecture/05-deployment](docs/architecture/05-deployment.md) · [conventions/testing](docs/conventions/testing.md) |
 
 **주요 명령** (리포 루트에서):
 ```bash
@@ -57,7 +58,7 @@ docker compose up -d --wait          # MySQL만
 cd backend && ./gradlew bootRun      # 백엔드 :8080
 cd frontend && npm install && npm run dev   # 프론트 :3000
 # 테스트 / 빌드
-cd backend && ./gradlew test         # 단위·통합 테스트
+cd backend && ./gradlew test         # 단위/슬라이스 테스트 (H2)
 cd backend && ./gradlew clean build -x test   # 앱 이미지용 JAR
 ```
 
@@ -66,7 +67,7 @@ cd backend && ./gradlew clean build -x test   # 앱 이미지용 JAR
 ```
 ① 착수 전   → Notion WBS 'task 03.개발'에 기능 단위 "개발할 것" 문서 작성
 ② 브랜치    → develop에서 feature/{도메인}_{기능} 분기
-③ 개발      → ErrorCode → 구현 → 단위 테스트 → 통합 테스트 → API 테스트(Postman) → PR
+③ 개발      → ErrorCode → 구현 → 단위 테스트 → API 테스트(Postman) → PR
 ④ PR        → feature/* → develop, 작게·자주. PR 템플릿 채움
 ⑤ 마무리    → 문서 영향 확인 후 docs 갱신(아래 5번), develop은 항상 green 유지
 ```

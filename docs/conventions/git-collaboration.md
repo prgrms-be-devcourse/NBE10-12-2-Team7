@@ -71,7 +71,7 @@ git checkout -b feature/auth_signup
 09:00 ~ 17:00  [상시 루프]
    팀원 - 기능 구현 전, Notion WBS 'task 03.개발' 그룹에 기능 단위로 "개발할 것" 문서를 먼저 작성한다
         - 그 뒤 각자 feature 브랜치에서 기능 구현 (자기 도메인만)
-        - 개발 흐름(ErrorCode → 구현 → 단위 테스트 → 통합 테스트 → API 테스트(Postman) → PR)으로 진행
+        - 개발 흐름(ErrorCode → 구현 → 단위 테스트 → API 테스트(Postman) → PR)으로 진행
         - 기능이 완성되는 대로 작은 PR을 develop로 올린다 (하루치를 몰아두지 않는다)
    팀장 - PR이 올라올 때마다 코드 로직·구조 이해 → 검증·테스트
         - 문제 없으면 그때그때 develop에 통합 (PR 단위 상시 통합)
