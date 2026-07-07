@@ -15,6 +15,47 @@ interface Props {
 
 type LoadStatus = 'loading' | 'ready' | 'unauthenticated' | 'forbidden' | 'error'
 
+const MAX_IMAGES = 5
+const MAX_FILE_BYTES = 5 * 1024 * 1024
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+
+/** 백엔드가 서빙하는 내부 이미지인지 여부. 내부 이미지는 인증이 필요해 <img src>로 바로 못 띄운다. */
+function isInternalImageUrl(url: string) {
+  return url.startsWith('/api/products/images/')
+}
+
+/**
+ * /api/products/images/{filename}는 아직 permitAll이 아니라 Authorization 헤더가 있어야 열린다.
+ * <img src>는 헤더를 실어 보낼 수 없으므로 apiFetch로 받아 blob URL로 바꿔서 띄운다.
+ */
+function AuthImage({ src, alt }: { src: string; alt: string }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    let objectUrl: string | null = null
+
+    apiFetch(src)
+      .then(res => res.ok ? res.blob() : Promise.reject())
+      .then(blob => {
+        if (cancelled) return
+        objectUrl = URL.createObjectURL(blob)
+        setBlobUrl(objectUrl)
+      })
+      .catch(() => { if (!cancelled) setFailed(true) })
+
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [src])
+
+  if (failed) return <span className={styles.imagePreviewPh}>?</span>
+  if (!blobUrl) return <span className={styles.imagePreviewPh}>···</span>
+  return <img src={blobUrl} alt={alt} />
+}
+
 export default function ProductForm({ editId }: Props) {
   const isEdit = !!editId
 
@@ -29,8 +70,9 @@ export default function ProductForm({ editId }: Props) {
   const [price,      setPrice]      = useState('')
   const [isFree,     setIsFree]     = useState(false)
   const [desc,       setDesc]       = useState('')
-  const [images,         setImages]         = useState<string[]>([''])
+  const [images,         setImages]         = useState<string[]>([])
   const [thumbnailIndex, setThumbnailIndex] = useState(0)
+  const [uploading,      setUploading]      = useState(false)
 
   /* ── 힌트 ── */
   const [titleHint,    setTitleHint]    = useState<{ text: string; err?: boolean }>({ text: '판매할 상품의 이름을 구체적으로 적어주세요.' })
@@ -38,7 +80,7 @@ export default function ProductForm({ editId }: Props) {
   const [regionHint,   setRegionHint]   = useState<{ text: string; err?: boolean }>({ text: '' })
   const [priceHint,    setPriceHint]    = useState<{ text: string; err?: boolean }>({ text: '' })
   const [descHint,     setDescHint]     = useState<{ text: string; err?: boolean }>({ text: '구매자가 궁금해할 정보를 상세히 적을수록 거래가 빨라져요.' })
-  const [imagesHint,   setImagesHint]   = useState<{ text: string; err?: boolean }>({ text: '최소 1장, 최대 5장까지 이미지 URL을 등록할 수 있어요.' })
+  const [imagesHint,   setImagesHint]   = useState<{ text: string; err?: boolean }>({ text: '최소 1장, 최대 5장까지 이미지를 등록할 수 있어요. (jpeg·png·gif·webp, 장당 5MB 이하)' })
 
   /* ── 메시지 ── */
   const [formMsg,    setFormMsg]    = useState<{ text: string; type: 'success' | 'error' } | null>(null)
@@ -90,7 +132,7 @@ export default function ProductForm({ editId }: Props) {
           setPrice(product.price === 0 ? '' : product.price.toLocaleString('ko-KR'))
           setIsFree(product.price === 0)
           setDesc(product.description)
-          const fetchedImages = product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls : ['']
+          const fetchedImages = product.imageUrls ?? []
           setImages(fetchedImages)
           const thumbIdx = product.thumbnailUrl ? fetchedImages.indexOf(product.thumbnailUrl) : 0
           setThumbnailIndex(thumbIdx === -1 ? 0 : thumbIdx)
@@ -116,18 +158,42 @@ export default function ProductForm({ editId }: Props) {
     else setPrice('')
   }
 
-  /* ── 이미지 URL 목록 ── */
-  function updateImage(index: number, value: string) {
-    setImages(prev => prev.map((v, i) => i === index ? value : v))
+  /* ── 이미지 업로드 ── */
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (files.length === 0) return
+
+    if (images.length + files.length > MAX_IMAGES) {
+      setImagesHint({ text: `이미지는 최대 ${MAX_IMAGES}장까지 등록할 수 있어요.`, err: true })
+      return
+    }
+    const invalid = files.find(f => !ALLOWED_IMAGE_TYPES.includes(f.type) || f.size > MAX_FILE_BYTES)
+    if (invalid) {
+      setImagesHint({ text: 'jpeg·png·gif·webp 형식, 파일당 5MB 이하만 업로드할 수 있어요.', err: true })
+      return
+    }
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      files.forEach(f => formData.append('files', f))
+      const res = await apiFetch('/api/products/images', { method: 'POST', body: formData })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        setImagesHint({ text: data?.message ?? '이미지 업로드에 실패했습니다.', err: true })
+        return
+      }
+      setImages(prev => [...prev, ...(data?.data?.imageUrls ?? [])])
+      setImagesHint({ text: '최소 1장, 최대 5장까지 이미지를 등록할 수 있어요. (jpeg·png·gif·webp, 장당 5MB 이하)' })
+    } catch {
+      setImagesHint({ text: '서버에 연결할 수 없습니다.', err: true })
+    } finally {
+      setUploading(false)
+    }
   }
-  function addImageField() {
-    setImages(prev => prev.length >= 5 ? prev : [...prev, ''])
-  }
-  function removeImageField(index: number) {
-    setImages(prev => {
-      const next = prev.filter((_, i) => i !== index)
-      return next.length > 0 ? next : ['']
-    })
+  function removeImage(index: number) {
+    setImages(prev => prev.filter((_, i) => i !== index))
     setThumbnailIndex(prev => {
       if (prev === index) return 0
       return prev > index ? prev - 1 : prev
@@ -135,14 +201,6 @@ export default function ProductForm({ editId }: Props) {
   }
 
   /* ── 검증 ── */
-  function getValidImages() {
-    const trimmed = images.map(v => v.trim())
-    const nonBlankIndices = trimmed
-      .map((v, i) => (v ? i : -1))
-      .filter(i => i !== -1)
-    return { trimmed, nonBlankIndices }
-  }
-
   function validate() {
     let ok = true
     if (!title.trim()) {
@@ -170,11 +228,10 @@ export default function ProductForm({ editId }: Props) {
     } else {
       setDescHint({ text: '구매자가 궁금해할 정보를 상세히 적을수록 거래가 빨라져요.' })
     }
-    const { nonBlankIndices } = getValidImages()
-    if (nonBlankIndices.length === 0) {
-      setImagesHint({ text: '이미지 URL을 최소 1장 입력하세요.', err: true }); ok = false
+    if (images.length === 0) {
+      setImagesHint({ text: '이미지를 최소 1장 업로드하세요.', err: true }); ok = false
     } else {
-      setImagesHint({ text: '최소 1장, 최대 5장까지 이미지 URL을 등록할 수 있어요.' })
+      setImagesHint({ text: '최소 1장, 최대 5장까지 이미지를 등록할 수 있어요. (jpeg·png·gif·webp, 장당 5MB 이하)' })
     }
     return ok
   }
@@ -188,9 +245,7 @@ export default function ProductForm({ editId }: Props) {
       return
     }
 
-    const { trimmed, nonBlankIndices } = getValidImages()
-    const imageUrls = nonBlankIndices.map(i => trimmed[i])
-    const payloadThumbnailIndex = Math.max(0, nonBlankIndices.indexOf(thumbnailIndex))
+    const payloadThumbnailIndex = thumbnailIndex < images.length ? thumbnailIndex : 0
 
     const payload = {
       categoryId,
@@ -198,7 +253,7 @@ export default function ProductForm({ editId }: Props) {
       description: desc.trim(),
       price: isFree ? 0 : Number(price.replace(/[^\d]/g, '')),
       region: region.trim(),
-      imageUrls,
+      imageUrls: images,
       thumbnailIndex: payloadThumbnailIndex,
     }
     const url    = isEdit ? `/api/products/${editId}` : '/api/products'
@@ -283,19 +338,16 @@ export default function ProductForm({ editId }: Props) {
         <form onSubmit={handleSubmit} noValidate>
           {/* 상품 이미지 */}
           <div className={styles.field}>
-            <label>상품 이미지<span className={styles.req}>*</span><span className={styles.sub}>URL 최대 5장 · 대표 이미지 선택</span></label>
+            <label>상품 이미지<span className={styles.req}>*</span><span className={styles.sub}>파일 최대 5장 · 대표 이미지 선택</span></label>
             <div className={styles.imageList}>
               {images.map((url, i) => (
-                <div key={i} className={styles.imageRow}>
+                <div key={url + i} className={styles.imageRow}>
                   <div className={styles.imagePreview}>
-                    {url.trim() ? <img src={url.trim()} alt={`상품 이미지 ${i + 1}`} /> : <span className={styles.imagePreviewPh}>{i + 1}</span>}
+                    {isInternalImageUrl(url)
+                      ? <AuthImage src={url} alt={`상품 이미지 ${i + 1}`} />
+                      : <img src={url} alt={`상품 이미지 ${i + 1}`} />}
                   </div>
-                  <input
-                    type="text" className={styles.input}
-                    placeholder="https://example.com/image.jpg"
-                    value={url}
-                    onChange={e => updateImage(i, e.target.value)}
-                  />
+                  <span className={styles.imageFileLabel}>이미지 {i + 1}</span>
                   <button
                     type="button"
                     className={`${styles.thumbBtn}${thumbnailIndex === i ? ' ' + styles.thumbBtnOn : ''}`}
@@ -307,15 +359,23 @@ export default function ProductForm({ editId }: Props) {
                     type="button"
                     className={styles.imageRmBtn}
                     aria-label="이미지 삭제"
-                    onClick={() => removeImageField(i)}
+                    onClick={() => removeImage(i)}
                   >✕</button>
                 </div>
               ))}
             </div>
-            {images.length < 5 && (
-              <button type="button" className={styles.addImageBtn} onClick={addImageField}>
-                + 이미지 URL 추가
-              </button>
+            {images.length < MAX_IMAGES && (
+              <label className={`${styles.addImageBtn}${uploading ? ' ' + styles.addImageBtnDisabled : ''}`}>
+                <input
+                  type="file"
+                  accept={ALLOWED_IMAGE_TYPES.join(',')}
+                  multiple
+                  hidden
+                  disabled={uploading}
+                  onChange={handleFileSelect}
+                />
+                {uploading ? '업로드 중...' : '+ 이미지 파일 추가'}
+              </label>
             )}
             <div className={hintCls(imagesHint)}>{imagesHint.text}</div>
           </div>
@@ -401,14 +461,14 @@ export default function ProductForm({ editId }: Props) {
           {/* 액션 */}
           <div className={styles.actions}>
             <Link href="/products" className={styles.btnGhost}>취소</Link>
-            <button type="submit" className={styles.btnSubmit} disabled={submitting}>
+            <button type="submit" className={styles.btnSubmit} disabled={submitting || uploading}>
               {submitting
                 ? (isEdit ? '수정 중...' : '등록 중...')
                 : (isEdit ? '수정 완료' : '등록하기')}
             </button>
           </div>
           <div className={styles.apiNote}>
-            {isEdit ? `PATCH /api/products/${editId}` : 'POST /api/products'}
+            POST /api/products/images · {isEdit ? `PATCH /api/products/${editId}` : 'POST /api/products'}
           </div>
         </form>
       </div>
