@@ -11,6 +11,8 @@
 | [02-container.md](02-container.md) | C4 L2 · Container | 배포 단위(컨테이너)와 통신 — nginx·next·app·mysql·관측 |
 | [03-component.md](03-component.md) | C4 L3 · Component | 백엔드 도메인/계층 구조 |
 | [04-erd.md](04-erd.md) | Data Model | 테이블·관계·주요 enum |
+| [05-deployment.md](05-deployment.md) | Deployment | AWS 배포 토폴로지 — EC2 3대·ECR·네트워킹 |
+| [06-frontend.md](06-frontend.md) | Frontend | Next.js 라우트·구조 개요 |
 
 ## 한 문단 요약
 

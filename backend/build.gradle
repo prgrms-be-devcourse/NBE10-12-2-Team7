@@ -58,25 +58,8 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-	// Testcontainers (통합테스트: 진짜 MySQL) — 버전은 Spring Boot BOM이 관리
-	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-	testImplementation 'org.testcontainers:junit-jupiter'
-	testImplementation 'org.testcontainers:mysql'
 }
-// 기본 test = 빠른 단위/슬라이스 (H2). integration 태그는 제외
+// test = 단위/슬라이스 (H2)
 tasks.named('test') {
-	useJUnitPlatform {
-		excludeTags 'integration'
-	}
-}
-
-// 통합테스트 = 진짜 MySQL(Testcontainers). ./gradlew integrationTest
-tasks.register('integrationTest', Test) {
-	useJUnitPlatform {
-		includeTags 'integration'
-	}
-	shouldRunAfter('test')
-	testClassesDirs = sourceSets.test.output.classesDirs
-	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform()
 }

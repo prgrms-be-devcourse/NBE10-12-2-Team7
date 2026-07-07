@@ -16,6 +16,8 @@
 | 번호 | 제목 | 상태 |
 | --- | --- | --- |
 | [0001](0001-adopt-docs-as-code-structure.md) | docs를 Docs-as-Code 구조로 재편 | Accepted |
+| [0002](0002-db-hosting-ec2-mysql.md) | 운영 DB를 EC2 자체 호스팅 MySQL로 (RDS 미사용) | Accepted |
+| [0003](0003-schema-ddl-auto.md) | 스키마를 ddl-auto로 관리 (마이그레이션 도구 미도입) | Accepted (caveat) |
 
 ---
 

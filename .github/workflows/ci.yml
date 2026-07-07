@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ── 백엔드: 단위/슬라이스 테스트 (H2). integration 태그는 제외 ──
+  # ── 백엔드: 단위/슬라이스 테스트 (H2) ──
   backend-test:
     runs-on: ubuntu-latest
     defaults:

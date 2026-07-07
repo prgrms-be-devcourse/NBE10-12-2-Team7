@@ -48,7 +48,7 @@ cd frontend && npm install && npm run dev   # 프론트 :3000 (/api는 :8080으�
 
 ### B. local-deploy — 전부 Docker로 (운영 패리티·시연·공유)
 
-프론트·백엔드·DB·관측까지 컨테이너로. (배포·운영 런북은 `docs/runbook/`에 정리 예정 — [docs/README.md](docs/README.md) 인덱스 참고)
+프론트·백엔드·DB·관측까지 컨테이너로. (운영 절차·트러블슈팅은 [docs/runbook/README.md](docs/runbook/README.md))
 
 ```bash
 cd backend && ./gradlew clean build -x test && cd ..   # 앱 이미지용 JAR 선행 빌드(필수)
@@ -75,6 +75,13 @@ docker compose --profile web --profile observability --profile edge up -d --buil
 docker compose --profile web --profile observability --profile edge down   # 데이터 볼륨은 유지
 ```
 
+### C. cloud-deploy — AWS 배포 (운영)
+
+AWS **EC2 3대(앱 · DB · 모니터링) + ECR** 구성. DB는 관리형 RDS가 아니라 **EC2에 MySQL 컨테이너 자체 호스팅**이다. 이미지는 GitHub Actions가 ECR로 push하고 EC2가 pull한다.
+
+- 자원 정의: [`infra/`](infra/README.md)
+- **배포 절차: [docs/runbook/cloud-deploy.md](docs/runbook/cloud-deploy.md)** · 토폴로지: [docs/architecture/05-deployment.md](docs/architecture/05-deployment.md) · CI/CD: [docs/runbook/ci-cd.md](docs/runbook/ci-cd.md)
+
 ---
 
 ## 문서
@@ -84,11 +91,11 @@ docker compose --profile web --profile observability --profile edge down   # 데
 | 영역 | 내용 |
 |---|---|
 | [docs/README.md](docs/README.md) | 문서 인덱스 · "무엇을 어디에 두나" 경계 |
-| architecture | 시스템 구조(C4) · ERD · 컴포넌트 관계 |
+| architecture | 시스템 구조(C4) · ERD · **배포 토폴로지** · 프론트 |
 | adr | 기술 결정 기록 — "왜 이렇게 정했나" |
 | api | API 명세 (OpenAPI/Swagger 기준) |
-| runbook | 배포 · 운영 · 장애 대응 |
-| conventions | 코딩 · 커밋 · 브랜치 규칙 |
+| runbook | **클라우드 배포** · CI/CD · 운영 · 장애 대응 |
+| conventions | 코딩 · 커밋 · 브랜치 · **테스트 전략** |
 
 ---
 

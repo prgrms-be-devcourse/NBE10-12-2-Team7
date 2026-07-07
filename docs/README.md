@@ -27,11 +27,11 @@
 | 폴더 | 내용 | 상태 |
 | --- | --- | --- |
 | [`getting-started/`](getting-started/) | [로컬 실행·개발 환경 세팅](getting-started/README.md) (신규 투입자가 제일 먼저) | ✅ 작성됨 |
-| [`architecture/`](architecture/) | 시스템 구조 — [컨텍스트](architecture/01-context.md)·[컨테이너](architecture/02-container.md)·[컴포넌트](architecture/03-component.md)·[ERD](architecture/04-erd.md) | ✅ 작성됨 |
+| [`architecture/`](architecture/) | 시스템 구조 — [컨텍스트](architecture/01-context.md)·[컨테이너](architecture/02-container.md)·[컴포넌트](architecture/03-component.md)·[ERD](architecture/04-erd.md)·[배포](architecture/05-deployment.md)·[프론트](architecture/06-frontend.md) | ✅ 작성됨 |
 | [`adr/`](adr/) | ★ 기술 결정 기록 — [0001 Docs-as-Code 재편](adr/0001-adopt-docs-as-code-structure.md) | ✅ 시작됨 |
 | [`api/`](api/) | [API 명세](api/README.md) — Swagger 정본 + 공통 규약·리소스 지도 | ✅ 작성됨 |
-| [`runbook/`](runbook/) | [운영·장애 대응·배포 절차](runbook/README.md) | ✅ 작성됨 |
-| [`conventions/`](conventions/) | 코딩·커밋·브랜치 규칙 — [Git 협업 규칙](conventions/git-collaboration.md) | ✅ 시작됨 |
+| [`runbook/`](runbook/) | [운영](runbook/README.md)·[클라우드 배포](runbook/cloud-deploy.md)·[CI/CD](runbook/ci-cd.md)·장애 대응 | ✅ 작성됨 |
+| [`conventions/`](conventions/) | [Git 협업 규칙](conventions/git-collaboration.md) · [테스트 전략](conventions/testing.md) | ✅ 작성됨 |
 
 > 채워지는 대로 상태를 ✅ 로 바꾸고 대표 문서 링크를 건다.
 
