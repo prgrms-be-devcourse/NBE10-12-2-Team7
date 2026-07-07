@@ -57,6 +57,7 @@ public class SecurityConfig {
 						// 인증 불필요 (회원가입/로그인, 공개 조회)
 						.requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login", "/api/auth/reissue", "/api/auth/email-verifications", "/api/auth/email-verifications/confirm", "/api/auth/password-resets", "/api/auth/password-resets/confirm").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/products", "/api/products/{productId}").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/products/images/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/regions").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/products/{productId}/comments").permitAll()
