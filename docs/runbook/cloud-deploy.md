@@ -18,7 +18,7 @@ AWS EC2 3대 + ECR 기반 배포 절차. 물리 토폴로지는 [architecture/05
 
 - EC2 3대 프로비저닝, 같은 VPC 배치. **DB EC2는 퍼블릭 IP 없음**, SG로 앱 EC2에서 3306만 허용.
 - ECR 리포지토리(`dongnemarket-app`, `dongnemarket-next`) 생성.
-- GitHub Actions용 IAM Role(OIDC) 준비 → `AWS_ROLE_ARN` 시크릿 등록 (CI/CD 문서 참고).
+- GitHub Actions용 IAM Role(OIDC) 준비 → `AWS_ROLE_ARN` 시크릿 등록. 자동 배포용 `EC2_APP_HOST`·`EC2_SSH_KEY` 시크릿도 등록 (CI/CD 문서 참고).
 - 각 EC2에 Docker/Compose 설치.
 
 ### 1. DB EC2
@@ -63,14 +63,16 @@ Prometheus가 앱 EC2의 `/actuator/prometheus`를 scrape하고, promtail이 로
 
 ## 재배포 (새 이미지 반영)
 
-CD가 develop 머지 시 ECR에 새 이미지를 push한다(태그: `latest` + 커밋 SHA). 앱 EC2에서:
+CD가 develop 머지 시 ECR에 새 이미지를 push하고(태그: `latest` + 커밋 SHA), 이어서 **앱 EC2에 SSH로 접속해 자동 재배포**한다(`docker compose pull` → `up -d` → `image prune`). 상세는 [ci-cd.md](ci-cd.md).
+
+수동으로 반영해야 할 때(핫픽스·롤백 등)는 앱 EC2에서 직접:
 
 ```bash
 cd infra/cloud/app
 docker compose --env-file .env pull && docker compose --env-file .env up -d
 ```
 
-> ⚠️ **현재 ECR push 이후 EC2 pull은 수동**이다. CD 워크플로우는 이미지 push까지만 자동화돼 있다([ci-cd.md](ci-cd.md)). 자동 배포(SSH/SSM)는 후속 과제.
+> 배포는 `IMAGE_TAG=latest` 기준이라 특정 SHA 롤백은 `.env`의 `IMAGE_TAG`를 해당 커밋 SHA로 바꿔 수동 `pull`·`up`으로 처리한다.
 
 ## 확인 / 트러블슈팅
 

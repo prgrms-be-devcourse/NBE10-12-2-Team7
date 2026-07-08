@@ -70,6 +70,6 @@ docker logs dongne-cloudflared 2>&1 | grep trycloudflare   # 임시 외부 URL �
 
 ## 5. 미정 / 후속
 
-- **자동 배포**: 현재 CD는 ECR push까지만. EC2 pull·재기동은 수동이다([ci-cd.md](ci-cd.md)). SSH/SSM 기반 자동 배포 job 추가가 후속.
+- **배포 안정화**: CD가 ECR push 후 앱 EC2에 SSH로 자동 재배포한다([ci-cd.md](ci-cd.md)). 다만 `:latest` 태그 기준이라 특정 SHA 롤백·배포 후 헬스체크·무중단 전환은 아직 후속 과제.
 - **DB 백업·복구 정책**: EC2 자체 호스팅 MySQL이라 스냅샷/백업을 직접 세워야 한다([ADR 0002](../adr/0002-db-hosting-ec2-mysql.md)).
 - **AWS 캐패시티 플래닝**: 실서버 부하 기준 인스턴스 사이징 문서 미작성.

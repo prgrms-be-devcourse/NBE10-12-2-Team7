@@ -1,7 +1,7 @@
 name: CD - Build & Push (app)
 
-# develop에 머지되면 변경된 앱 이미지를 빌드해 ECR로 push.
-# (EC2 배포는 이후 단계에서 이 파일에 job을 덧붙인다. 지금은 push까지만.)
+# develop에 머지되면 변경된 앱 이미지를 빌드해 ECR로 push하고,
+# 이어서 앱 EC2에 SSH로 접속해 pull·재기동까지 자동 배포한다.
 on:
   push:
     branches:
