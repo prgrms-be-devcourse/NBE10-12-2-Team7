@@ -422,6 +422,54 @@ class ChatControllerTest {
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.error").value("CHAT_ROOM_NOT_FOUND"));
         }
+
+        @Test
+        @DisplayName("판매자가 탈퇴하면 구매자는 400 CHAT_PARTNER_WITHDRAWN으로 전송할 수 없다")
+        void partnerWithdrawn_seller_blocksBuyer() throws Exception {
+            ChatRoom room = saveRoom(buyer, seller);
+            seller.softDelete();
+            memberRepository.save(seller);
+
+            mockMvc.perform(post("/api/chat-rooms/{roomId}/messages", room.getId())
+                            .header("Authorization", buyerToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"content\":\"계세요?\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("CHAT_PARTNER_WITHDRAWN"));
+        }
+
+        @Test
+        @DisplayName("구매자가 탈퇴하면 판매자도 400 CHAT_PARTNER_WITHDRAWN으로 전송할 수 없다(양방향)")
+        void partnerWithdrawn_buyer_blocksSeller() throws Exception {
+            ChatRoom room = saveRoom(buyer, seller);
+            buyer.softDelete();
+            memberRepository.save(buyer);
+
+            mockMvc.perform(post("/api/chat-rooms/{roomId}/messages", room.getId())
+                            .header("Authorization", sellerToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"content\":\"거래 하실래요?\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("CHAT_PARTNER_WITHDRAWN"));
+        }
+
+        @Test
+        @DisplayName("상대가 탈퇴해도 대화 히스토리 조회·방 목록(읽기)은 200으로 유지된다")
+        void partnerWithdrawn_readStillAllowed() throws Exception {
+            ChatRoom room = saveRoom(buyer, seller);
+            chatMessageRepository.save(ChatMessage.of(room, buyer, "예전 대화"));
+            seller.softDelete();
+            memberRepository.save(seller);
+
+            mockMvc.perform(get("/api/chat-rooms/{roomId}/messages", room.getId())
+                            .header("Authorization", buyerToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.messages.length()").value(1));
+
+            mockMvc.perform(get("/api/chat-rooms").header("Authorization", buyerToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.length()").value(1));
+        }
     }
 
     @Nested

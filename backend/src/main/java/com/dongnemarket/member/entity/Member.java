@@ -101,12 +101,20 @@ public class Member extends BaseTimeEntity {
 	}
 
 	/**
-	 * 화면 표시용 닉네임. 탈퇴(DELETED)한 회원은 실명 닉네임 대신 마스킹 문구를 반환한다.
+	 * 탈퇴(DELETED)한 회원인지 여부. "탈퇴" 판정의 단일 기준점으로, 닉네임 마스킹·채팅 전송 차단 등
+	 * 탈퇴 여부에 반응하는 모든 지점이 이 메서드를 사용한다.
+	 * (SUSPENDED는 관리자 정지일 뿐 탈퇴가 아니므로 여기에 포함하지 않는다.)
+	 */
+	public boolean isWithdrawn() {
+		return status == MemberStatus.DELETED;
+	}
+
+	/**
+	 * 화면 표시용 닉네임. 탈퇴한 회원은 실명 닉네임 대신 마스킹 문구를 반환한다.
 	 * 닉네임이 노출되는 모든 지점(채팅 상대·판매자 등)에서 이 메서드를 사용해 마스킹을 일관 적용한다.
-	 * (SUSPENDED는 관리자 정지일 뿐 탈퇴가 아니므로 마스킹하지 않는다.)
 	 */
 	public String getDisplayNickname() {
-		return status == MemberStatus.DELETED ? WITHDRAWN_NICKNAME : nickname;
+		return isWithdrawn() ? WITHDRAWN_NICKNAME : nickname;
 	}
 
 	public Role getRole() {
