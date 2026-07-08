@@ -9,9 +9,11 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
+import com.dongnemarket.product.entity.ProductImage;
 import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.ProductImageRepository;
 import com.dongnemarket.product.repository.ProductRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -51,6 +54,9 @@ class ProductControllerTest {
 
 	@Autowired
 	ProductImageRepository productImageRepository;
+
+	@Autowired
+	EntityManager entityManager;
 
 	@AfterEach
 	void cleanUp() {
@@ -953,6 +959,49 @@ class ProductControllerTest {
 				.andExpect(jsonPath("$.data.description").value("수정된 상품 설명입니다."))
 				.andExpect(jsonPath("$.data.price").value(1500000))
 				.andExpect(jsonPath("$.data.region").value("서울 서초구"));
+	}
+
+	@Test
+	@DisplayName("상품 수정 시 대표 이미지를 변경하면 DB의 thumbnailUrl도 변경된다")
+	void updatesThumbnailUrlInDatabaseWhenReselectingRepresentativeImage() throws Exception {
+		Member member = memberRepository.save(Member.createUser("thumbnail-update@example.com", "encodedPassword", "대표변경판매자"));
+		Category category = categoryRepository.save(new Category("대표이미지수정"));
+		Product product = Product.create(
+				member,
+				category,
+				"아이폰 15",
+				"상태 좋은 아이폰입니다.",
+				BigDecimal.valueOf(800000),
+				"서울 강남구"
+		);
+		product.changeThumbnailUrl("https://example.com/old-1.jpg");
+		Product savedProduct = productRepository.saveAndFlush(product);
+		productImageRepository.save(ProductImage.create(savedProduct, "https://example.com/old-1.jpg", 0, true));
+		productImageRepository.saveAndFlush(ProductImage.create(savedProduct, "https://example.com/old-2.jpg", 1, false));
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "categoryId": %d,
+				  "title": "아이폰 15",
+				  "description": "상태 좋은 아이폰입니다.",
+				  "price": 800000,
+				  "region": "서울 강남구",
+				  "imageUrls": ["https://example.com/old-1.jpg", "https://example.com/old-2.jpg"],
+				  "thumbnailIndex": 1
+				}
+				""".formatted(category.getId());
+
+		mockMvc.perform(patch("/api/products/{productId}", savedProduct.getId())
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.thumbnailUrl").value("https://example.com/old-2.jpg"));
+		productRepository.flush();
+		entityManager.clear();
+
+		Product foundProduct = productRepository.findById(savedProduct.getId()).orElseThrow();
+		assertThat(foundProduct.getThumbnailUrl()).isEqualTo("https://example.com/old-2.jpg");
 	}
 
 	@Test

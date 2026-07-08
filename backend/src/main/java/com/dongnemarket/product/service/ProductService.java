@@ -206,15 +206,17 @@ public class ProductService {
 				request.getRegion()
 		);
 		productImageRepository.deleteAllByProductId(productId);
-		saveProductImages(product, request.getImageUrls(), request.getThumbnailIndex());
+		Product managedProduct = productRepository.findById(productId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+		saveProductImages(managedProduct, request.getImageUrls(), request.getThumbnailIndex());
 
 		// 가격이 실제로 바뀐 경우에만 알림 이벤트 발행. BigDecimal은 scale 민감이라 compareTo 로 비교한다(equals X).
 		// 커밋 후(AFTER_COMMIT) 별도 트랜잭션에서 처리되어 알림 실패가 상품 수정을 롤백하지 않는다(best-effort).
 		if (oldPrice.compareTo(request.getPrice()) != 0) {
 			eventPublisher.publishEvent(new ProductPriceChangedEvent(
-					productId, product.getTitle(), oldPrice, request.getPrice()));
+					productId, managedProduct.getTitle(), oldPrice, request.getPrice()));
 		}
-		return ProductResponse.from(product, request.getImageUrls());
+		return ProductResponse.from(managedProduct, request.getImageUrls());
 	}
 
 	@Transactional
