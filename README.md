@@ -12,10 +12,9 @@
 .
 ├── backend/            Spring Boot (Java 21) · build.gradle · src
 ├── frontend/           Next.js (App Router, TS) · Dockerfile
-├── nginx/              로컬 배포용 리버스 프록시 설정
-├── monitoring/         Prometheus · Grafana · Loki · Promtail 설정
-├── docker-compose.yml  ★ 루트에서 실행 (dev / local-deploy 통합)
-├── .env.example        필요한 환경변수 키 목록 (복사해서 .env)
+├── docker-compose.yml  ★ dev 전용 (MySQL만 — 앱·프론트는 호스트에서 실행)
+├── infra/              배포 자원 — onprem/(온프레미스 전체 스택) · cloud/(AWS EC2 3대)
+├── .env.example        dev용 환경변수 키 목록 (복사해서 .env)
 └── docs/               협업·아키텍처·배포 문서
 ```
 
@@ -23,7 +22,7 @@
 
 | | |
 |---|---|
-| 백엔드 | Spring Boot 3.5, Java 21, Spring Security(JWT), JPA, MySQL 8 |
+| 백엔드 | Spring Boot 3.5, Java 21, Spring Security(JWT), JPA, MySQL 8, Flyway(운영 스키마 마이그레이션) |
 | 프론트 | Next.js 16(App Router), React 19, TypeScript, Tailwind |
 | 인프라 | Docker Compose, nginx, Prometheus·Loki·Grafana, Cloudflare Tunnel |
 | AI | Spring AI + 사내 Ollama (관리자 AI 어시스턴트) |
@@ -46,21 +45,22 @@ cd frontend && npm install && npm run dev   # 프론트 :3000 (/api는 :8080으�
 
 → 브라우저 **http://localhost:3000**
 
-### B. local-deploy — 전부 Docker로 (운영 패리티·시연·공유)
+### B. 온프레미스 — 전부 Docker로 (운영 패리티·시연·공유)
 
-프론트·백엔드·DB·관측까지 컨테이너로. (운영 절차·트러블슈팅은 [docs/runbook/README.md](docs/runbook/README.md))
+프론트·백엔드·DB·관측까지 컨테이너로. 정의는 [`infra/onprem/`](infra/onprem/) (운영 절차·트러블슈팅은 [docs/runbook/README.md](docs/runbook/README.md)).
 
 ```bash
 cd backend && ./gradlew clean build -x test && cd ..   # 앱 이미지용 JAR 선행 빌드(필수)
 
-docker compose --profile web up -d --build                              # 앱만
-docker compose --profile web --profile observability up -d --build      # +관측
-docker compose --profile web --profile observability --profile edge up -d --build  # +외부노출(퀵터널)
+cd infra/onprem && cp .env.example .env                # 최초 1회 (값 채우기)
+docker compose --env-file .env up -d --build                              # nginx+next+app+mysql
+docker compose --env-file .env --profile observability up -d --build      # +관측
+docker compose --env-file .env --profile observability --profile edge up -d --build  # +외부노출(퀵터널)
 ```
 
 → 브라우저 **http://localhost** (nginx 현관 하나로 프론트·API 통합)
 
-### 접속 지점 (local-deploy)
+### 접속 지점 (온프레미스)
 
 | 대상 | 주소 |
 |---|---|
@@ -72,7 +72,7 @@ docker compose --profile web --profile observability --profile edge up -d --buil
 ### 종료
 
 ```bash
-docker compose --profile web --profile observability --profile edge down   # 데이터 볼륨은 유지
+cd infra/onprem && docker compose --profile observability --profile edge down   # 데이터 볼륨은 유지
 ```
 
 ### C. cloud-deploy — AWS 배포 (운영)
@@ -101,5 +101,5 @@ AWS **EC2 3대(앱 · DB · 모니터링) + ECR** 구성. DB는 관리형 RDS가
 
 ## 참고
 
-- **CORS 설정 없음**: 어느 환경이든 브라우저는 단일 origin(dev=Next, local-deploy=nginx)만 호출하고 `/api`는 서버가 프록시한다.
+- **CORS 설정 없음**: 어느 환경이든 브라우저는 단일 origin(dev=Next, 온프레미스·클라우드=nginx)만 호출하고 `/api`는 서버가 프록시한다.
 - `.env`는 커밋하지 않는다(gitignore). `.env.example`이 필요한 키 목록.

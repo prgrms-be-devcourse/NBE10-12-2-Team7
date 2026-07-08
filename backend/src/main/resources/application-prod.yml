@@ -1,0 +1,24 @@
+# prod: 운영 수위 프로파일. 온프레미스(로컬 전체 컨테이너) 배포와 클라우드(EC2) 배포가 공유한다.
+#   두 배포 지형의 차이는 이 프로파일이 아니라 env 바인딩(FILE_STORAGE_TYPE·DB_URL·이미지 출처)으로만 가른다.
+#   설계·경계: docs/adr/0004-infra-boundary.md
+# 로그는 운영 유사(quiet)하되 prometheus 노출(로컬 관측 스택 / 클라우드 모니터링 EC2가 scrape).
+spring:
+  # Flyway가 스키마를 책임진다(db/migration/V*.sql). Hibernate는 검증만.
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate   # Flyway가 만든 스키마가 엔티티와 맞는지 검증만 — 안 맞으면 기동 실패(운영 안전). ADR 0003·0004.
+    properties:
+      hibernate:
+        format_sql: false
+
+logging:
+  level:
+    root: info
+    org.hibernate.SQL: warn
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus

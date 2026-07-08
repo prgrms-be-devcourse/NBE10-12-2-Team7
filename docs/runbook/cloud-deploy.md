@@ -49,7 +49,7 @@ docker compose --env-file .env up -d
 | `OLLAMA_BASE_URL` · `OLLAMA_MODEL` | 사내 Ollama 주소·모델 |
 | `MAIL_HOST` · `MAIL_PORT` · `MAIL_USERNAME` · `MAIL_PASSWORD` | 이메일 발송(Gmail SMTP) |
 
-> 앱은 `SPRING_PROFILES_ACTIVE=local`로 뜬다(전용 prod 프로파일 없음 — [ADR 0003](../adr/0003-schema-ddl-auto.md) 참고).
+> 앱은 `SPRING_PROFILES_ACTIVE=prod`로 뜬다(온프레미스 배포와 공유하는 운영 수위 프로파일 — [ADR 0004](../adr/0004-infra-boundary.md)). `prod`는 아직 `ddl-auto: update`다 — Flyway 도입 후 `validate` 전환 예정([ADR 0003](../adr/0003-schema-ddl-auto.md), P4).
 
 ### 3. 모니터링 EC2
 
@@ -85,4 +85,4 @@ docker compose --env-file .env pull && docker compose --env-file .env up -d
 
 ## 로컬 배포와의 차이
 
-로컬 `local-deploy`는 한 호스트의 docker-compose로 전부 띄운다([runbook/README.md](README.md)). 클라우드는 **역할별 EC2 분리 + ECR 이미지 pull + 프라이빗 DB**라는 점만 다르고, 앱 구조(nginx 현관·프로파일)는 동일하다.
+**온프레미스**(`infra/onprem/`)는 한 호스트의 docker-compose로 전부 띄운다([runbook/README.md](README.md)). 클라우드는 **역할별 EC2 분리 + ECR 이미지 pull + 프라이빗 DB**라는 점만 다르고, 앱 구조(nginx 현관·프로파일)는 동일하다.

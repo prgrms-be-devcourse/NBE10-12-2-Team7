@@ -76,5 +76,5 @@ graph TB
 
 ## as-built 특이사항 (주의)
 
-- **앱 EC2도 `SPRING_PROFILES_ACTIVE=local`** 로 기동한다 — 별도 prod 프로파일이 없어 로컬 프로파일을 재사용한다. 이 프로파일은 `ddl-auto: update`라 **운영 스키마가 Hibernate 자동변경**된다. 관련 위험·후속은 [ADR 0003](../adr/0003-schema-ddl-auto.md).
-- **ECR push 이후 앱 EC2 배포는 CD가 SSH로 자동화**(pull·재기동)한다. 단 `:latest` 태그 기준이라 특정 SHA 롤백·헬스체크는 아직 수동이다.
+- **앱 EC2는 `SPRING_PROFILES_ACTIVE=prod`** 로 기동한다(온프레미스 배포와 공유하는 운영 수위 — [ADR 0004](../adr/0004-infra-boundary.md)). `prod`는 **Flyway가 스키마를 관리하고 `ddl-auto: validate`로 검증만** 한다([ADR 0005](../adr/0005-flyway-migration.md)). ⚠️ 클라우드 기존 DB에 처음 배포할 때, 실제 운영 스키마와 `V1__baseline.sql`이 일치하는지 대조 후 켤 것(그동안 `update` 누적본이라 미세 차이 가능).
+- **ECR push 이후 앱 EC2 배포는 CD가 SSH로 자동화**(pull·재기동)한다. 배포는 **커밋 SHA 이미지** 기준이라 결정적이고 롤백 가능([ci-cd.md](../runbook/ci-cd.md)). 배포 후 헬스체크·무중단 전환은 후속.

@@ -72,3 +72,17 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # ── 인프라: onprem·cloud nginx.conf 동기 확인 (드리프트 방지) ──
+  infra-nginx-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: onprem == cloud nginx.conf 확인
+        run: |
+          if ! diff -q infra/onprem/nginx.conf infra/cloud/app/nginx.conf; then
+            echo "::error::infra/onprem/nginx.conf 와 infra/cloud/app/nginx.conf 가 다릅니다. 둘을 동일하게 유지하세요(의도적 분기면 이 가드를 조정)."
+            diff infra/onprem/nginx.conf infra/cloud/app/nginx.conf || true
+            exit 1
+          fi
+          echo "OK: nginx.conf 동기됨"

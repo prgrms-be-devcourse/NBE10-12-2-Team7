@@ -6,6 +6,10 @@ spring:
     password:
     driver-class-name: org.h2.Driver
 
+  # H2라 Flyway(MySQL 방언 baseline)를 끄고 ddl-auto(create-drop)가 스키마를 만든다.
+  flyway:
+    enabled: false
+
   jpa:
     hibernate:
       ddl-auto: create-drop

@@ -54,6 +54,11 @@ dependencies {
 	runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
 	runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
 
+	// DB 마이그레이션 (Flyway) — 스키마를 버전드 SQL로 관리. prod는 ddl-auto:validate와 세트.
+	// dev/test에서는 spring.flyway.enabled=false로 끄고 ddl-auto가 스키마를 담당한다.
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-mysql'
+
 	// DB drivers
 	runtimeOnly 'com.mysql:mysql-connector-j'   // 운영/개발 DB
 	testRuntimeOnly 'com.h2database:h2'          // 테스트 전용 in-memory

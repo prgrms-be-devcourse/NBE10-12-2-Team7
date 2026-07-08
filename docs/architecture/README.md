@@ -13,6 +13,7 @@
 | [04-erd.md](04-erd.md) | Data Model | 테이블·관계·주요 enum |
 | [05-deployment.md](05-deployment.md) | Deployment | AWS 배포 토폴로지 — EC2 3대·ECR·네트워킹 |
 | [06-frontend.md](06-frontend.md) | Frontend | Next.js 라우트·구조 개요 |
+| [07-infra-inventory.md](07-infra-inventory.md) | Infra (as-is) | 환경·인프라 세팅 인벤토리 — 프로파일·compose·Dockerfile·경계 |
 
 ## 한 문단 요약
 
