@@ -34,7 +34,14 @@ function ReportForm() {
   const cancelHref = isProduct ? `/products/${targetId}` : `/products`
 
   const targetLabel = isProduct ? '상품 신고' : '사용자 신고'
-  const targetName = `${isProduct ? '상품' : '회원'} #${targetId}`
+
+  const [productTitle,        setProductTitle]        = useState<string | null>(null)
+  const [productTitleLoading, setProductTitleLoading]  = useState(isProduct && !!targetId)
+  const [productTitleFailed,  setProductTitleFailed]   = useState(false)
+
+  const targetName = isProduct
+    ? (productTitleLoading ? '불러오는 중...' : (productTitle ?? (productTitleFailed ? '상품 정보를 불러올 수 없어요' : '')))
+    : `회원 #${targetId}`
 
   const [reason,  setReason]  = useState<ReportReason | ''>('')
   const [content, setContent] = useState('')
@@ -58,6 +65,24 @@ function ReportForm() {
     init()
     return () => { cancelled = true }
   }, [])
+
+  useEffect(() => {
+    if (!isProduct || !targetId) return
+
+    let cancelled = false
+    fetch(`/api/products/${targetId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled) return
+        const title = data?.data?.title
+        if (title) setProductTitle(title)
+        else setProductTitleFailed(true)
+      })
+      .catch(() => { if (!cancelled) setProductTitleFailed(true) })
+      .finally(() => { if (!cancelled) setProductTitleLoading(false) })
+
+    return () => { cancelled = true }
+  }, [isProduct, targetId])
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
