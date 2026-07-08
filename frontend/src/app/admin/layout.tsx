@@ -155,7 +155,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </svg>
             )}
           </button>
-          <button type="button" className="btn ghost" onClick={handleLogout}>로그아웃</button>
+          <button type="button" className={styles.logoutBtn} onClick={handleLogout}>로그아웃</button>
         </div>
         <div className={styles.acontent}>{children}</div>
       </div>

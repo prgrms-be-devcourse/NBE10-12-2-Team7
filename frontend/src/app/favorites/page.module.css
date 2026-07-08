@@ -29,6 +29,69 @@
 .headRow p { margin: 5px 0 0; color: var(--text-muted); font-size: 13.5px; }
 .headRow p b { color: var(--primary); }
 
+/* 요약 통계 */
+.statsCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 20px 22px;
+  margin-bottom: 22px;
+  animation: mo-rise .5s cubic-bezier(.2,.7,.3,1) backwards;
+  animation-delay: .03s;
+}
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+@media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } }
+.stat {
+  border-left: 3px solid var(--border);
+  padding: 2px 0 2px 12px;
+}
+.stat:nth-child(1) { border-left-color: var(--primary); }
+.stat:nth-child(2) { border-left-color: var(--ok); }
+.stat:nth-child(3) { border-left-color: var(--blue); }
+.stat:nth-child(4) { border-left-color: #36454f; }
+.statV { font-size: 22px; font-weight: 800; letter-spacing: -.03em; }
+.statL { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.statTotal    { color: var(--primary); }
+.statSale     { color: var(--ok); }
+.statReserved { color: var(--blue); }
+.statDone     { color: #36454f; }
+
+.avgHighlight {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 18px; padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.avgIcon {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 17px;
+  background: var(--primary-soft);
+}
+.avgLabel { font-size: 12.5px; color: var(--text-muted); }
+.avgValue { margin-top: 3px; font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+
+/* 카테고리 탭 */
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.tab {
+  padding: 9px 15px; border-radius: 999px;
+  font-size: 13.5px; font-weight: 700; font-family: inherit;
+  white-space: nowrap; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-muted);
+  cursor: pointer; transition: all .15s;
+}
+.tab:hover { color: var(--primary); border-color: var(--primary-soft); }
+.tab.on    { background: var(--primary); color: #fff; border-color: var(--primary); }
+
 /* 상품 그리드 */
 .grid {
   display: grid;
@@ -41,6 +104,8 @@
 /* 상품 카드 */
 .pcard {
   display: block;
+  text-decoration: none;
+  color: inherit;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;

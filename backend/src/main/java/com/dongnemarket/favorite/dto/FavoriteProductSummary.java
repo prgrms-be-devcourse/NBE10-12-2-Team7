@@ -9,15 +9,17 @@ import java.math.BigDecimal;
 public class FavoriteProductSummary {
 
     private final Long productId;
+    private final Long categoryId;
     private final String title;
     private final BigDecimal price;
     private final String region;
     private final TradeStatus tradeStatus;
     private final String thumbnailUrl;
 
-    private FavoriteProductSummary(Long productId, String title, BigDecimal price,
+    private FavoriteProductSummary(Long productId, Long categoryId, String title, BigDecimal price,
                                    String region, TradeStatus tradeStatus, String thumbnailUrl) {
         this.productId = productId;
+        this.categoryId = categoryId;
         this.title = title;
         this.price = price;
         this.region = region;
@@ -28,6 +30,7 @@ public class FavoriteProductSummary {
     public static FavoriteProductSummary from(Product product) {
         return new FavoriteProductSummary(
                 product.getId(),
+                product.getCategory().getId(),
                 product.getTitle(),
                 product.getPrice(),
                 product.getRegion(),
@@ -37,6 +40,7 @@ public class FavoriteProductSummary {
     }
 
     public Long getProductId() { return productId; }
+    public Long getCategoryId() { return categoryId; }
     public String getTitle() { return title; }
     public BigDecimal getPrice() { return price; }
     public String getRegion() { return region; }
