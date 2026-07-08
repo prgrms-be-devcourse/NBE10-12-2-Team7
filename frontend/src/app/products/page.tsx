@@ -59,6 +59,7 @@ const SORT_OPTIONS = [
 /* 상단 활동 배너용 목표 수치 — 실제 집계 API가 없어 디자인 시안의 예시 값을 그대로 사용 */
 const STAT_TARGETS = [1204, 1892, 5640]
 const PRODUCT_PAGE_SIZE = 30
+const PRODUCT_POLL_MS = 7000
 
 function priceText(price: number) {
   return price === 0 ? '나눔' : price.toLocaleString('ko-KR') + '원'
@@ -100,6 +101,10 @@ export default function ProductsPage() {
   const [toastText, setToastText] = useState('')
   const [toastOn,   setToastOn]   = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  /* ── 목록 폴링 ── */
+  const isPollingRef = useRef(false)
+  const hasExtraPagesRef = useRef(false)
 
   function showToast(msg: string) {
     setToastText(msg); setToastOn(true)
@@ -166,6 +171,7 @@ export default function ProductsPage() {
     let cancelled = false
     // eslint-disable-next-line react-hooks/set-state-in-effect -- activeRegion 변경 시 첫 페이지를 다시 조회하며 로딩 상태를 표시한다.
     setStatus('loading')
+    hasExtraPagesRef.current = false
 
     fetchProductPage()
       .then(page => {
@@ -186,6 +192,32 @@ export default function ProductsPage() {
     return () => { cancelled = true }
   }, [fetchProductPage])
 
+  /* 게시글 목록 폴링 — 로딩 스피너 없이 조용히 첫 페이지 기준으로 동기화 */
+  useEffect(() => {
+    if (status !== 'ready') return
+
+    const timer = setInterval(async () => {
+      if (isPollingRef.current) return
+      isPollingRef.current = true
+      try {
+        const page = await fetchProductPage()
+        if (hasExtraPagesRef.current) {
+          setProducts(prev => [...page.items, ...prev.slice(PRODUCT_PAGE_SIZE)])
+        } else {
+          setProducts(page.items)
+          setNextCursor(page.nextCursor)
+          setHasNext(page.hasNext)
+        }
+      } catch {
+        // 폴링 실패는 조용히 무시하고 다음 주기에 재시도한다.
+      } finally {
+        isPollingRef.current = false
+      }
+    }, PRODUCT_POLL_MS)
+
+    return () => clearInterval(timer)
+  }, [status, fetchProductPage])
+
   async function loadMoreProducts() {
     if (loadingMore || !hasNext || nextCursor == null) return
 
@@ -195,6 +227,7 @@ export default function ProductsPage() {
       setProducts(prev => [...prev, ...page.items])
       setNextCursor(page.nextCursor)
       setHasNext(page.hasNext)
+      hasExtraPagesRef.current = true
     } catch {
       showToast('상품을 더 불러오지 못했습니다.')
     } finally {
