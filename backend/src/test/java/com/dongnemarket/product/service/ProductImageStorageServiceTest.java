@@ -2,6 +2,7 @@ package com.dongnemarket.product.service;
 
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
+import com.dongnemarket.global.storage.LocalFileStorageService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -19,13 +20,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ProductImageStorageServiceTest {
 
+	private static final String DIRECTORY = "product-images";
+
 	@TempDir
 	Path tempDir;
 
 	@Test
 	@DisplayName("이미지 파일을 저장하면 상품 이미지 URL 목록을 반환한다")
 	void storesProductImagesAndReturnsUrls() throws Exception {
-		ProductImageStorageService storageService = new ProductImageStorageService(tempDir.toString());
+		ProductImageStorageService storageService = newStorageService();
 		MockMultipartFile firstFile = imageFile("first.jpg", "image/jpeg", "first image");
 		MockMultipartFile secondFile = imageFile("second.png", "image/png", "second image");
 
@@ -35,14 +38,14 @@ class ProductImageStorageServiceTest {
 		assertThat(imageUrls).allMatch(url -> url.startsWith("/api/products/images/"));
 		for (String imageUrl : imageUrls) {
 			String filename = imageUrl.substring("/api/products/images/".length());
-			assertThat(Files.exists(tempDir.resolve(filename))).isTrue();
+			assertThat(Files.exists(tempDir.resolve(DIRECTORY).resolve(filename))).isTrue();
 		}
 	}
 
 	@Test
 	@DisplayName("저장된 상품 이미지를 Resource로 조회할 수 있다")
 	void loadsStoredProductImage() throws Exception {
-		ProductImageStorageService storageService = new ProductImageStorageService(tempDir.toString());
+		ProductImageStorageService storageService = newStorageService();
 		List<String> imageUrls = storageService.store(List.of(imageFile("product.webp", "image/webp", "image content")));
 		String filename = imageUrls.get(0).substring("/api/products/images/".length());
 
@@ -55,7 +58,7 @@ class ProductImageStorageServiceTest {
 	@Test
 	@DisplayName("이미지 파일이 없으면 저장할 수 없다")
 	void throwsInvalidInputWhenFilesAreEmpty() {
-		ProductImageStorageService storageService = new ProductImageStorageService(tempDir.toString());
+		ProductImageStorageService storageService = newStorageService();
 
 		assertInvalidInput(() -> storageService.store(List.of()));
 	}
@@ -63,7 +66,7 @@ class ProductImageStorageServiceTest {
 	@Test
 	@DisplayName("상품 이미지는 최대 5장까지만 저장할 수 있다")
 	void throwsInvalidInputWhenFilesAreMoreThanFive() {
-		ProductImageStorageService storageService = new ProductImageStorageService(tempDir.toString());
+		ProductImageStorageService storageService = newStorageService();
 		List<MultipartFile> files = List.of(
 				imageFile("1.jpg", "image/jpeg", "1"),
 				imageFile("2.jpg", "image/jpeg", "2"),
@@ -79,7 +82,7 @@ class ProductImageStorageServiceTest {
 	@Test
 	@DisplayName("빈 파일은 저장할 수 없다")
 	void throwsInvalidInputWhenFileIsEmpty() {
-		ProductImageStorageService storageService = new ProductImageStorageService(tempDir.toString());
+		ProductImageStorageService storageService = newStorageService();
 		MockMultipartFile emptyFile = new MockMultipartFile("files", "empty.png", "image/png", new byte[0]);
 
 		assertInvalidInput(() -> storageService.store(List.of(emptyFile)));
@@ -88,7 +91,7 @@ class ProductImageStorageServiceTest {
 	@Test
 	@DisplayName("이미지가 아닌 파일은 저장할 수 없다")
 	void throwsInvalidInputWhenFileIsNotImage() {
-		ProductImageStorageService storageService = new ProductImageStorageService(tempDir.toString());
+		ProductImageStorageService storageService = newStorageService();
 		MockMultipartFile textFile = new MockMultipartFile("files", "memo.txt", "text/plain", "memo".getBytes());
 
 		assertInvalidInput(() -> storageService.store(List.of(textFile)));
@@ -97,7 +100,7 @@ class ProductImageStorageServiceTest {
 	@Test
 	@DisplayName("5MB를 초과하는 파일은 저장할 수 없다")
 	void throwsInvalidInputWhenFileIsTooLarge() {
-		ProductImageStorageService storageService = new ProductImageStorageService(tempDir.toString());
+		ProductImageStorageService storageService = newStorageService();
 		byte[] tooLarge = new byte[5 * 1024 * 1024 + 1];
 		MockMultipartFile largeFile = new MockMultipartFile("files", "large.png", "image/png", tooLarge);
 
@@ -107,7 +110,7 @@ class ProductImageStorageServiceTest {
 	@Test
 	@DisplayName("존재하지 않는 상품 이미지는 조회할 수 없다")
 	void throwsProductNotFoundWhenProductImageDoesNotExist() {
-		ProductImageStorageService storageService = new ProductImageStorageService(tempDir.toString());
+		ProductImageStorageService storageService = newStorageService();
 
 		assertProductNotFound(() -> storageService.load("missing.png"));
 	}
@@ -115,9 +118,13 @@ class ProductImageStorageServiceTest {
 	@Test
 	@DisplayName("저장 경로 밖 파일은 조회할 수 없다")
 	void throwsProductNotFoundWhenPathTraversalIsRequested() {
-		ProductImageStorageService storageService = new ProductImageStorageService(tempDir.toString());
+		ProductImageStorageService storageService = newStorageService();
 
 		assertProductNotFound(() -> storageService.load("../secret.png"));
+	}
+
+	private ProductImageStorageService newStorageService() {
+		return new ProductImageStorageService(new LocalFileStorageService(tempDir.toString()));
 	}
 
 	private MockMultipartFile imageFile(String filename, String contentType, String content) {

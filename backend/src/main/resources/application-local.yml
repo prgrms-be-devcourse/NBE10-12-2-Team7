@@ -7,10 +7,6 @@ spring:
       hibernate:
         format_sql: false
 
-# 컨테이너 재시작에도 유지되도록 docker-compose.yml의 볼륨 마운트 경로와 일치시킨다.
-report:
-  evidence-image:
-    storage-path: /app/uploads/report-evidence
 logging:
   level:
     root: info

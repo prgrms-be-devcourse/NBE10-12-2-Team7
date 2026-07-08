@@ -22,8 +22,10 @@ services:
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME}
       MAIL_PASSWORD: ${MAIL_PASSWORD}
-    volumes:
-      - dongne-report-evidence:/app/uploads/report-evidence   # 신고 증빙 이미지: 재시작에도 유지
+      # 신고 증빙/상품 이미지 저장소. 이 EC2는 S3 고정 사용 — 자격증명은 주입하지 않고 이 EC2의 IAM Role로 인증한다.
+      FILE_STORAGE_TYPE: s3
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
     ports:
       - "8080:8080"                           # 호스트 발행(모니터 EC2 Prometheus scrape). SG로 monitoring-sg만 허용
 
@@ -57,6 +59,3 @@ services:
     volumes:
       - ./promtail-config.yml:/etc/promtail/promtail-config.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-
-volumes:
-  dongne-report-evidence:
