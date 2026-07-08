@@ -7,7 +7,7 @@
 ```mermaid
 graph TB
     user["👤 사용자"]
-    gha["GitHub Actions<br/>(CD: 이미지 빌드)"]
+    gha["GitHub Actions<br/>(CD: 빌드·push·배포)"]
     ecr["Amazon ECR<br/>app · next 이미지"]
     ollama["🤖 사내 Ollama<br/>10.111.111.90:11434"]
 
@@ -34,7 +34,8 @@ graph TB
     app -->|"JDBC · 프라이빗 IP · SG 허용"| mysql
     app -->|"Spring AI"| ollama
     gha -->|"OIDC push"| ecr
-    ecr -.->|"pull (배포 시)"| appec2
+    gha -->|"SSH: pull·up"| appec2
+    ecr -.->|"pull"| appec2
     prom -->|"scrape /actuator/prometheus"| app
     promtail1 -->|"로그 push"| loki
     prom --> grafana
@@ -59,10 +60,10 @@ graph TB
 
 ## 이미지 파이프라인
 
-- GitHub Actions가 `backend/`·`frontend/` 이미지를 빌드해 **ECR로 push**(OIDC 인증). EC2는 **pull만** 한다.
+- GitHub Actions가 `backend/`·`frontend/` 이미지를 빌드해 **ECR로 push**(OIDC 인증)하고, 이어서 **앱 EC2에 SSH로 접속해 pull·재기동**까지 자동화한다.
 - 상세는 [runbook/ci-cd.md](../runbook/ci-cd.md).
 
 ## as-built 특이사항 (주의)
 
 - **앱 EC2도 `SPRING_PROFILES_ACTIVE=local`** 로 기동한다 — 별도 prod 프로파일이 없어 로컬 프로파일을 재사용한다. 이 프로파일은 `ddl-auto: update`라 **운영 스키마가 Hibernate 자동변경**된다. 관련 위험·후속은 [ADR 0003](../adr/0003-schema-ddl-auto.md).
-- **ECR push 이후 EC2 배포는 현재 수동**(pull) 단계다. CD 워크플로우는 push까지만 자동화돼 있다.
+- **ECR push 이후 앱 EC2 배포는 CD가 SSH로 자동화**(pull·재기동)한다. 단 `:latest` 태그 기준이라 특정 SHA 롤백·헬스체크는 아직 수동이다.
