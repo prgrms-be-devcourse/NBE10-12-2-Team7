@@ -21,12 +21,14 @@ ext {
 	springdocVersion = '2.8.6'
 	jjwtVersion = '0.12.6'
 	springAiVersion = '1.1.8'
+	awsSdkVersion = '2.47.1'
 }
 
 // Spring AI BOM: spring-ai-* 의존성 버전을 일괄 관리
 dependencyManagement {
 	imports {
 		mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+		mavenBom "software.amazon.awssdk:bom:${awsSdkVersion}"
 	}
 }
 
@@ -39,6 +41,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'io.micrometer:micrometer-registry-prometheus'
+	// S3 이미지 저장(global/storage). 자격증명은 DefaultCredentialsProvider(로컬 ~/.aws 또는 EC2 IAM 역할).
+	implementation 'software.amazon.awssdk:s3'
 	// Swagger / OpenAPI (Springdoc)
 	implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
 

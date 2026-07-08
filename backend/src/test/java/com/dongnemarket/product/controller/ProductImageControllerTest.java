@@ -36,7 +36,7 @@ class ProductImageControllerTest {
 
 	@DynamicPropertySource
 	static void productImageProperties(DynamicPropertyRegistry registry) {
-		registry.add("product.image.storage-path", () -> productImageTempDir.toString());
+		registry.add("file.storage.local.base-path", () -> productImageTempDir.toString());
 	}
 
 	@Autowired

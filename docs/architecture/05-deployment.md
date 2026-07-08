@@ -1,6 +1,6 @@
 # 배포 토폴로지 (AWS)
 
-> 최종 수정일: 2026-07-07 · 상태: draft
+> 최종 수정일: 2026-07-08 · 상태: draft
 
 로컬(docker-compose)이 아닌 **AWS 클라우드 배포**의 물리 구성. 로컬 컨테이너 구성은 [02-container.md](02-container.md), 배포 절차는 [runbook/cloud-deploy.md](../runbook/cloud-deploy.md) 참고.
 
@@ -10,6 +10,7 @@ graph TB
     gha["GitHub Actions<br/>(CD: 이미지 빌드)"]
     ecr["Amazon ECR<br/>app · next 이미지"]
     ollama["🤖 사내 Ollama<br/>10.111.111.90:11434"]
+    s3[("Amazon S3<br/>marketon-images")]
 
     subgraph vpc["AWS VPC"]
         subgraph appec2["앱 EC2"]
@@ -33,6 +34,7 @@ graph TB
     nginx -->|"/api"| app
     app -->|"JDBC · 프라이빗 IP · SG 허용"| mysql
     app -->|"Spring AI"| ollama
+    app -->|"S3 API · IAM Role"| s3
     gha -->|"OIDC push"| ecr
     ecr -.->|"pull (배포 시)"| appec2
     prom -->|"scrape /actuator/prometheus"| app
@@ -61,6 +63,15 @@ graph TB
 
 - GitHub Actions가 `backend/`·`frontend/` 이미지를 빌드해 **ECR로 push**(OIDC 인증). EC2는 **pull만** 한다.
 - 상세는 [runbook/ci-cd.md](../runbook/ci-cd.md).
+
+## 파일 저장소
+
+- 신고 증빙 이미지·상품 이미지는 `file.storage.type`(env: `FILE_STORAGE_TYPE`) 값으로 저장소를 고른다 — 프로파일이 아니라 이 값 하나로 구현체가 갈린다(`global/storage` 참고).
+  - **앱 EC2(이 문서의 배포 대상)**: `FILE_STORAGE_TYPE=s3` 고정, **Amazon S3**(`ap-northeast-2`)에 저장.
+  - 온프레미스/로컬 docker-compose 배포는 `FILE_STORAGE_TYPE=local`(기본값)로 볼륨 마운트된 로컬 디스크를 그대로 쓸 수 있다. `test` 프로파일도 항상 로컬 디스크를 쓴다(외부 AWS 불필요).
+- **자격증명은 코드/환경변수로 주입하지 않는다.** 앱 EC2에 S3 접근 권한이 있는 **IAM Role**을 붙여 AWS SDK 기본 자격증명 체인이 자동으로 사용한다.
+- 앱 컨테이너에는 `FILE_STORAGE_TYPE`, `AWS_S3_BUCKET`, `AWS_REGION` 환경변수만 주입한다(`infra/cloud/app/docker-compose.yml`).
+- **프록시 방식**: 이미지 조회 API(`GET /api/products/images/{filename}`, `GET /api/reports/evidence-image/{filename}`)는 서버가 저장소(S3 또는 로컬 디스크)에서 읽어 그대로 응답한다. DB에는 실제 저장 위치가 아니라 기존 내부 API 경로만 저장되어 프론트/DB 스키마 영향이 없다.
 
 ## as-built 특이사항 (주의)
 

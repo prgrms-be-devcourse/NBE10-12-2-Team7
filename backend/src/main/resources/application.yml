@@ -67,10 +67,17 @@ auth:
   # 비밀번호 재설정 메일 링크가 가리키는 프론트엔드 주소(고정 페이지). 배포 환경에서는 실제 도메인으로 덮어쓴다.
   frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
 
-# 신고 증빙 이미지 로컬 디스크 저장 경로 (report 도메인). local(도커) 프로파일에서는 볼륨 마운트 경로로 덮어쓴다.
-report:
-  evidence-image:
-    storage-path: ${REPORT_EVIDENCE_IMAGE_PATH:./uploads/report-evidence}
+# 파일 저장소(global/storage). type=local(기본값, 온프레미스/로컬 디스크) 또는 type=s3(AWS S3) 중 선택 —
+# 프로파일이 아니라 이 값 하나로 구현체가 갈린다(LocalFileStorageService/S3FileStorageService).
+# S3 자격증명은 AWS SDK 기본 체인(로컬 ~/.aws 또는 EC2 IAM 역할) 사용, 코드/설정에 직접 넣지 않는다.
+file:
+  storage:
+    type: ${FILE_STORAGE_TYPE:local}
+    local:
+      base-path: ${FILE_STORAGE_LOCAL_BASE_PATH:./uploads}
+    s3:
+      bucket: ${AWS_S3_BUCKET:}
+      region: ${AWS_REGION:ap-northeast-2}
 
 # Swagger / Springdoc
 springdoc:

@@ -50,8 +50,14 @@ services:
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME}
       MAIL_PASSWORD: ${MAIL_PASSWORD}
+      # 신고 증빙/상품 이미지 저장소. 로컬/온프레미스 배포 기본값은 local(볼륨 마운트).
+      # S3로 쓰려면 .env에서 FILE_STORAGE_TYPE=s3 + AWS_S3_BUCKET/AWS_REGION + AWS 자격증명(~/.aws 마운트 등)을 직접 준비해야 한다.
+      FILE_STORAGE_TYPE: ${FILE_STORAGE_TYPE:-local}
+      FILE_STORAGE_LOCAL_BASE_PATH: /app/uploads
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
     volumes:
-      - dongne-report-evidence:/app/uploads/report-evidence   # 신고 증빙 이미지: 컨테이너 재시작에도 유지
+      - dongne-uploads:/app/uploads   # local 모드일 때만 실제로 쓰인다(신고 증빙 + 상품 이미지 공용)
     expose:
       - "8080"                        # 외부 노출 대신 nginx 통해서만 접근(디버깅 필요하면 ports로 바꿔도 됨)
 
@@ -140,7 +146,7 @@ services:
 
 volumes:
   dongne-mysql-data:
-  dongne-report-evidence:
+  dongne-uploads:
   prometheus-data:
   grafana-data:
   loki-data:

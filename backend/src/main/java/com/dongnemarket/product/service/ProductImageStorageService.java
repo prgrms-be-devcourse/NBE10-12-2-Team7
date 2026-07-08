@@ -2,23 +2,25 @@ package com.dongnemarket.product.service;
 
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
+import com.dongnemarket.global.storage.FileStorageService;
+import com.dongnemarket.global.storage.StorageException;
+import com.dongnemarket.global.storage.StorageFileNotFoundException;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
+/**
+ * 상품 이미지 검증 + 저장을 담당한다. 실제 저장/조회는 {@link FileStorageService}(global/storage)에 위임하는
+ * 얇은 어댑터다 — test 프로파일은 로컬 디스크, 그 외(dev/local/prod)는 S3를 쓰지만 이 클래스는 그 차이를 모른다.
+ * 검증 로직·에러코드 등 product 도메인 정책은 이 클래스가 그대로 소유한다.
+ */
 @Service
 public class ProductImageStorageService {
 
+	private static final String DIRECTORY = "product-images";
 	private static final String PRODUCT_IMAGE_URL_PREFIX = "/api/products/images/";
 	private static final int MAX_IMAGE_COUNT = 5;
 	private static final long MAX_FILE_SIZE = 5L * 1024 * 1024;
@@ -26,15 +28,10 @@ public class ProductImageStorageService {
 			"image/jpeg", "image/png", "image/gif", "image/webp"
 	);
 
-	private final Path storageDir;
+	private final FileStorageService fileStorageService;
 
-	public ProductImageStorageService(@Value("${product.image.storage-path:./uploads/product-images}") String storagePath) {
-		this.storageDir = Paths.get(storagePath).toAbsolutePath().normalize();
-		try {
-			Files.createDirectories(this.storageDir);
-		} catch (IOException e) {
-			throw new IllegalStateException("상품 이미지 저장 디렉터리를 생성할 수 없습니다: " + this.storageDir, e);
-		}
+	public ProductImageStorageService(FileStorageService fileStorageService) {
+		this.fileStorageService = fileStorageService;
 	}
 
 	public List<String> store(List<MultipartFile> files) {
@@ -46,27 +43,19 @@ public class ProductImageStorageService {
 	}
 
 	public Resource load(String filename) {
-		Path target = storageDir.resolve(filename).normalize();
-		if (!target.startsWith(storageDir)) {
+		try {
+			return fileStorageService.load(filename, DIRECTORY);
+		} catch (StorageFileNotFoundException e) {
 			throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
 		}
-
-		Resource resource = new FileSystemResource(target);
-		if (!resource.exists() || !resource.isReadable()) {
-			throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
-		}
-		return resource;
 	}
 
 	private String storeOne(MultipartFile file) {
-		String filename = UUID.randomUUID() + extractExtension(file.getOriginalFilename());
-		Path target = storageDir.resolve(filename);
 		try {
-			file.transferTo(target);
-		} catch (IOException e) {
+			return fileStorageService.store(file, DIRECTORY);
+		} catch (StorageException e) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
 		}
-		return filename;
 	}
 
 	private void validateFiles(List<MultipartFile> files) {
@@ -87,16 +76,5 @@ public class ProductImageStorageService {
 		if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
 		}
-	}
-
-	private String extractExtension(String originalFilename) {
-		if (originalFilename == null) {
-			return "";
-		}
-		int index = originalFilename.lastIndexOf('.');
-		if (index < 0) {
-			return "";
-		}
-		return originalFilename.substring(index);
 	}
 }

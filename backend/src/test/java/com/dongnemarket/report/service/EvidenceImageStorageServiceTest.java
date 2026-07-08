@@ -9,6 +9,7 @@ import java.nio.file.Path;
 
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
+import com.dongnemarket.global.storage.LocalFileStorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,8 @@ import org.springframework.mock.web.MockMultipartFile;
 
 class EvidenceImageStorageServiceTest {
 
+    private static final String DIRECTORY = "report-evidence";
+
     @TempDir
     Path tempDir;
 
@@ -25,7 +28,7 @@ class EvidenceImageStorageServiceTest {
 
     @BeforeEach
     void setUp() {
-        storageService = new EvidenceImageStorageService(tempDir.toString());
+        storageService = new EvidenceImageStorageService(new LocalFileStorageService(tempDir.toString()));
     }
 
     @Test
@@ -37,7 +40,7 @@ class EvidenceImageStorageServiceTest {
         String filename = storageService.store(file);
 
         assertThat(filename).endsWith(".png");
-        assertThat(Files.exists(tempDir.resolve(filename))).isTrue();
+        assertThat(Files.exists(tempDir.resolve(DIRECTORY).resolve(filename))).isTrue();
 
         Resource loaded = storageService.load(filename);
         assertThat(loaded.exists()).isTrue();
@@ -87,8 +90,8 @@ class EvidenceImageStorageServiceTest {
     @Test
     @DisplayName("경로 조작 문자열(../ 등)로 조회하면 저장 디렉터리를 벗어나지 못하고 EVIDENCE_IMAGE_NOT_FOUND 예외가 발생한다")
     void load_pathTraversalAttempt_throwsException() throws IOException {
-        // 저장 디렉터리 바깥(부모 디렉터리)에 실제로 파일이 있어도 접근할 수 없어야 한다.
-        Path outsideFile = tempDir.getParent().resolve("secret.txt");
+        // 저장 디렉터리(tempDir/report-evidence) 바깥에 실제로 파일이 있어도 접근할 수 없어야 한다.
+        Path outsideFile = tempDir.resolve("secret.txt");
         Files.writeString(outsideFile, "should not be readable");
 
         assertThatThrownBy(() -> storageService.load("../secret.txt"))
