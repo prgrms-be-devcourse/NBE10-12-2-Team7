@@ -74,7 +74,7 @@ class MemberLocationControllerTest {
 	void updatesMyLocations() throws Exception {
 		saveRegionIfAbsent("서울 강남구");
 		saveRegionIfAbsent("서울 마포구");
-		String token = getAccessToken("locations-put@example.com", "password123", "locPutUser");
+		String token = getAccessToken("locations-put@example.com", "password123!", "locPutUser");
 
 		mockMvc.perform(put("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token)
@@ -95,7 +95,7 @@ class MemberLocationControllerTest {
 	void getsMyLocations() throws Exception {
 		saveRegionIfAbsent("서울 강남구");
 		saveRegionIfAbsent("서울 마포구");
-		String token = getAccessToken("locations-get@example.com", "password123", "locGetUser");
+		String token = getAccessToken("locations-get@example.com", "password123!", "locGetUser");
 		mockMvc.perform(put("/api/members/me/locations")
 				.header("Authorization", "Bearer " + token)
 				.contentType(MediaType.APPLICATION_JSON)
@@ -114,7 +114,7 @@ class MemberLocationControllerTest {
 	@Test
 	@DisplayName("설정한 동네가 없으면 빈 목록을 반환한다")
 	void getsEmptyMyLocations() throws Exception {
-		String token = getAccessToken("locations-empty@example.com", "password123", "locEmptyUser");
+		String token = getAccessToken("locations-empty@example.com", "password123!", "locEmptyUser");
 
 		mockMvc.perform(get("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token))
@@ -145,7 +145,7 @@ class MemberLocationControllerTest {
 	@Test
 	@DisplayName("동네 목록이 빈 리스트이면 400과 INVALID_INPUT_VALUE를 반환한다")
 	void rejectsEmptyRegions() throws Exception {
-		String token = getAccessToken("locations-empty-list@example.com", "password123", "locEmptyListUser");
+		String token = getAccessToken("locations-empty-list@example.com", "password123!", "locEmptyListUser");
 
 		mockMvc.perform(put("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token)
@@ -158,7 +158,7 @@ class MemberLocationControllerTest {
 	@Test
 	@DisplayName("동네 목록이 null이면 400과 INVALID_INPUT_VALUE를 반환한다")
 	void rejectsNullRegions() throws Exception {
-		String token = getAccessToken("locations-null@example.com", "password123", "locNullUser");
+		String token = getAccessToken("locations-null@example.com", "password123!", "locNullUser");
 
 		mockMvc.perform(put("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token)
@@ -171,7 +171,7 @@ class MemberLocationControllerTest {
 	@Test
 	@DisplayName("동네가 3개이면 400과 INVALID_INPUT_VALUE를 반환한다")
 	void rejectsThreeRegions() throws Exception {
-		String token = getAccessToken("locations-three@example.com", "password123", "locThreeUser");
+		String token = getAccessToken("locations-three@example.com", "password123!", "locThreeUser");
 
 		mockMvc.perform(put("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token)
@@ -184,7 +184,7 @@ class MemberLocationControllerTest {
 	@Test
 	@DisplayName("동네 원소가 공백이면 400과 INVALID_INPUT_VALUE를 반환한다")
 	void rejectsBlankRegion() throws Exception {
-		String token = getAccessToken("locations-blank@example.com", "password123", "locBlankUser");
+		String token = getAccessToken("locations-blank@example.com", "password123!", "locBlankUser");
 
 		mockMvc.perform(put("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token)
@@ -198,7 +198,7 @@ class MemberLocationControllerTest {
 	@DisplayName("리스트 안에 중복 지역이 있으면 400과 INVALID_INPUT_VALUE를 반환한다")
 	void rejectsDuplicateRegions() throws Exception {
 		saveRegionIfAbsent("서울 강남구");
-		String token = getAccessToken("locations-duplicate@example.com", "password123", "locDuplicateUser");
+		String token = getAccessToken("locations-duplicate@example.com", "password123!", "locDuplicateUser");
 
 		mockMvc.perform(put("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token)
@@ -211,7 +211,7 @@ class MemberLocationControllerTest {
 	@Test
 	@DisplayName("지역 마스터에 없는 지역이면 400과 INVALID_INPUT_VALUE를 반환한다")
 	void rejectsUnknownRegion() throws Exception {
-		String token = getAccessToken("locations-unknown@example.com", "password123", "locUnknownUser");
+		String token = getAccessToken("locations-unknown@example.com", "password123!", "locUnknownUser");
 
 		mockMvc.perform(put("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token)
