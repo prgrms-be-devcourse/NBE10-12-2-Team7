@@ -37,6 +37,7 @@ export default function MyProfilePage() {
 
   const [nickname, setNickname] = useState('')
   const [nicknameHint, setNicknameHint] = useState<{ text: string; kind?: string }>({ text: '2~20자로 입력하세요. 다른 이웃에게 보여져요.' })
+  const [isEditingNickname, setIsEditingNickname] = useState(false)
 
   const [formMsg, setFormMsg] = useState<{ text: string; type: MsgType } | null>(null)
   const [saving, setSaving] = useState(false)
@@ -150,6 +151,19 @@ export default function MyProfilePage() {
     }
   }
 
+  function startEditingNickname() {
+    setFormMsg(null)
+    setNicknameHint({ text: '2~20자로 입력하세요. 다른 이웃에게 보여져요.' })
+    setIsEditingNickname(true)
+  }
+
+  function cancelEditingNickname() {
+    setNickname(member?.nickname ?? '')
+    setFormMsg(null)
+    setNicknameHint({ text: '2~20자로 입력하세요. 다른 이웃에게 보여져요.' })
+    setIsEditingNickname(false)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setFormMsg(null)
@@ -177,6 +191,7 @@ export default function MyProfilePage() {
       setMember(data?.data)
       setFormMsg({ text: '회원 정보를 수정했어요.', type: 'success' })
       showToast('수정 완료')
+      setIsEditingNickname(false)
     } catch {
       setFormMsg({ text: '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.', type: 'error' })
     } finally {
@@ -339,6 +354,7 @@ export default function MyProfilePage() {
               value={nickname}
               onChange={e => setNickname(e.target.value)}
               maxLength={20}
+              disabled={!isEditingNickname}
               aria-invalid={nicknameHint.kind === 'err' ? 'true' : 'false'}
             />
             <div className={hintClass(nicknameHint.kind)}>
@@ -346,9 +362,31 @@ export default function MyProfilePage() {
             </div>
           </div>
 
-          <button type="submit" className="btn block" disabled={saving}>
-            {saving ? '저장 중...' : '정보 수정'}
-          </button>
+          {isEditingNickname ? (
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                className="btn ghost"
+                style={{ flex: 1 }}
+                onClick={cancelEditingNickname}
+                disabled={saving}
+              >
+                취소
+              </button>
+              <button
+                type="submit"
+                className="btn"
+                style={{ flex: 1 }}
+                disabled={saving || nickname.trim() === member.nickname}
+              >
+                {saving ? '저장 중...' : '저장'}
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="btn block" onClick={startEditingNickname}>
+              수정하기
+            </button>
+          )}
         </form>
       </div>
 
