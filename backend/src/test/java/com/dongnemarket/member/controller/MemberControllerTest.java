@@ -90,7 +90,7 @@ class MemberControllerTest {
 	@Test
 	@DisplayName("유효한 토큰으로 GET /api/members/me 요청하면 200과 내 정보를 반환한다")
 	void getMyInfo_success() throws Exception {
-		String token = getAccessToken("me@example.com", "password123", "meUser");
+		String token = getAccessToken("me@example.com", "password123!", "meUser");
 
 		mockMvc.perform(get("/api/members/me")
 						.header("Authorization", "Bearer " + token))
@@ -125,7 +125,7 @@ class MemberControllerTest {
 	@Test
 	@DisplayName("유효한 토큰으로 PATCH /api/members/me 요청하면 200과 변경된 닉네임을 반환한다")
 	void updateMyInfo_success() throws Exception {
-		String token = getAccessToken("patch@example.com", "password123", "oldNick");
+		String token = getAccessToken("patch@example.com", "password123!", "oldNick");
 
 		mockMvc.perform(patch("/api/members/me")
 						.header("Authorization", "Bearer " + token)
@@ -153,10 +153,10 @@ class MemberControllerTest {
 		verifyEmail("other@example.com");
 		mockMvc.perform(post("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"email\":\"other@example.com\",\"password\":\"password123\",\"nickname\":\"takenNick\","
+				.content("{\"email\":\"other@example.com\",\"password\":\"password123!\",\"nickname\":\"takenNick\","
 						+ "\"termsAgreed\":true,\"personalInfoCollectionAgreed\":true}"));
 
-		String token = getAccessToken("me2@example.com", "password123", "myNick");
+		String token = getAccessToken("me2@example.com", "password123!", "myNick");
 
 		mockMvc.perform(patch("/api/members/me")
 						.header("Authorization", "Bearer " + token)
@@ -169,7 +169,7 @@ class MemberControllerTest {
 	@Test
 	@DisplayName("닉네임이 1자이면 400과 INVALID_INPUT_VALUE를 반환한다")
 	void updateMyInfo_blankNickname_returns400() throws Exception {
-		String token = getAccessToken("valid@example.com", "password123", "validUser");
+		String token = getAccessToken("valid@example.com", "password123!", "validUser");
 
 		mockMvc.perform(patch("/api/members/me")
 						.header("Authorization", "Bearer " + token)
@@ -317,7 +317,7 @@ class MemberControllerTest {
 	@Test
 	@DisplayName("유효한 토큰으로 DELETE /api/members/me 요청하면 200을 반환한다")
 	void deleteMyInfo_success() throws Exception {
-		String token = getAccessToken("delete@example.com", "password123", "deleteUser");
+		String token = getAccessToken("delete@example.com", "password123!", "deleteUser");
 
 		mockMvc.perform(delete("/api/members/me")
 						.header("Authorization", "Bearer " + token))
@@ -328,7 +328,7 @@ class MemberControllerTest {
 	@Test
 	@DisplayName("탈퇴 후 같은 계정으로 로그인하면 400과 DELETED_MEMBER를 반환한다")
 	void deleteMyInfo_thenLoginFails() throws Exception {
-		String token = getAccessToken("del2@example.com", "password123", "del2User");
+		String token = getAccessToken("del2@example.com", "password123!", "del2User");
 		mockMvc.perform(delete("/api/members/me")
 				.header("Authorization", "Bearer " + token));
 
@@ -350,7 +350,7 @@ class MemberControllerTest {
 	@Test
 	@DisplayName("이미 탈퇴한 회원이 DELETE /api/members/me 재요청하면 400과 DELETED_MEMBER를 반환한다")
 	void deleteMyInfo_alreadyDeleted_returns400() throws Exception {
-		String token = getAccessToken("del3@example.com", "password123", "del3User");
+		String token = getAccessToken("del3@example.com", "password123!", "del3User");
 		mockMvc.perform(delete("/api/members/me")
 				.header("Authorization", "Bearer " + token));
 
@@ -363,7 +363,7 @@ class MemberControllerTest {
 	@Test
 	@DisplayName("정지된 회원이 DELETE /api/members/me 요청하면 403과 SUSPENDED_MEMBER를 반환한다")
 	void deleteMyInfo_suspendedMember_returns403() throws Exception {
-		String token = getAccessToken("susp3@example.com", "password123", "susp3User");
+		String token = getAccessToken("susp3@example.com", "password123!", "susp3User");
 		jdbcTemplate.update("UPDATE members SET status = 'SUSPENDED' WHERE email = ?", "susp3@example.com");
 
 		mockMvc.perform(delete("/api/members/me")
@@ -377,7 +377,7 @@ class MemberControllerTest {
 	@Test
 	@DisplayName("탈퇴한 회원 토큰으로 GET /api/members/me 요청하면 400과 DELETED_MEMBER를 반환한다")
 	void getMyInfo_deletedMember_returns400() throws Exception {
-		String token = getAccessToken("del4@example.com", "password123", "del4User");
+		String token = getAccessToken("del4@example.com", "password123!", "del4User");
 		jdbcTemplate.update("UPDATE members SET status = 'DELETED' WHERE email = ?", "del4@example.com");
 
 		mockMvc.perform(get("/api/members/me")
@@ -389,7 +389,7 @@ class MemberControllerTest {
 	@Test
 	@DisplayName("정지된 회원 토큰으로 GET /api/members/me 요청하면 403과 SUSPENDED_MEMBER를 반환한다")
 	void getMyInfo_suspendedMember_returns403() throws Exception {
-		String token = getAccessToken("susp1@example.com", "password123", "susp1User");
+		String token = getAccessToken("susp1@example.com", "password123!", "susp1User");
 		jdbcTemplate.update("UPDATE members SET status = 'SUSPENDED' WHERE email = ?", "susp1@example.com");
 
 		mockMvc.perform(get("/api/members/me")
@@ -403,7 +403,7 @@ class MemberControllerTest {
 	@Test
 	@DisplayName("탈퇴한 회원 토큰으로 PATCH /api/members/me 요청하면 400과 DELETED_MEMBER를 반환한다")
 	void updateMyInfo_deletedMember_returns400() throws Exception {
-		String token = getAccessToken("del5@example.com", "password123", "del5User");
+		String token = getAccessToken("del5@example.com", "password123!", "del5User");
 		jdbcTemplate.update("UPDATE members SET status = 'DELETED' WHERE email = ?", "del5@example.com");
 
 		mockMvc.perform(patch("/api/members/me")
@@ -417,7 +417,7 @@ class MemberControllerTest {
 	@Test
 	@DisplayName("정지된 회원 토큰으로 PATCH /api/members/me 요청하면 403과 SUSPENDED_MEMBER를 반환한다")
 	void updateMyInfo_suspendedMember_returns403() throws Exception {
-		String token = getAccessToken("susp2@example.com", "password123", "susp2User");
+		String token = getAccessToken("susp2@example.com", "password123!", "susp2User");
 		jdbcTemplate.update("UPDATE members SET status = 'SUSPENDED' WHERE email = ?", "susp2@example.com");
 
 		mockMvc.perform(patch("/api/members/me")

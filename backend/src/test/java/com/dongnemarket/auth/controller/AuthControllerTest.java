@@ -73,7 +73,7 @@ class AuthControllerTest {
 	@DisplayName("회원가입 성공 시 201과 회원 정보를 반환한다")
 	void signup_success() throws Exception {
 		verifyEmail("test@example.com");
-		String body = "{ \"email\": \"test@example.com\", \"password\": \"password123\", \"nickname\": \"tester\", "
+		String body = "{ \"email\": \"test@example.com\", \"password\": \"password123!\", \"nickname\": \"tester\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 
 		mockMvc.perform(post("/api/auth/signup")
@@ -90,11 +90,11 @@ class AuthControllerTest {
 	@DisplayName("이메일이 중복되면 409와 DUPLICATE_EMAIL을 반환한다")
 	void signup_duplicateEmail() throws Exception {
 		verifyEmail("dup@example.com");
-		String first = "{ \"email\": \"dup@example.com\", \"password\": \"password123\", \"nickname\": \"first\", "
+		String first = "{ \"email\": \"dup@example.com\", \"password\": \"password123!\", \"nickname\": \"first\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(first));
 
-		String second = "{ \"email\": \"dup@example.com\", \"password\": \"password123\", \"nickname\": \"second\", "
+		String second = "{ \"email\": \"dup@example.com\", \"password\": \"password123!\", \"nickname\": \"second\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(second))
 				.andExpect(status().isConflict())
@@ -104,7 +104,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("이메일 인증을 완료하지 않으면 400과 EMAIL_NOT_VERIFIED를 반환한다")
 	void signup_emailNotVerified() throws Exception {
-		String body = "{ \"email\": \"unverified@example.com\", \"password\": \"password123\", \"nickname\": \"unverifiedUser\", "
+		String body = "{ \"email\": \"unverified@example.com\", \"password\": \"password123!\", \"nickname\": \"unverifiedUser\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(body))
@@ -117,11 +117,11 @@ class AuthControllerTest {
 	void signup_duplicateNickname() throws Exception {
 		verifyEmail("a@example.com");
 		verifyEmail("b@example.com");
-		String first = "{ \"email\": \"a@example.com\", \"password\": \"password123\", \"nickname\": \"dupNick\", "
+		String first = "{ \"email\": \"a@example.com\", \"password\": \"password123!\", \"nickname\": \"dupNick\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(first));
 
-		String second = "{ \"email\": \"b@example.com\", \"password\": \"password123\", \"nickname\": \"dupNick\", "
+		String second = "{ \"email\": \"b@example.com\", \"password\": \"password123!\", \"nickname\": \"dupNick\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(second))
 				.andExpect(status().isConflict())
@@ -131,7 +131,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("닉네임이 비어 있으면 400과 INVALID_INPUT_VALUE를 반환한다")
 	void signup_blankNickname() throws Exception {
-		String body = "{ \"email\": \"valid@example.com\", \"password\": \"password123\", \"nickname\": \"\" }";
+		String body = "{ \"email\": \"valid@example.com\", \"password\": \"password123!\", \"nickname\": \"\" }";
 
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(body))
 				.andExpect(status().isBadRequest())
@@ -144,12 +144,12 @@ class AuthControllerTest {
 	@DisplayName("올바른 이메일·비밀번호로 로그인하면 200과 accessToken을 반환하고, Refresh Token은 HttpOnly 쿠키로 내려간다")
 	void login_success() throws Exception {
 		verifyEmail("login@example.com");
-		String signup = "{ \"email\": \"login@example.com\", \"password\": \"password123\", \"nickname\": \"loginUser\", "
+		String signup = "{ \"email\": \"login@example.com\", \"password\": \"password123!\", \"nickname\": \"loginUser\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
 
-		String login = "{ \"email\": \"login@example.com\", \"password\": \"password123\" }";
+		String login = "{ \"email\": \"login@example.com\", \"password\": \"password123!\" }";
 		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value(200))
@@ -164,12 +164,12 @@ class AuthControllerTest {
 	@DisplayName("autoLogin=true로 로그인하면 Refresh Token 쿠키에 Max-Age(7일)가 설정된 영속 쿠키로 내려간다")
 	void login_autoLoginTrue_setsPersistentCookieWithMaxAge() throws Exception {
 		verifyEmail("autologin-true@example.com");
-		String signup = "{ \"email\": \"autologin-true@example.com\", \"password\": \"password123\", \"nickname\": \"autoLoginTrue\", "
+		String signup = "{ \"email\": \"autologin-true@example.com\", \"password\": \"password123!\", \"nickname\": \"autoLoginTrue\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
 
-		String login = "{ \"email\": \"autologin-true@example.com\", \"password\": \"password123\", \"autoLogin\": true }";
+		String login = "{ \"email\": \"autologin-true@example.com\", \"password\": \"password123!\", \"autoLogin\": true }";
 		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
 				.andExpect(status().isOk())
 				.andExpect(cookie().exists("refreshToken"))
@@ -180,12 +180,12 @@ class AuthControllerTest {
 	@DisplayName("autoLogin=false(또는 미지정)로 로그인하면 Refresh Token 쿠키가 Max-Age 없는 세션 쿠키로 내려간다")
 	void login_autoLoginFalse_setsSessionCookieWithoutMaxAge() throws Exception {
 		verifyEmail("autologin-false@example.com");
-		String signup = "{ \"email\": \"autologin-false@example.com\", \"password\": \"password123\", \"nickname\": \"autoLoginFalse\", "
+		String signup = "{ \"email\": \"autologin-false@example.com\", \"password\": \"password123!\", \"nickname\": \"autoLoginFalse\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
 
-		String login = "{ \"email\": \"autologin-false@example.com\", \"password\": \"password123\", \"autoLogin\": false }";
+		String login = "{ \"email\": \"autologin-false@example.com\", \"password\": \"password123!\", \"autoLogin\": false }";
 		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
 				.andExpect(status().isOk())
 				.andExpect(cookie().exists("refreshToken"))
@@ -195,7 +195,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("존재하지 않는 이메일로 로그인하면 404와 MEMBER_NOT_FOUND를 반환한다")
 	void login_emailNotFound() throws Exception {
-		String body = "{ \"email\": \"none@example.com\", \"password\": \"password123\" }";
+		String body = "{ \"email\": \"none@example.com\", \"password\": \"password123!\" }";
 
 		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
 				.andExpect(status().isNotFound())
@@ -206,7 +206,7 @@ class AuthControllerTest {
 	@DisplayName("비밀번호가 틀리면 401과 INVALID_PASSWORD를 반환한다")
 	void login_wrongPassword() throws Exception {
 		verifyEmail("pw@example.com");
-		String signup = "{ \"email\": \"pw@example.com\", \"password\": \"password123\", \"nickname\": \"pwUser\", "
+		String signup = "{ \"email\": \"pw@example.com\", \"password\": \"password123!\", \"nickname\": \"pwUser\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
@@ -220,7 +220,7 @@ class AuthControllerTest {
 	@Test
 	@DisplayName("이메일 형식이 올바르지 않으면 400과 INVALID_INPUT_VALUE를 반환한다")
 	void login_invalidEmailFormat() throws Exception {
-		String body = "{ \"email\": \"not-an-email\", \"password\": \"password123\" }";
+		String body = "{ \"email\": \"not-an-email\", \"password\": \"password123!\" }";
 
 		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
 				.andExpect(status().isBadRequest())
@@ -243,12 +243,12 @@ class AuthControllerTest {
 	@DisplayName("유효한 Refresh Token 쿠키로 재발급하면 200과 새 accessToken을 반환한다")
 	void reissue_success() throws Exception {
 		verifyEmail("reissue@example.com");
-		String signup = "{ \"email\": \"reissue@example.com\", \"password\": \"password123\", \"nickname\": \"reissueUser\", "
+		String signup = "{ \"email\": \"reissue@example.com\", \"password\": \"password123!\", \"nickname\": \"reissueUser\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
 
-		String login = "{ \"email\": \"reissue@example.com\", \"password\": \"password123\" }";
+		String login = "{ \"email\": \"reissue@example.com\", \"password\": \"password123!\" }";
 		MvcResult loginResult = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
 				.andReturn();
 		String refreshToken = extractRefreshTokenCookie(loginResult);
@@ -263,12 +263,12 @@ class AuthControllerTest {
 	@DisplayName("Access Token을 쿠키에 담아 재발급을 시도하면 401과 INVALID_REFRESH_TOKEN을 반환한다")
 	void reissue_withAccessToken_returnsInvalidRefreshToken() throws Exception {
 		verifyEmail("reissue-access@example.com");
-		String signup = "{ \"email\": \"reissue-access@example.com\", \"password\": \"password123\", \"nickname\": \"reissueAccess\", "
+		String signup = "{ \"email\": \"reissue-access@example.com\", \"password\": \"password123!\", \"nickname\": \"reissueAccess\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
 
-		String login = "{ \"email\": \"reissue-access@example.com\", \"password\": \"password123\" }";
+		String login = "{ \"email\": \"reissue-access@example.com\", \"password\": \"password123!\" }";
 		MvcResult loginResult = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
 				.andReturn();
 		String accessToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
@@ -301,12 +301,12 @@ class AuthControllerTest {
 	@DisplayName("로그인한 사용자가 로그아웃하면 200을 반환하고 Refresh Token 쿠키를 만료시킨다")
 	void logout_success() throws Exception {
 		verifyEmail("logout@example.com");
-		String signup = "{ \"email\": \"logout@example.com\", \"password\": \"password123\", \"nickname\": \"logoutUser\", "
+		String signup = "{ \"email\": \"logout@example.com\", \"password\": \"password123!\", \"nickname\": \"logoutUser\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
 
-		String login = "{ \"email\": \"logout@example.com\", \"password\": \"password123\" }";
+		String login = "{ \"email\": \"logout@example.com\", \"password\": \"password123!\" }";
 		MvcResult loginResult = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
 				.andReturn();
 		String accessToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
@@ -333,12 +333,12 @@ class AuthControllerTest {
 	@DisplayName("로그아웃을 여러 번 호출해도 항상 200을 반환한다(멱등)")
 	void logout_calledTwice_bothReturn200() throws Exception {
 		verifyEmail("logout-twice@example.com");
-		String signup = "{ \"email\": \"logout-twice@example.com\", \"password\": \"password123\", \"nickname\": \"logoutTwice\", "
+		String signup = "{ \"email\": \"logout-twice@example.com\", \"password\": \"password123!\", \"nickname\": \"logoutTwice\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
 
-		String login = "{ \"email\": \"logout-twice@example.com\", \"password\": \"password123\" }";
+		String login = "{ \"email\": \"logout-twice@example.com\", \"password\": \"password123!\" }";
 		MvcResult loginResult = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
 				.andReturn();
 		String accessToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
@@ -354,12 +354,12 @@ class AuthControllerTest {
 	@DisplayName("로그아웃 이후 기존 Refresh Token으로 재발급을 시도하면 401과 REFRESH_TOKEN_NOT_FOUND를 반환한다")
 	void logout_thenReissueWithOldRefreshToken_returns401RefreshTokenNotFound() throws Exception {
 		verifyEmail("logout-reissue@example.com");
-		String signup = "{ \"email\": \"logout-reissue@example.com\", \"password\": \"password123\", \"nickname\": \"logoutReissue\", "
+		String signup = "{ \"email\": \"logout-reissue@example.com\", \"password\": \"password123!\", \"nickname\": \"logoutReissue\", "
 				+ "\"termsAgreed\": true, \"personalInfoCollectionAgreed\": true }";
 		mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
 				.andExpect(status().isCreated());
 
-		String login = "{ \"email\": \"logout-reissue@example.com\", \"password\": \"password123\" }";
+		String login = "{ \"email\": \"logout-reissue@example.com\", \"password\": \"password123!\" }";
 		MvcResult loginResult = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
 				.andReturn();
 		String accessToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())

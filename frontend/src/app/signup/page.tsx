@@ -6,7 +6,7 @@ import AgreementSection from './AgreementSection'
 import styles from './page.module.css'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const PW_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,20}$/
+const PW_RE = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{10,64}$/
 
 type Hint = { text: string; kind?: string }
 type MsgType = 'success' | 'error'
@@ -18,7 +18,7 @@ export default function SignupPage() {
   const [nickname, setNickname] = useState('')
 
   const [emailHint, setEmailHint] = useState<Hint>({ text: '로그인에 사용할 이메일을 입력하세요.' })
-  const [passwordHint, setPasswordHint] = useState<Hint>({ text: '영문과 숫자를 포함해 8~20자로 입력하세요.' })
+  const [passwordHint, setPasswordHint] = useState<Hint>({ text: '영문·숫자·특수문자를 포함해 10~64자로 입력하세요.' })
   const [passwordConfirmHint, setPasswordConfirmHint] = useState<Hint>({ text: '비밀번호를 한 번 더 입력하세요.' })
   const [nicknameHint, setNicknameHint] = useState<Hint>({ text: '2~20자로 입력하세요. 다른 이웃에게 보여집니다.' })
 
@@ -117,7 +117,7 @@ export default function SignupPage() {
   }
 
   function validatePassword() {
-    if (!PW_RE.test(password)) { setPasswordHint({ text: '영문·숫자 포함 8~20자여야 합니다.', kind: 'err' }); return false }
+    if (!PW_RE.test(password)) { setPasswordHint({ text: '영문·숫자·특수문자 포함 10~64자여야 합니다.', kind: 'err' }); return false }
     setPasswordHint({ text: '사용 가능한 비밀번호입니다.', kind: 'ok' })
     return true
   }
@@ -265,7 +265,7 @@ export default function SignupPage() {
             <input
               type="password"
               id="password"
-              placeholder="8~20자, 영문·숫자 포함"
+              placeholder="10~64자, 영문·숫자·특수문자 포함"
               autoComplete="new-password"
               value={password}
               onChange={e => setPassword(e.target.value)}
