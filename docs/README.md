@@ -16,7 +16,7 @@
 - 인프라: Docker Compose · nginx · Prometheus·Loki·Grafana · Cloudflare Tunnel
 - AI: Spring AI + 사내 Ollama (관리자 AI 어시스턴트)
 
-> **로컬 실행/띄우는 법은 루트 [README.md](../README.md) 참고** (dev · local-deploy).
+> **로컬 실행/띄우는 법은 루트 [README.md](../README.md) 참고** (dev · 온프레미스).
 
 ---
 

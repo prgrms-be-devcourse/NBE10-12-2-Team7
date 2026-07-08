@@ -85,4 +85,4 @@ docker compose --env-file .env pull && docker compose --env-file .env up -d
 
 ## 로컬 배포와의 차이
 
-로컬 `local-deploy`는 한 호스트의 docker-compose로 전부 띄운다([runbook/README.md](README.md)). 클라우드는 **역할별 EC2 분리 + ECR 이미지 pull + 프라이빗 DB**라는 점만 다르고, 앱 구조(nginx 현관·프로파일)는 동일하다.
+**온프레미스**(`infra/onprem/`)는 한 호스트의 docker-compose로 전부 띄운다([runbook/README.md](README.md)). 클라우드는 **역할별 EC2 분리 + ECR 이미지 pull + 프라이빗 DB**라는 점만 다르고, 앱 구조(nginx 현관·프로파일)는 동일하다.
