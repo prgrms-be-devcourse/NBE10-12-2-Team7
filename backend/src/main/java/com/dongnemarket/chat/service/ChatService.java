@@ -146,12 +146,19 @@ public class ChatService {
         return ChatMessagePageResponse.of(messages, nextCursor, hasNext);
     }
 
-    /** 메시지를 전송한다. 참여자만 가능. */
+    /**
+     * 메시지를 전송한다. 참여자만 가능하며, 상대가 탈퇴한 방에는 전송할 수 없다(읽기는 유지).
+     * 참여자 검증을 먼저 해 비참여자에게 상대 상태를 노출하지 않는다. 상대 탈퇴 판정은
+     * 상대 프록시를 한 번 로딩(getStatus)하지만 전송 시점 1회라 비용이 작다.
+     */
     @Transactional
     public ChatMessageResponse sendMessage(Long memberId, Long roomId, String content) {
         ChatRoom room = chatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND));
         validateParticipant(room, memberId);
+        if (opponentOf(room, memberId).isWithdrawn()) {
+            throw new BusinessException(ErrorCode.CHAT_PARTNER_WITHDRAWN);
+        }
 
         Member sender = entityManager.getReference(Member.class, memberId);
         ChatMessage saved = chatMessageRepository.save(ChatMessage.of(room, sender, content));

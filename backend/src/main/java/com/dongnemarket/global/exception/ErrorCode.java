@@ -69,6 +69,7 @@ public enum ErrorCode {
 	CHAT_ROOM_NOT_FOUND(404, "CHAT_001", "채팅방을 찾을 수 없습니다."),
 	CHAT_ACCESS_DENIED(403, "CHAT_002", "채팅방 참여자만 접근할 수 있습니다."),
 	CANNOT_CHAT_WITH_SELF(400, "CHAT_003", "자신의 상품에는 채팅을 시작할 수 없습니다."),
+	CHAT_PARTNER_WITHDRAWN(400, "CHAT_004", "탈퇴한 상대와는 더 이상 대화할 수 없습니다."),
 
 	// ===== REPORT ERROR (서유진) =====
 	REPORT_NOT_FOUND(404, "REPORT_001", "신고 내역을 찾을 수 없습니다."),
