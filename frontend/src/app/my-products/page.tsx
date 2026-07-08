@@ -134,19 +134,19 @@ export default function MyProductsPage() {
           {/* 요약 통계 */}
           <div className={styles.summary}>
             <div className={styles.stat}>
-              <div className={styles.statV}>{counts.total}</div>
+              <div className={`${styles.statV} ${styles.statTotal}`}>{counts.total}</div>
               <div className={styles.statL}>전체 상품</div>
             </div>
             <div className={styles.stat}>
-              <div className={styles.statV}>{counts.sale}</div>
+              <div className={`${styles.statV} ${styles.statSale}`}>{counts.sale}</div>
               <div className={styles.statL}>판매중</div>
             </div>
             <div className={styles.stat}>
-              <div className={styles.statV}>{counts.reserved}</div>
+              <div className={`${styles.statV} ${styles.statReserved}`}>{counts.reserved}</div>
               <div className={styles.statL}>예약중</div>
             </div>
             <div className={styles.stat}>
-              <div className={styles.statV}>{counts.done}</div>
+              <div className={`${styles.statV} ${styles.statDone}`}>{counts.done}</div>
               <div className={styles.statL}>거래완료</div>
             </div>
           </div>

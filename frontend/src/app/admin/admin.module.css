@@ -27,6 +27,12 @@
 }
 .nm { font-weight: 700; font-size: 14px; }
 .nm span { color: var(--text-muted); font-weight: 400; font-size: 12px; margin-left: 6px; }
+.logoutBtn {
+  padding: 9px 16px; border: 1px solid #512e43; border-radius: 999px;
+  background: #3a2230; color: #e3d2db; font-size: 14px; font-weight: 600;
+  font-family: inherit; cursor: pointer; transition: background .15s, color .15s;
+}
+.logoutBtn:hover { background: #512e43; color: #fff; }
 .acontent { padding: 26px; flex: 1; max-width: 1240px; }
 
 /* 페이지 헤더 */

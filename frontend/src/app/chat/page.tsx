@@ -50,6 +50,12 @@ function formatTime(iso: string) {
   return iso.slice(5, 10).replace('-', '.')
 }
 
+function statusCls(status: TradeStatus) {
+  if (status === 'ON_SALE') return styles.statusSale
+  if (status === 'RESERVED') return styles.statusReserved
+  return styles.statusDone
+}
+
 export default function ChatListPage() {
   const [rooms, setRooms] = useState<ChatRoom[]>([])
   const [status, setStatus] = useState<PageStatus>('loading')
@@ -76,8 +82,9 @@ export default function ChatListPage() {
   return (
     <main className={styles.wrap}>
       <div className={styles.headRow}>
-        <h1>채팅</h1>
-        <p>거래 상대와 나눈 대화를 확인할 수 있어요.</p>
+        <span className={styles.badge}>💬 채팅</span>
+        <h1>거래 상대와의 대화</h1>
+        <p>진행 중인 채팅방에서 이어서 대화할 수 있어요.</p>
       </div>
 
       {status === 'loading' && (
@@ -95,12 +102,19 @@ export default function ChatListPage() {
       {status === 'ready' && (
         rooms.length > 0 ? (
           <div className={styles.list}>
-            {rooms.map(room => (
-              <Link key={room.roomId} href={`/chat/${room.roomId}`} className={styles.rcard}>
+            {rooms.map((room, i) => (
+              <Link
+                key={room.roomId}
+                href={`/chat/${room.roomId}`}
+                className={`${styles.rcard}${room.unreadCount > 0 ? ' ' + styles.unread : ''}`}
+                style={{ animationDelay: `${Math.min(i, 8) * 0.04}s` }}
+              >
                 <div className={styles.thumb}>
                   {room.product.thumbnailUrl
                     ? <img src={room.product.thumbnailUrl} alt="" />
                     : <span className={styles.thumbPh}>NO IMG</span>}
+                  <span className={`${styles.statusDot} ${statusCls(room.product.tradeStatus)}`} />
+                  <span className={styles.avatarBadge}>{room.opponent.nickname.charAt(0)}</span>
                 </div>
                 <div className={styles.body}>
                   <div className={styles.top}>

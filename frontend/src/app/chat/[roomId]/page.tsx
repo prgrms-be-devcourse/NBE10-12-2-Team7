@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/apiClient'
 import { getCurrentMemberId } from '@/lib/auth'
 import type { TradeStatus } from '@/lib/tradeStatus'
@@ -46,6 +46,20 @@ function priceText(price: number) {
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+}
+
+function isSameDay(a: string, b: string) {
+  const da = new Date(a), db = new Date(b)
+  return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate()
+}
+
+function formatDateSeparator(iso: string) {
+  const d = new Date(iso)
+  if (isSameDay(iso, new Date().toISOString())) return '오늘'
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (isSameDay(iso, yesterday.toISOString())) return '어제'
+  return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
 export default function ChatRoomPage() {
@@ -179,34 +193,58 @@ export default function ChatRoomPage() {
   return (
     <main className={styles.wrap}>
       <div className={styles.head}>
-        <Link href="/chat" className={styles.back} aria-label="채팅 목록으로">←</Link>
-        <div className={styles.thumb}>
-          {room?.product.thumbnailUrl
-            ? <img src={room.product.thumbnailUrl} alt="" />
-            : <span className={styles.thumbPh}>NO IMG</span>}
-        </div>
+        <Link href="/chat" className={styles.back} aria-label="채팅 목록으로">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </Link>
+        <div className={styles.avatar}>{room?.opponent.nickname.charAt(0) ?? '?'}</div>
         <div className={styles.headInfo}>
           <div className={styles.nick}>{room?.opponent.nickname}</div>
           <div className={styles.pname}>{room?.product.title} · {room ? priceText(room.product.price) : ''}</div>
         </div>
         {room && (
-          <Link href={`/products/${room.product.productId}`} className={styles.viewProduct}>상품보기</Link>
+          <Link href={`/products/${room.product.productId}`} className={styles.viewProduct}>
+            <div className={styles.viewProductThumb}>
+              {room.product.thumbnailUrl
+                ? <img src={room.product.thumbnailUrl} alt="" />
+                : <span className={styles.thumbPh}>NO IMG</span>}
+            </div>
+            상품보기
+          </Link>
         )}
       </div>
 
       <div className={styles.messages} ref={listRef}>
         {messages.length === 0 && (
-          <div className={styles.emptyMsg}>대화를 시작해보세요</div>
-        )}
-        {messages.map(m => (
-          <div
-            key={m.messageId}
-            className={`${styles.bubbleRow}${m.senderId === myMemberId ? ' ' + styles.mine : ''}`}
-          >
-            <div className={styles.bubble}>{m.content}</div>
-            <div className={styles.mtime}>{formatTime(m.createdAt)}</div>
+          <div className={styles.emptyMsg}>
+            <span className={styles.emptyMsgIcon}>👋</span>
+            대화를 시작해보세요
           </div>
-        ))}
+        )}
+        {messages.map((m, i) => {
+          const prev = messages[i - 1]
+          const next = messages[i + 1]
+          const showDateSep = !prev || !isSameDay(prev.createdAt, m.createdAt)
+          const isMine = m.senderId === myMemberId
+          const grouped = !!prev && !showDateSep && prev.senderId === m.senderId
+          const groupContinues = !!next && isSameDay(m.createdAt, next.createdAt) && next.senderId === m.senderId
+          return (
+            <Fragment key={m.messageId}>
+              {showDateSep && (
+                <div className={styles.dateSep}><span>{formatDateSeparator(m.createdAt)}</span></div>
+              )}
+              <div
+                className={`${styles.bubbleRow}${isMine ? ' ' + styles.mine : ''}${grouped ? ' ' + styles.grouped : ''}`}
+              >
+                <div className={`${styles.bubble}${groupContinues ? ' ' + styles.bubbleGrouped : ''}`}>
+                  {m.content}
+                </div>
+                <div className={styles.mtime}>{formatTime(m.createdAt)}</div>
+              </div>
+            </Fragment>
+          )
+        })}
       </div>
 
       <form className={styles.inputRow} onSubmit={handleSend}>
@@ -217,7 +255,12 @@ export default function ChatRoomPage() {
           onChange={e => setInput(e.target.value)}
           maxLength={1000}
         />
-        <button type="submit" className={styles.sendBtn} disabled={sending || !input.trim()}>전송</button>
+        <button type="submit" className={styles.sendBtn} disabled={sending || !input.trim()} aria-label="전송">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 2 11 13" />
+            <path d="M22 2 15 22l-4-9-9-4 20-7z" />
+          </svg>
+        </button>
       </form>
 
       <div className={`toast${toastOn ? ' show' : ''}`}>{toastText}</div>

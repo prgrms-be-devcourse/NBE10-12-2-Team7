@@ -6,10 +6,16 @@ import { apiFetch } from '@/lib/apiClient'
 import { TRADE_STATUS_LABEL, type TradeStatus } from '@/lib/tradeStatus'
 import styles from './page.module.css'
 
+interface Category {
+  id: number
+  name: string
+}
+
 interface FavoriteProduct {
   favoriteId: number
   product: {
     productId: number
+    categoryId: number
     title: string
     price: number
     region: string
@@ -34,10 +40,24 @@ function badgeInfo(product: FavoriteProduct['product']): { label: string; cls: s
 export default function FavoritesPage() {
   const [status, setStatus]       = useState<PageStatus>('loading')
   const [favorites, setFavorites] = useState<FavoriteProduct[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [categoryFilter, setCategoryFilter] = useState<number | 'all'>('all')
 
   const [toastText, setToastText] = useState('')
   const [toastOn,   setToastOn]   = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const filteredFavorites = categoryFilter === 'all'
+    ? favorites
+    : favorites.filter(f => f.product.categoryId === categoryFilter)
+
+  const total    = favorites.length
+  const saleCount     = favorites.filter(f => f.product.tradeStatus === 'ON_SALE').length
+  const reservedCount = favorites.filter(f => f.product.tradeStatus === 'RESERVED').length
+  const doneCount     = favorites.filter(f => f.product.tradeStatus === 'COMPLETED').length
+  const avgPrice = total > 0
+    ? Math.round(favorites.reduce((sum, f) => sum + f.product.price, 0) / total)
+    : 0
 
   function showToast(msg: string) {
     setToastText(msg)
@@ -61,8 +81,18 @@ export default function FavoritesPage() {
     return () => { cancelled = true }
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/categories')
+      .then(r => r.json())
+      .then(data => { if (!cancelled) setCategories(data?.data ?? []) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
   async function removeFavorite(e: React.MouseEvent, productId: number) {
     e.preventDefault()
+    e.stopPropagation()
     try {
       const res = await apiFetch(`/api/products/${productId}/favorites`, { method: 'DELETE' })
       if (!res.ok) {
@@ -103,11 +133,63 @@ export default function FavoritesPage() {
 
       {status === 'ready' && (
         favorites.length > 0 ? (
-          <div className={styles.grid}>
-            {favorites.map(({ favoriteId, product }) => {
+          <>
+            {/* 요약 통계 */}
+            <div className={styles.statsCard}>
+              <div className={styles.summary}>
+                <div className={styles.stat}>
+                  <div className={`${styles.statV} ${styles.statTotal}`}>{total}</div>
+                  <div className={styles.statL}>전체 찜</div>
+                </div>
+                <div className={styles.stat}>
+                  <div className={`${styles.statV} ${styles.statSale}`}>{saleCount}</div>
+                  <div className={styles.statL}>판매중</div>
+                </div>
+                <div className={styles.stat}>
+                  <div className={`${styles.statV} ${styles.statReserved}`}>{reservedCount}</div>
+                  <div className={styles.statL}>예약중</div>
+                </div>
+                <div className={styles.stat}>
+                  <div className={`${styles.statV} ${styles.statDone}`}>{doneCount}</div>
+                  <div className={styles.statL}>거래완료</div>
+                </div>
+              </div>
+              <div className={styles.avgHighlight}>
+                <span className={styles.avgIcon}>💰</span>
+                <div>
+                  <div className={styles.avgLabel}>찜한 상품 평균 가격</div>
+                  <div className={styles.avgValue}>{priceText(avgPrice)}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 카테고리 탭 */}
+            <nav className={styles.tabs}>
+              <button
+                type="button"
+                className={`${styles.tab}${categoryFilter === 'all' ? ' ' + styles.on : ''}`}
+                onClick={() => setCategoryFilter('all')}
+              >
+                전체
+              </button>
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  className={`${styles.tab}${categoryFilter === cat.id ? ' ' + styles.on : ''}`}
+                  onClick={() => setCategoryFilter(cat.id)}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </nav>
+
+            {filteredFavorites.length > 0 ? (
+            <div className={styles.grid}>
+            {filteredFavorites.map(({ favoriteId, product }) => {
               const badge = badgeInfo(product)
               return (
-                <article key={favoriteId} className={styles.pcard}>
+                <Link key={favoriteId} href={`/products/${product.productId}`} className={styles.pcard}>
                   {/* 썸네일 */}
                   <div className={styles.thumb}>
                     {badge && <span className={`${styles.badgeTag} ${badge.cls}`}>{badge.label}</span>}
@@ -129,7 +211,7 @@ export default function FavoritesPage() {
                   </div>
 
                   {/* 카드 바디 */}
-                  <Link href={`/products/${product.productId}`} className={styles.body}>
+                  <div className={styles.body}>
                     <div className={styles.title}>{product.title}</div>
                     <div className={`${styles.price}${product.price === 0 ? ' ' + styles.priceFree : ''}`}>
                       {priceText(product.price)}
@@ -137,11 +219,18 @@ export default function FavoritesPage() {
                     <div className={styles.meta}>
                       <span>{product.region}</span>
                     </div>
-                  </Link>
-                </article>
+                  </div>
+                </Link>
               )
             })}
-          </div>
+            </div>
+            ) : (
+              <div className={styles.empty}>
+                <div className={styles.emptyIcon}>🔍</div>
+                <p>해당 카테고리에 찜한 상품이 없어요.</p>
+              </div>
+            )}
+          </>
         ) : (
           <div className={styles.empty}>
             <div className={styles.emptyIcon}>🤍</div>

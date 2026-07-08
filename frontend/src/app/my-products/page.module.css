@@ -37,12 +37,23 @@
 .stat {
   background: var(--surface);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
   border-radius: 15px;
   padding: 16px 18px;
   box-shadow: var(--shadow);
 }
 .statV { font-size: 23px; font-weight: 800; letter-spacing: -.03em; }
 .statL { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; }
+
+/* 상태별 색상 — 아래 상품 카드 배지(stSale 등)와 동일한 색으로 통일해 구별이 잘 되게 한다 */
+.statTotal { color: var(--primary); }
+.statSale     { color: var(--ok); }
+.statReserved { color: var(--blue); }
+.statDone     { color: #36454f; }
+.summary .stat:nth-child(1) { border-left-color: var(--primary); }
+.summary .stat:nth-child(2) { border-left-color: var(--ok); }
+.summary .stat:nth-child(3) { border-left-color: var(--blue); }
+.summary .stat:nth-child(4) { border-left-color: #36454f; }
 
 /* 탭 */
 .tabs {
@@ -107,7 +118,7 @@
 }
 .stSale     { background: var(--ok-soft);      color: var(--ok); }
 .stReserved { background: var(--blue-soft);    color: var(--blue); }
-.stDone     { background: var(--neutral-soft); color: var(--neutral); }
+.stDone     { background: color-mix(in srgb, #36454f 15%, var(--surface)); color: #36454f; }
 
 /* 카드 바디 */
 .body {
