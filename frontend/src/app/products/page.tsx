@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { apiFetch } from '@/lib/apiClient'
+import { apiFetch, bootstrapAutoLogin } from '@/lib/apiClient'
 import { getAccessToken } from '@/lib/auth'
 import type { TradeStatus } from '@/lib/tradeStatus'
 import styles from './page.module.css'
@@ -126,17 +126,24 @@ export default function ProductsPage() {
     return () => clearInterval(timer)
   }, [])
 
-  /* 카테고리·지역 목록, 내 동네, 관심 상품 목록 */
+  /* 카테고리·지역 목록, 내 동네, 관심 상품 목록
+     새로고침 직후에는 액세스 토큰이 메모리에서 초기화되고 AuthBootstrap의 조용한 재로그인이
+     아직 끝나지 않은 상태라, getAccessToken() 스냅샷만으로 로그인 여부를 판단하면 실제로는
+     로그인된 사용자인데도 내 동네/관심상품 조회가 스킵된다. bootstrapAutoLogin()을 먼저
+     기다려 재로그인 결과를 반영한 뒤 로그인 여부를 판단한다(리다이렉트 없이 안전하게 시도만 함). */
   useEffect(() => {
     let cancelled = false
-    const loggedIn = !!getAccessToken()
-    Promise.all([
-      fetch('/api/categories').then(r => r.json()).catch(() => null),
-      fetch('/api/regions').then(r => r.json()).catch(() => null),
-      loggedIn ? apiFetch('/api/members/me/locations').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
-      loggedIn ? apiFetch('/api/members/me/favorites').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
-    ]).then(([catRes, regionRes, locRes, favRes]) => {
-      if (cancelled) return
+    bootstrapAutoLogin().then(loggedIn => {
+      if (cancelled) return null
+      return Promise.all([
+        fetch('/api/categories').then(r => r.json()).catch(() => null),
+        fetch('/api/regions').then(r => r.json()).catch(() => null),
+        loggedIn ? apiFetch('/api/members/me/locations').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
+        loggedIn ? apiFetch('/api/members/me/favorites').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
+      ])
+    }).then(results => {
+      if (cancelled || !results) return
+      const [catRes, regionRes, locRes, favRes] = results
       setCategories(catRes?.data ?? [])
       setRegionOptions(regionRes?.data ?? [])
 
