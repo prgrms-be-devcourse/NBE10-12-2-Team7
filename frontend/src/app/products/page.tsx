@@ -59,7 +59,7 @@ const SORT_OPTIONS = [
 /* 상단 활동 배너용 목표 수치 — 실제 집계 API가 없어 디자인 시안의 예시 값을 그대로 사용 */
 const STAT_TARGETS = [1204, 1892, 5640]
 const PRODUCT_PAGE_SIZE = 30
-const PRODUCT_POLL_MS = 7000
+const PRODUCT_POLL_MS = 5000
 
 function priceText(price: number) {
   return price === 0 ? '나눔' : price.toLocaleString('ko-KR') + '원'
