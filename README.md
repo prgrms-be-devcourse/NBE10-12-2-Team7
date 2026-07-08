@@ -22,7 +22,7 @@
 
 | | |
 |---|---|
-| 백엔드 | Spring Boot 3.5, Java 21, Spring Security(JWT), JPA, MySQL 8 |
+| 백엔드 | Spring Boot 3.5, Java 21, Spring Security(JWT), JPA, MySQL 8, Flyway(운영 스키마 마이그레이션) |
 | 프론트 | Next.js 16(App Router), React 19, TypeScript, Tailwind |
 | 인프라 | Docker Compose, nginx, Prometheus·Loki·Grafana, Cloudflare Tunnel |
 | AI | Spring AI + 사내 Ollama (관리자 AI 어시스턴트) |

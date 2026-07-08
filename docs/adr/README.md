@@ -17,8 +17,9 @@
 | --- | --- | --- |
 | [0001](0001-adopt-docs-as-code-structure.md) | docs를 Docs-as-Code 구조로 재편 | Accepted |
 | [0002](0002-db-hosting-ec2-mysql.md) | 운영 DB를 EC2 자체 호스팅 MySQL로 (RDS 미사용) | Accepted |
-| [0003](0003-schema-ddl-auto.md) | 스키마를 ddl-auto로 관리 (마이그레이션 도구 미도입) | Accepted (caveat) |
+| [0003](0003-schema-ddl-auto.md) | 스키마를 ddl-auto로 관리 (마이그레이션 도구 미도입) | Superseded by 0005 |
 | [0004](0004-infra-boundary.md) | 인프라를 2축(운영 수위 × 배포 지형)으로 경계 재정리 | Accepted |
+| [0005](0005-flyway-migration.md) | Flyway 도입 + 운영(prod) 스키마를 ddl-auto: validate로 | Accepted |
 
 ---
 

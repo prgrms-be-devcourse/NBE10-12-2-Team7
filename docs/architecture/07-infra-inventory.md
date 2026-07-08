@@ -1,6 +1,6 @@
 # 인프라 인벤토리 (as-is)
 
-> 최종 수정일: 2026-07-08 · 상태: draft · 기준: `refactor/infra-boundary` (#198 + P2 프로파일 경계 + P3 지형 분리 반영)
+> 최종 수정일: 2026-07-08 · 상태: draft · 기준: `refactor/infra-boundary` (#198 + P2 프로파일 + P3 지형 + P4 Flyway 반영)
 > **as-is 스냅샷.** 목표 구조와 재정리 결정은 [ADR 0004](../adr/0004-infra-boundary.md) 참고. 리팩토링(P2~P4) 진행에 따라 이 문서를 갱신한다.
 
 "환경·인프라 세팅이 지금 어떻게 되어 있는지"를 **누가 무엇을 담당하는지(경계)** 관점으로 정리한 목록. 배포 토폴로지의 물리 구성은 [05-deployment.md](05-deployment.md), 로컬 컨테이너 구성은 [02-container.md](02-container.md)를 함께 본다.
@@ -22,10 +22,10 @@
 | --- | --- | --- | --- | --- |
 | [application.yml](../../backend/src/main/resources/application.yml) | (공통 base) | — | DB·JWT·Mail·Ollama·**file.storage**·multipart, `default: dev` | 전부 |
 | [application-dev.yml](../../backend/src/main/resources/application-dev.yml) | `dev` | `update` | 호스트 bootRun, SQL 로그 ON, prometheus 노출 | **개발** |
-| [application-prod.yml](../../backend/src/main/resources/application-prod.yml) | `prod` | `update` ⚠️ | prometheus 노출, quiet 로그. 온프레미스·클라우드 공유 운영 수위 | **온프레미스 + 클라우드** (P2 신설) |
+| [application-prod.yml](../../backend/src/main/resources/application-prod.yml) | `prod` | **`validate`** | Flyway가 스키마 담당·Hibernate는 검증만. prometheus 노출, quiet 로그 | **온프레미스 + 클라우드** |
 | [application-demo.yml](../../backend/src/main/resources/application-demo.yml) | `demo` | `create` | 더미 시딩, drop+create ⚠️ | 개발 add-on (`dev,demo`) |
 
-> ⚠️ `prod`도 아직 `ddl-auto: update`다 — Flyway 도입 후 `validate` 전환은 P4([ADR 0003](../adr/0003-schema-ddl-auto.md)·[0004](../adr/0004-infra-boundary.md)).
+> `prod`는 Flyway가 [`db/migration/V*.sql`](../../backend/src/main/resources/db/migration)로 스키마를 만들고 `ddl-auto: validate`로 검증만 한다(P4 완료, [ADR 0005](../adr/0005-flyway-migration.md)). dev/test는 Flyway OFF + ddl-auto 유지.
 
 ## 3. 파일 저장소 — 설정 기반(local/S3), #198 이후
 
@@ -80,8 +80,8 @@ onprem compose 프로파일: (기본) 전체 스택 / `observability`(관측) / 
 | # | 흐린 경계 | 현재 상태 | 해소 단계 |
 | --- | --- | --- | --- |
 | A | ~~`local` 프로파일 이중 역할~~ | ✅ **P2 완료(2026-07-08)** — `application-prod.yml` 신설·`local` 폐기, compose `SPRING_PROFILES_ACTIVE=prod` 전환 | ✅ 완료 |
-| B | **운영 `ddl-auto: update`** | `prod`(P2 신설)도 아직 `update` — Flyway 베이스라인 후 `validate` 전환 필요 | P4 |
-| C | **nginx.conf 중복** | [onprem](../../infra/onprem/nginx.conf)·[cloud](../../infra/cloud/app/nginx.conf) 거의 동일 복붙 | P4 |
+| B | ~~운영 `ddl-auto: update`~~ | ✅ **P4 완료(2026-07-08)** — Flyway 도입·V1 baseline·prod `validate` 전환([ADR 0005](../adr/0005-flyway-migration.md)) | ✅ 완료 |
+| C | **nginx.conf 중복** | [onprem](../../infra/onprem/nginx.conf)·[cloud](../../infra/cloud/app/nginx.conf) 거의 동일 복붙 | P4(잔여) |
 | D | **monitoring 설정 이중화** | [onprem/monitoring/](../../infra/onprem/monitoring)·[cloud/monitoring/](../../infra/cloud/monitoring) 병존 (단 prometheus 타깃은 정당한 차이) | P4 |
 | E | **CD `:latest` 배포** | sha 태그는 push만 하고 미사용 → 롤백 수동 | P4 |
 

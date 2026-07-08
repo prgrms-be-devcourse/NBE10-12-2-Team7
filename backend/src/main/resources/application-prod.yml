@@ -3,9 +3,12 @@
 #   설계·경계: docs/adr/0004-infra-boundary.md
 # 로그는 운영 유사(quiet)하되 prometheus 노출(로컬 관측 스택 / 클라우드 모니터링 EC2가 scrape).
 spring:
+  # Flyway가 스키마를 책임진다(db/migration/V*.sql). Hibernate는 검증만.
+  flyway:
+    enabled: true
   jpa:
     hibernate:
-      ddl-auto: update   # ⚠️ P4에서 Flyway 도입 후 validate로 전환 예정 (ADR 0003·0004). 그 전까지는 update 유지.
+      ddl-auto: validate   # Flyway가 만든 스키마가 엔티티와 맞는지 검증만 — 안 맞으면 기동 실패(운영 안전). ADR 0003·0004.
     properties:
       hibernate:
         format_sql: false

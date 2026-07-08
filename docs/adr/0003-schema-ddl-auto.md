@@ -1,6 +1,6 @@
 # 0003. 스키마를 Hibernate ddl-auto로 관리 (마이그레이션 도구 미도입)
 
-> 상태: Accepted (caveat) · 날짜: 2026-07-07
+> 상태: Superseded by [0005](0005-flyway-migration.md) · 날짜: 2026-07-07
 
 ## 배경 (Context)
 
