@@ -32,6 +32,7 @@ public enum ErrorCode {
 	EXPIRED_RESET_TOKEN(400, "AUTH_016", "비밀번호 재설정 링크가 만료되었습니다. 다시 요청해주세요."),
 	TERMS_NOT_AGREED(400, "AUTH_017", "이용약관에 동의해야 합니다."),
 	PERSONAL_INFO_COLLECTION_NOT_AGREED(400, "AUTH_018", "개인정보 수집 및 이용에 동의해야 합니다."),
+	TOO_MANY_LOGIN_ATTEMPTS(429, "AUTH_019", "로그인 시도가 너무 많습니다. 10분 후 다시 시도해주세요."),
 
 	// ===== MEMBER ERROR (김대연) =====
 	MEMBER_NOT_FOUND(404, "MEMBER_001", "회원을 찾을 수 없습니다."),

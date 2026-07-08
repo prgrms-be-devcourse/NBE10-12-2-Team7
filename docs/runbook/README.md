@@ -9,6 +9,7 @@
 | (이 문서) | 온프레미스 운영·관측·장애 대응 |
 | [cloud-deploy.md](cloud-deploy.md) | AWS EC2 3대 배포 절차 |
 | [ci-cd.md](ci-cd.md) | GitHub Actions CI/CD 파이프라인 |
+| [db-migrations.md](db-migrations.md) | Flyway 마이그레이션(prod) 및 dev ddl-auto 한계 대응 절차 |
 
 ## 1. 배포 형태
 
@@ -60,7 +61,7 @@ docker compose up -d --build app           # 앱 이미지 재빌드 후 교체
 docker logs dongne-cloudflared 2>&1 | grep trycloudflare   # 임시 외부 URL 확인(edge)
 ```
 
-- **영속 볼륨**: `dongne-mysql-data`(DB), `dongne-uploads`(신고 증빙 + 상품 이미지)는 `down` 후에도 유지된다. 완전 초기화는 `docker compose down -v` (⚠️ 데이터 삭제).
+- **영속 볼륨**: `dongne-mysql-data`(DB), `dongne-redis-data`(인증 TTL 데이터), `dongne-uploads`(신고 증빙 + 상품 이미지)는 `down` 후에도 유지된다. 완전 초기화는 `docker compose down -v` (⚠️ 데이터 삭제).
 
 ## 4. 장애 대응 기본
 

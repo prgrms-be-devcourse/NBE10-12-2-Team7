@@ -31,6 +31,16 @@ spring:
   jpa:
     open-in-view: false          # dialect는 자동감지(명시 시 deprecation 경고), ddl/format은 프로파일로
 
+  # 인증 관련 TTL 데이터 저장소(Refresh Token/로그인 실패 카운트/이메일 인증 코드/비밀번호 재설정 토큰).
+  # dev/prod에서만 쓰인다 — test 프로파일은 RedisAutoConfiguration 자체가 제외돼 이 값을 안 읽는다.
+  # timeout(커맨드 타임아웃)을 짧게 잡아, Redis 장애 시 요청이 Lettuce 기본값(1분)만큼 붙잡히지 않고 빠르게 실패하게 한다.
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: ${REDIS_COMMAND_TIMEOUT:2000ms}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:2000ms}
+
   servlet:
     multipart:
       max-file-size: 5MB

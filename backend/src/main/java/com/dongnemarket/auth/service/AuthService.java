@@ -35,17 +35,20 @@ public class AuthService {
 	private final RefreshTokenService refreshTokenService;
 	private final EmailVerificationRepository emailVerificationRepository;
 	private final MemberAgreementRepository memberAgreementRepository;
+	private final LoginAttemptService loginAttemptService;
 
 	public AuthService(MemberRepository memberRepository, PasswordEncoder passwordEncoder,
 			JwtTokenProvider jwtTokenProvider, RefreshTokenService refreshTokenService,
 			EmailVerificationRepository emailVerificationRepository,
-			MemberAgreementRepository memberAgreementRepository) {
+			MemberAgreementRepository memberAgreementRepository,
+			LoginAttemptService loginAttemptService) {
 		this.memberRepository = memberRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.jwtTokenProvider = jwtTokenProvider;
 		this.refreshTokenService = refreshTokenService;
 		this.emailVerificationRepository = emailVerificationRepository;
 		this.memberAgreementRepository = memberAgreementRepository;
+		this.loginAttemptService = loginAttemptService;
 	}
 
 	/**
@@ -91,24 +94,43 @@ public class AuthService {
 				member, AgreementType.PERSONAL_INFO_COLLECTION, AGREEMENT_VERSION, agreedAt, ipAddress, userAgent));
 	}
 
+	/**
+	 * 로그인 실패(이메일 없음/비밀번호 불일치)만 실패 횟수에 반영한다 — 탈퇴/정지 회원 거부는 자격증명 추측
+	 * 신호가 아니므로 카운트하지 않는다. 임계값 도달 시 이후 로그인은 자격증명 확인 전에 즉시 차단된다.
+	 */
 	@Transactional
 	public LoginResponse login(LoginRequest request) {
-		Member member = memberRepository.findByEmail(request.getEmail())
-				.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+		String email = request.getEmail();
+		loginAttemptService.assertNotBlocked(email);
+		try {
+			Member member = memberRepository.findByEmail(email)
+					.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-		validateActiveStatus(member);
-		if (!passwordEncoder.matches(request.getPassword(), member.getPassword())) {
-			throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+			validateActiveStatus(member);
+			if (!passwordEncoder.matches(request.getPassword(), member.getPassword())) {
+				throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+			}
+
+			String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+			String refreshToken = jwtTokenProvider.createRefreshToken(member.getId());
+			refreshTokenService.saveOrReplace(member.getId(), refreshToken);
+			loginAttemptService.recordSuccess(email);
+
+			return LoginResponse.of(accessToken, refreshToken);
+		} catch (BusinessException e) {
+			if (e.getErrorCode() == ErrorCode.MEMBER_NOT_FOUND || e.getErrorCode() == ErrorCode.INVALID_PASSWORD) {
+				loginAttemptService.recordFailure(email);
+			}
+			throw e;
 		}
-
-		String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
-		String refreshToken = jwtTokenProvider.createRefreshToken(member.getId());
-		refreshTokenService.saveOrReplace(member.getId(), refreshToken);
-
-		return LoginResponse.of(accessToken, refreshToken);
 	}
 
-	/** Refresh Token 검증 후 Access Token만 재발급한다(Refresh Token 회전 없음). */
+	/**
+	 * Refresh Token을 검증하고 Access Token과 Refresh Token을 함께 재발급한다(Rotation).
+	 * <p>기존 Refresh Token은 검증 즉시 저장소에서 새 값으로 교체돼 무효화된다 — 탈취된 옛 토큰이 재사용되면
+	 * (이미 교체된 뒤라) 저장값과 불일치해 실패하므로, 재사용을 탐지하는 효과도 있다.
+	 */
+	@Transactional
 	public TokenResponse reissue(String refreshToken) {
 		Long memberId = refreshTokenService.validateAndGetMemberId(refreshToken);
 		Member member = memberRepository.findById(memberId)
@@ -116,7 +138,9 @@ public class AuthService {
 		validateActiveStatus(member);
 
 		String newAccessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
-		return TokenResponse.of(newAccessToken, refreshToken);
+		String newRefreshToken = jwtTokenProvider.createRefreshToken(member.getId());
+		refreshTokenService.saveOrReplace(member.getId(), newRefreshToken);
+		return TokenResponse.of(newAccessToken, newRefreshToken);
 	}
 
 	/**
