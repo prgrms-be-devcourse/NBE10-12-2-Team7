@@ -87,7 +87,7 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
-# 기본은 최소 노출(health,info). prometheus는 dev/local에서만 연다.
+# 기본은 최소 노출(health,info). prometheus는 dev/prod에서만 연다.
 management:
   endpoints:
     web:

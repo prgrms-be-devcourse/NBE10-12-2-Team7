@@ -13,7 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 신고 증빙 이미지 검증 + 저장을 담당한다. 실제 저장/조회는 {@link FileStorageService}(global/storage)에 위임하는
- * 얇은 어댑터다 — test 프로파일은 로컬 디스크, 그 외(dev/local/prod)는 S3를 쓰지만 이 클래스는 그 차이를 모른다.
+ * 얇은 어댑터다 — 저장 백엔드(로컬 디스크/S3)는 {@code file.storage.type} 설정으로 갈리며 이 클래스는 그 차이를 모른다.
  * 검증 로직·에러코드 등 report 도메인 정책은 이 클래스가 그대로 소유한다.
  */
 @Service

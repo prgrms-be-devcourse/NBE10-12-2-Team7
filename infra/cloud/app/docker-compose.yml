@@ -10,7 +10,7 @@ services:
     container_name: dongne-app
     restart: unless-stopped
     environment:
-      SPRING_PROFILES_ACTIVE: local          # prometheus 노출(모니터 EC2가 scrape)
+      SPRING_PROFILES_ACTIVE: prod           # prometheus 노출(모니터 EC2가 scrape)
       DB_URL: ${DB_URL}                       # ← RDB EC2 프라이빗 IP (.env)
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}

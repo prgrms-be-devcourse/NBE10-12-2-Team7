@@ -1,6 +1,6 @@
 # 인프라 인벤토리 (as-is)
 
-> 최종 수정일: 2026-07-08 · 상태: draft · 기준 커밋: `dc94fa9`(#198 반영 후)
+> 최종 수정일: 2026-07-08 · 상태: draft · 기준: `refactor/infra-boundary` (#198 + P2 프로파일 경계 반영)
 > **as-is 스냅샷.** 목표 구조와 재정리 결정은 [ADR 0004](../adr/0004-infra-boundary.md) 참고. 리팩토링(P2~P4) 진행에 따라 이 문서를 갱신한다.
 
 "환경·인프라 세팅이 지금 어떻게 되어 있는지"를 **누가 무엇을 담당하는지(경계)** 관점으로 정리한 목록. 배포 토폴로지의 물리 구성은 [05-deployment.md](05-deployment.md), 로컬 컨테이너 구성은 [02-container.md](02-container.md)를 함께 본다.
@@ -22,9 +22,10 @@
 | --- | --- | --- | --- | --- |
 | [application.yml](../../backend/src/main/resources/application.yml) | (공통 base) | — | DB·JWT·Mail·Ollama·**file.storage**·multipart, `default: dev` | 전부 |
 | [application-dev.yml](../../backend/src/main/resources/application-dev.yml) | `dev` | `update` | 호스트 bootRun, SQL 로그 ON, prometheus 노출 | **개발** |
-| [application-local.yml](../../backend/src/main/resources/application-local.yml) | `local` | `update` | prometheus 노출, quiet 로그 | **온프레미스 + 클라우드 (공유)** ⚠️ |
+| [application-prod.yml](../../backend/src/main/resources/application-prod.yml) | `prod` | `update` ⚠️ | prometheus 노출, quiet 로그. 온프레미스·클라우드 공유 운영 수위 | **온프레미스 + 클라우드** (P2 신설) |
 | [application-demo.yml](../../backend/src/main/resources/application-demo.yml) | `demo` | `create` | 더미 시딩, drop+create ⚠️ | 개발 add-on (`dev,demo`) |
-| *(없음)* | ~~`prod`/`cloud`~~ | — | **클라우드 전용 프로파일 부재** ([ADR 0003](../adr/0003-schema-ddl-auto.md)) | — |
+
+> ⚠️ `prod`도 아직 `ddl-auto: update`다 — Flyway 도입 후 `validate` 전환은 P4([ADR 0003](../adr/0003-schema-ddl-auto.md)·[0004](../adr/0004-infra-boundary.md)).
 
 ## 3. 파일 저장소 — 설정 기반(local/S3), #198 이후
 
@@ -49,8 +50,8 @@
 
 | 파일 | 지형 | 담는 컨테이너 | 이미지 출처 | `SPRING_PROFILES_ACTIVE` |
 | --- | --- | --- | --- | --- |
-| [docker-compose.yml](../../docker-compose.yml) | **로컬** | mysql / (web)nginx·next·app / (observability)prom·grafana·loki·promtail / (edge)cloudflared | `build:` 로컬 빌드 | `local` |
-| [infra/cloud/app/](../../infra/cloud/app/docker-compose.yml) | 클라우드 앱 EC2 | nginx·next·app·promtail | **ECR pull** | `local` |
+| [docker-compose.yml](../../docker-compose.yml) | **로컬** | mysql / (web)nginx·next·app / (observability)prom·grafana·loki·promtail / (edge)cloudflared | `build:` 로컬 빌드 | `prod` (web) |
+| [infra/cloud/app/](../../infra/cloud/app/docker-compose.yml) | 클라우드 앱 EC2 | nginx·next·app·promtail | **ECR pull** | `prod` |
 | [infra/cloud/db/](../../infra/cloud/db/docker-compose.yml) | 클라우드 DB EC2 | mysql(자체 호스팅) | Docker Hub | — |
 | [infra/cloud/monitoring/](../../infra/cloud/monitoring/docker-compose.yml) | 클라우드 모니터링 EC2 | prometheus·loki·grafana | Docker Hub | — |
 
@@ -77,7 +78,7 @@
 
 | # | 흐린 경계 | 현재 상태 | 해소 단계 |
 | --- | --- | --- | --- |
-| A | **`local` 프로파일 이중 역할** | 온프레미스·클라우드가 [application-local.yml](../../backend/src/main/resources/application-local.yml) 공유 | P2 |
+| A | ~~`local` 프로파일 이중 역할~~ | ✅ **P2 완료(2026-07-08)** — `application-prod.yml` 신설·`local` 폐기, compose `SPRING_PROFILES_ACTIVE=prod` 전환 | ✅ 완료 |
 | B | **클라우드 프로파일 부재** | 운영에서 `ddl-auto: update` 그대로 실행 | P4 |
 | C | **nginx.conf 중복** | [로컬용](../../nginx/nginx.conf)·[클라우드용](../../infra/cloud/app/nginx.conf) 거의 동일 복붙 | P4 |
 | D | **monitoring 설정 이중화** | 루트 [monitoring/](../../monitoring)·[infra/cloud/monitoring/](../../infra/cloud/monitoring) 병존 (단 prometheus 타깃은 정당한 차이) | P4 |
