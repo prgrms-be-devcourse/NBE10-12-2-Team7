@@ -152,7 +152,7 @@ export default function Header() {
   return (
     <header>
       <div className="head-in">
-        <Link className="logo" href="/products">
+        <Link className="logo" href="/">
           Market<span>ON</span>
         </Link>
         <nav className="main-nav">
