@@ -23,6 +23,7 @@ graph LR
 | --- | --- |
 | **backend-test** | JDK 21 · `./gradlew test` — **단위/슬라이스 테스트(H2)**. 실패 시 리포트 업로드 |
 | **frontend-check** | Node 22 · deps 설치 · **lint · build** |
+| **infra-nginx-sync** | onprem·cloud `nginx.conf` 동일 여부 확인(드리프트 방지) |
 
 > 같은 ref의 이전 실행은 자동 취소(러너 낭비 방지). 테스트 계층 전략은 [conventions/testing.md](../conventions/testing.md) 참고.
 
@@ -37,11 +38,11 @@ graph LR
    - 리전: `ap-northeast-2`.
    - 빌드 가속: Buildx + GitHub Actions 캐시(`cache-from/to: type=gha`).
 3. **deploy** — 앱 EC2에 **SSH 접속(`appleboy/ssh-action`)** 해 재배포.
-   - `docker login`(ECR) → `docker compose pull` → `up -d` → `image prune -f`.
+   - `export IMAGE_TAG=${{ github.sha }}`(특정 SHA 배포) → `docker login`(ECR) → `docker compose pull` → `up -d` → `image prune -f`.
    - 빌드 job 중 **하나라도 성공하면**(=새 이미지 있으면) 실행(`if: always() && (build-backend 성공 || build-frontend 성공)`).
    - 접속: `EC2_APP_HOST` · `EC2_SSH_KEY` 시크릿(사용자 `ubuntu`, 작업 디렉터리 `~/app`).
 
-> develop 머지 → 이미지 빌드·push → 앱 EC2 자동 재배포까지 **엔드투엔드 자동화**돼 있다. `:latest` 태그를 pull하므로 특정 SHA 롤백·헬스체크는 아직 수동(후속 개선 여지).
+> develop 머지 → 이미지 빌드·push → 앱 EC2 자동 재배포까지 **엔드투엔드 자동화**돼 있다. 배포는 **커밋 SHA 이미지**를 pull하므로 결정적이고 롤백 가능 — 롤백은 SSH 후 `export IMAGE_TAG=<이전-SHA> && docker compose --env-file .env pull && up -d`. (배포 후 헬스체크·무중단 전환은 후속 개선 여지.)
 
 ## 필요한 시크릿 / 설정
 

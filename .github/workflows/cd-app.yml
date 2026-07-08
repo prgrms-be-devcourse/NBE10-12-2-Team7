@@ -117,6 +117,9 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/app
+            # 특정 커밋 SHA 이미지를 배포한다(:latest 대신) → 배포가 결정적이고 롤백 가능.
+            # 롤백: SSH 후 `export IMAGE_TAG=<이전-sha> && docker compose --env-file .env pull && up -d`.
+            export IMAGE_TAG=${{ github.sha }}
             aws ecr get-login-password --region ap-northeast-2 \
               | docker login --username AWS --password-stdin 773505972890.dkr.ecr.ap-northeast-2.amazonaws.com
             docker compose --env-file .env pull

@@ -73,7 +73,7 @@ onprem compose 프로파일: (기본) 전체 스택 / `observability`(관측) / 
 | [ci.yml](../../.github/workflows/ci.yml) | feature push · develop PR | 백엔드 test(H2) + 프론트 lint·build | **테스트 게이트만**, 배포 안 함 |
 | [cd-app.yml](../../.github/workflows/cd-app.yml) | develop push(backend/frontend 변경) | 바뀐 것만 빌드→ECR push(OIDC)→앱 EC2 SSH pull·up | **배포 전담** |
 
-이미지는 `:latest`와 `:{sha}` 두 태그로 push되지만, **배포는 `:latest`만 사용**(sha 태그 미활용 → 특정 커밋 롤백 수동).
+이미지는 `:latest`와 `:{sha}` 두 태그로 push되고, **배포는 `:{sha}`를 사용**한다(결정적 배포·롤백 가능). `nginx.conf` 동기는 `infra-nginx-sync` 잡이 검사.
 
 ## 8. ⚠️ 경계가 흐린 곳 (개선 후보 → [ADR 0004](../adr/0004-infra-boundary.md))
 
@@ -81,8 +81,8 @@ onprem compose 프로파일: (기본) 전체 스택 / `observability`(관측) / 
 | --- | --- | --- | --- |
 | A | ~~`local` 프로파일 이중 역할~~ | ✅ **P2 완료(2026-07-08)** — `application-prod.yml` 신설·`local` 폐기, compose `SPRING_PROFILES_ACTIVE=prod` 전환 | ✅ 완료 |
 | B | ~~운영 `ddl-auto: update`~~ | ✅ **P4 완료(2026-07-08)** — Flyway 도입·V1 baseline·prod `validate` 전환([ADR 0005](../adr/0005-flyway-migration.md)) | ✅ 완료 |
-| C | **nginx.conf 중복** | [onprem](../../infra/onprem/nginx.conf)·[cloud](../../infra/cloud/app/nginx.conf) 거의 동일 복붙 | P4(잔여) |
-| D | **monitoring 설정 이중화** | [onprem/monitoring/](../../infra/onprem/monitoring)·[cloud/monitoring/](../../infra/cloud/monitoring) 병존 (단 prometheus 타깃은 정당한 차이) | P4 |
-| E | **CD `:latest` 배포** | sha 태그는 push만 하고 미사용 → 롤백 수동 | P4 |
+| C | ~~nginx.conf 중복~~ | ✅ **P4 완료(2026-07-08)** — 두 파일 바이트 동일화 + CI `infra-nginx-sync` 가드로 드리프트 차단(폴더 격리 배포라 물리적 두 벌은 유지) | ✅ 완료 |
+| D | ~~monitoring 설정 이중화~~ | ✅ **정당한 차이로 확정** — onprem은 단일 호스트(`app:8080`, promtail 포함), cloud는 분산(프라이빗 IP, promtail은 앱 EC2 별도, loki 보존정책 상이). dedup 대상 아님 | ✅ 확정 |
+| E | ~~CD `:latest` 배포~~ | ✅ **P4 완료(2026-07-08)** — CD가 커밋 SHA 이미지 배포 → 결정적·롤백 가능 | ✅ 완료 |
 
 > ✅ **P3 완료(2026-07-08)**: 온프레미스 배포를 [`infra/onprem/`](../../infra/onprem/)로 분리(compose·nginx·monitoring 이관), 루트 compose는 dev 전용으로 축소 — 배포 지형 경계 확립.
