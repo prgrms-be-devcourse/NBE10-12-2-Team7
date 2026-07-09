@@ -41,9 +41,16 @@ public class AdminAiConfig {
                                       AdminDashboardTools adminDashboardTools) {
         return builder
                 .defaultSystem(SYSTEM_PROMPT)
-                // qwen3 계열은 thinking이 기본 활성 → 최종 답변이 thinking 필드로 새어
-                // content가 비는 문제가 있어 반드시 비활성화한다. (2026-07-02 실측 검증)
-                .defaultOptions(OllamaChatOptions.builder().disableThinking().build())
+                .defaultOptions(OllamaChatOptions.builder()
+                        // qwen3 계열은 thinking이 기본 활성 → 최종 답변이 thinking 필드로 새어
+                        // content가 비는 문제가 있어 반드시 비활성화한다. (2026-07-02 실측 검증)
+                        .disableThinking()
+                        .temperature(0.1)
+                        // 모델을 메모리에 상주시켜 매 호출 콜드로드(수십 초)를 제거한다.
+                        .keepAlive("30m")
+                        // 답변 길이 상한 → 느린 CPU 추론에서 최악 응답 시간을 bound.
+                        .numPredict(512)
+                        .build())
                 .defaultTools(adminMemberTools, adminProductTools, adminCommentTools,
                         adminReportTools, adminDashboardTools)
                 .build();
