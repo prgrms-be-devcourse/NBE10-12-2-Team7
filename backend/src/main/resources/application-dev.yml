@@ -6,6 +6,15 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+  # dev: 관리자 AI는 로컬 Ollama로 (사내 IP 대신)
+  ai:
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        options:
+          model: ${OLLAMA_MODEL:qwen3:4b}
+
 logging:
   level:
     org.hibernate.SQL: debug
