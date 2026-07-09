@@ -10,6 +10,7 @@ public class ProductResponse {
 
 	private final Long productId;
 	private final Long memberId;
+	private final String sellerNickname;
 	private final Long categoryId;
 	private final String title;
 	private final String description;
@@ -22,11 +23,13 @@ public class ProductResponse {
 	private final List<String> imageUrls;
 	private final boolean hidden;
 
-	private ProductResponse(Long productId, Long memberId, Long categoryId, String title, String description,
-							BigDecimal price, TradeStatus tradeStatus, String region, long viewCount,
-							int favoriteCount, String thumbnailUrl, List<String> imageUrls, boolean hidden) {
+	private ProductResponse(Long productId, Long memberId, String sellerNickname, Long categoryId, String title,
+							String description, BigDecimal price, TradeStatus tradeStatus, String region,
+							long viewCount, int favoriteCount, String thumbnailUrl, List<String> imageUrls,
+							boolean hidden) {
 		this.productId = productId;
 		this.memberId = memberId;
+		this.sellerNickname = sellerNickname;
 		this.categoryId = categoryId;
 		this.title = title;
 		this.description = description;
@@ -48,6 +51,7 @@ public class ProductResponse {
 		return new ProductResponse(
 				product.getId(),
 				product.getMember().getId(),
+				product.getMember().getDisplayNickname(),
 				product.getCategory().getId(),
 				product.getTitle(),
 				product.getDescription(),
@@ -68,6 +72,10 @@ public class ProductResponse {
 
 	public Long getMemberId() {
 		return memberId;
+	}
+
+	public String getSellerNickname() {
+		return sellerNickname;
 	}
 
 	public Long getCategoryId() {

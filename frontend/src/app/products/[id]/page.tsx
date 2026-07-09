@@ -13,6 +13,7 @@ interface Category { id: number; name: string }
 interface Product {
   productId: number
   memberId: number
+  sellerNickname: string
   categoryId: number
   title: string
   description: string
@@ -332,9 +333,9 @@ export default function ProductDetailPage() {
 
           {/* 판매자 */}
           <div className={styles.seller}>
-            <div className={styles.sellerAvatar}>회</div>
+            <div className={styles.sellerAvatar}>{product.sellerNickname.charAt(0)}</div>
             <div className={styles.sellerWho}>
-              <div className={styles.sellerNm}>회원 #{product.memberId}</div>
+              <div className={styles.sellerNm}>{product.sellerNickname}</div>
             </div>
             {!isOwner && (
               <button

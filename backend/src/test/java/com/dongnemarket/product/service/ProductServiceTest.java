@@ -456,6 +456,7 @@ class ProductServiceTest {
 			assertThat(response.getDescription()).isEqualTo("상품 설명입니다.");
 			assertThat(response.getViewCount()).isEqualTo(1);
 			assertThat(product.getViewCount()).isEqualTo(1);
+			assertThat(response.getSellerNickname()).isEqualTo("판매자");
 		}
 
 		@Test
