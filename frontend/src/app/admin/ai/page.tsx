@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { getAccessToken } from '@/lib/auth'
+import { apiFetch } from '@/lib/apiClient'
 import styles from '../admin.module.css'
 
 type Role = 'ai' | 'user' | 'error'
@@ -28,6 +28,7 @@ export default function AdminAiPage() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const logRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     const el = logRef.current
@@ -42,17 +43,13 @@ export default function AdminAiPage() {
     setMessages(prev => [...prev, { id: nextMessageId++, role: 'user', text }])
     setInput('')
 
-    const token = getAccessToken()
-    if (!token) {
-      setMessages(prev => [...prev, { id: nextMessageId++, role: 'error', text: '로그인이 만료됐어요. 다시 로그인해주세요.' }])
-      return
-    }
-
     setSending(true)
     try {
-      const res = await fetch('/api/admin/ai/chat', {
+      // apiFetch: Access Token 자동 부착 + 401 시 Refresh 쿠키로 재발급 후 1회 재시도
+      // (재발급도 실패하면 로그인 페이지로 이동). 다른 admin 페이지와 동일한 인증 경로.
+      const res = await apiFetch('/api/admin/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text }),
       })
       const data = await res.json().catch(() => null)
@@ -70,57 +67,65 @@ export default function AdminAiPage() {
 
   function fillChip(question: string) {
     setInput(question)
+    inputRef.current?.focus()
   }
 
   return (
-    <>
-      <div className={styles.ptitle}>AI 어시스턴트 <span className={`${styles.tag} ${styles.tagPink}`}>읽기 전용</span></div>
-      <div className={styles.pdesc}>자연어로 관리 데이터를 조회합니다</div>
-
-      <div className={styles.note}>
-        조회 전용(v1) 어시스턴트예요. 회원 정지, 상품 삭제 같은 변경 작업은 처리할 수 없고,
-        그런 요청을 하면 AI가 권한이 없다고 안내해드려요.
+    <div className={styles.aiShell}>
+      <div className={styles.aiHead}>
+        <h1 className={styles.aiTitle}>
+          AI 어시스턴트
+          <span className={`${styles.tag} ${styles.tagPink}`}>읽기 전용</span>
+        </h1>
+        <p className={styles.aiSub}>자연어로 관리 데이터를 조회합니다</p>
       </div>
 
-      <div className={styles.chatWrap}>
+      <div className={styles.chatCard}>
         <div className={styles.chatLog} ref={logRef}>
           {messages.map(m => (
             <div
               key={m.id}
               className={`${styles.chatMsg}${m.role === 'user' ? ' ' + styles.user : ''}${m.role === 'error' ? ' ' + styles.error : ''}`}
             >
-              <div className={styles.chatAvatar}>{m.role === 'user' ? '나' : 'AI'}</div>
+              {m.role !== 'user' && <div className={styles.chatAvatar}>AI</div>}
               <div className={styles.chatBubble}>{m.text}</div>
             </div>
           ))}
           {sending && (
             <div className={styles.chatMsg}>
               <div className={styles.chatAvatar}>AI</div>
-              <div className={styles.chatBubble}>답변을 생각하는 중...</div>
+              <div className={`${styles.chatBubble} ${styles.typing}`} aria-label="답변 생성 중">
+                <span /><span /><span />
+              </div>
             </div>
           )}
         </div>
 
-        <div className={styles.chatChips}>
-          {SUGGESTED_QUESTIONS.map(q => (
-            <button key={q} type="button" className={styles.chatChip} onClick={() => fillChip(q)}>
-              {q}
-            </button>
-          ))}
-        </div>
+        <div className={styles.composer}>
+          <div className={styles.chatChips}>
+            {SUGGESTED_QUESTIONS.map(q => (
+              <button key={q} type="button" className={styles.chatChip} onClick={() => fillChip(q)}>
+                {q}
+              </button>
+            ))}
+          </div>
 
-        <form className={styles.chatInputRow} onSubmit={handleSend}>
-          <input
-            placeholder="질문을 입력하세요… (예: 최근 신고 목록 보여줘)"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            disabled={sending}
-          />
-          <button type="submit" className={styles.chatSendBtn} disabled={sending || !input.trim()}>
-            전송
-          </button>
-        </form>
+          <form className={styles.chatInputRow} onSubmit={handleSend}>
+            <input
+              ref={inputRef}
+              placeholder="질문을 입력하세요… (예: 최근 신고 목록 보여줘)"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              disabled={sending}
+            />
+            <button type="submit" className={styles.chatSendBtn} disabled={sending || !input.trim()} aria-label="전송">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 11l5-5 5 5M12 6v13" />
+              </svg>
+            </button>
+          </form>
+        </div>
       </div>
-    </>
+    </div>
   )
 }
