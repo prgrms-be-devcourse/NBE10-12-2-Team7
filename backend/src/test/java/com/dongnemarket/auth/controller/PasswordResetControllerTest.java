@@ -3,7 +3,7 @@ package com.dongnemarket.auth.controller;
 import com.dongnemarket.auth.entity.EmailVerification;
 import com.dongnemarket.auth.mail.EmailSender;
 import com.dongnemarket.auth.repository.EmailVerificationRepository;
-import com.dongnemarket.auth.repository.PasswordResetTokenRepository;
+import com.dongnemarket.auth.repository.InMemoryPasswordResetTokenRepository;
 import com.dongnemarket.member.repository.MemberAgreementRepository;
 import com.dongnemarket.member.repository.MemberRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -45,7 +45,7 @@ class PasswordResetControllerTest {
 	EmailVerificationRepository emailVerificationRepository;
 
 	@Autowired
-	PasswordResetTokenRepository passwordResetTokenRepository;
+	InMemoryPasswordResetTokenRepository passwordResetTokenRepository;
 
 	@Autowired
 	MemberAgreementRepository memberAgreementRepository;
@@ -55,17 +55,14 @@ class PasswordResetControllerTest {
 
 	@AfterEach
 	void cleanUp() {
-		passwordResetTokenRepository.deleteAll();
+		passwordResetTokenRepository.clear();
 		emailVerificationRepository.deleteAll();
 		memberAgreementRepository.deleteAll();
 		memberRepository.deleteAll();
 	}
 
 	private void verifyEmail(String email) {
-		EmailVerification verification = EmailVerification.issue(
-				email, "000000", LocalDateTime.now(), LocalDateTime.now().plusMinutes(5));
-		verification.verify(LocalDateTime.now());
-		emailVerificationRepository.save(verification);
+		emailVerificationRepository.save(EmailVerification.verified(email, LocalDateTime.now()));
 	}
 
 	private void signup(String email, String password, String nickname) throws Exception {

@@ -20,6 +20,7 @@
 | [0003](0003-schema-ddl-auto.md) | 스키마를 ddl-auto로 관리 (마이그레이션 도구 미도입) | Superseded by 0005 |
 | [0004](0004-infra-boundary.md) | 인프라를 2축(운영 수위 × 배포 지형)으로 경계 재정리 | Accepted |
 | [0005](0005-flyway-migration.md) | Flyway 도입 + 운영(prod) 스키마를 ddl-auto: validate로 | Accepted |
+| [0006](0006-redis-for-auth-ttl-data.md) | 인증 관련 TTL 데이터(Refresh Token/로그인 실패 제한/이메일 인증 코드/비밀번호 재설정 토큰)를 Redis로 | Accepted |
 
 ---
 

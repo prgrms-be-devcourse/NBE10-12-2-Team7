@@ -2,7 +2,6 @@ package com.dongnemarket.auth.service;
 
 import com.dongnemarket.auth.dto.PasswordResetConfirmRequest;
 import com.dongnemarket.auth.dto.PasswordResetRequest;
-import com.dongnemarket.auth.entity.PasswordResetToken;
 import com.dongnemarket.auth.mail.EmailSender;
 import com.dongnemarket.auth.repository.PasswordResetTokenRepository;
 import com.dongnemarket.global.exception.BusinessException;
@@ -18,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Optional;
@@ -27,7 +26,9 @@ import java.util.Optional;
  * 비밀번호 찾기(재설정 이메일 링크) 요청/확인을 담당한다.
  * 계정 존재 여부를 외부에 노출하지 않기 위해 요청 API는 가입 여부·탈퇴 여부와 무관하게 항상 같은 응답을 반환한다
  * (실제 토큰 발급·발송은 활성/정지 회원에게만 조용히 수행된다).
- * <p>원문 토큰은 이메일 링크로만 전달되고 DB에는 SHA-256 해시만 저장한다({@link PasswordResetToken}).
+ * <p>원문 토큰은 이메일 링크로만 전달되고 저장소에는 SHA-256 해시만 저장한다.
+ * <p>1회용·TTL 데이터라 {@link PasswordResetTokenRepository}(Redis)에 담긴다 — 별도 정리(cleanup) 작업 없이
+ * TTL 만료로 자연 삭제된다.
  */
 @Service
 @Transactional
@@ -67,19 +68,22 @@ public class PasswordResetService {
 	}
 
 	private void issueAndSendTokenIfNotCoolingDown(Member member) {
-		LocalDateTime now = LocalDateTime.now();
-		Optional<PasswordResetToken> existing = passwordResetTokenRepository.findByMemberId(member.getId());
-		if (existing.isPresent() && existing.get().isCoolingDown(now, COOLDOWN_SECONDS)) {
-			return;
+		Long memberId = member.getId();
+		Duration ttl = Duration.ofMinutes(TOKEN_TTL_MINUTES);
+
+		Optional<String> existingHash = passwordResetTokenRepository.findTokenHashByMemberId(memberId);
+		if (existingHash.isPresent()) {
+			Duration remaining = passwordResetTokenRepository.getRemainingTtlByMemberId(memberId).orElse(Duration.ZERO);
+			if (remaining.compareTo(ttl.minusSeconds(COOLDOWN_SECONDS)) > 0) {
+				return;
+			}
+			// 재요청(쿨다운 경과): 이전 토큰은 즉시 무효화하고 새 토큰으로 교체한다.
+			passwordResetTokenRepository.deleteByTokenHash(existingHash.get());
 		}
 
-		LocalDateTime expiresAt = now.plusMinutes(TOKEN_TTL_MINUTES);
 		String rawToken = generateRawToken();
 		String tokenHash = hash(rawToken);
-		existing.ifPresentOrElse(
-				found -> found.replace(tokenHash, now, expiresAt),
-				() -> passwordResetTokenRepository.save(PasswordResetToken.issue(member.getId(), tokenHash, now, expiresAt))
-		);
+		passwordResetTokenRepository.save(memberId, tokenHash, ttl);
 
 		emailSender.send(member.getEmail(), "[마켓온] 비밀번호 재설정 안내", buildResetEmailBody(rawToken));
 	}
@@ -97,23 +101,19 @@ public class PasswordResetService {
 
 	public void confirmReset(PasswordResetConfirmRequest request) {
 		String tokenHash = hash(request.getToken());
-		PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenHash(tokenHash)
+		Long memberId = passwordResetTokenRepository.findMemberIdByTokenHash(tokenHash)
 				.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_RESET_TOKEN));
 
-		LocalDateTime now = LocalDateTime.now();
-		if (resetToken.isExpired(now)) {
-			throw new BusinessException(ErrorCode.EXPIRED_RESET_TOKEN);
-		}
-
-		Member member = memberRepository.findById(resetToken.getMemberId())
+		Member member = memberRepository.findById(memberId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
 		member.changePassword(passwordEncoder.encode(request.getNewPassword()));
-		passwordResetTokenRepository.delete(resetToken);
+		passwordResetTokenRepository.deleteByTokenHash(tokenHash);
+		passwordResetTokenRepository.deleteByMemberId(memberId);
 		refreshTokenService.deleteByMemberId(member.getId());
 	}
 
-	/** 링크에 담을 원문 토큰(256비트 무작위값, URL-safe). DB에는 저장하지 않는다. */
+	/** 링크에 담을 원문 토큰(256비트 무작위값, URL-safe). 저장소에는 해시만 남기고 원문은 저장하지 않는다. */
 	private String generateRawToken() {
 		byte[] bytes = new byte[32];
 		secureRandom.nextBytes(bytes);

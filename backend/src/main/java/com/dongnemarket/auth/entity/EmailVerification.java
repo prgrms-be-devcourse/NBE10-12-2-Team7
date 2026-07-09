@@ -10,6 +10,12 @@ import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
 
+/**
+ * 이메일의 "인증 완료" 여부만 담는다. 인증 코드 자체(발급·비교·쿨다운·만료)는 TTL 데이터라 Redis
+ * ({@code EmailVerificationCodeRepository})가 담당하고, 여기서는 관리하지 않는다.
+ * <p>인증 완료 상태는 코드의 5분 TTL과 무관하게 회원가입 시점까지 유지돼야 하므로(인증 후 한참 뒤에
+ * 가입해도 통과) TTL 저장소가 아닌 DB에 남긴다({@code AuthService.signup}의 existsByEmailAndVerifiedTrue 참고).
+ */
 @Entity
 @Table(name = "email_verifications")
 public class EmailVerification extends BaseTimeEntity {
@@ -21,15 +27,6 @@ public class EmailVerification extends BaseTimeEntity {
 	@Column(nullable = false, unique = true, length = 100)
 	private String email;
 
-	@Column(nullable = false, length = 6)
-	private String code;
-
-	@Column(name = "sent_at", nullable = false)
-	private LocalDateTime sentAt;
-
-	@Column(name = "expires_at", nullable = false)
-	private LocalDateTime expiresAt;
-
 	@Column(nullable = false)
 	private boolean verified = false;
 
@@ -39,40 +36,15 @@ public class EmailVerification extends BaseTimeEntity {
 	protected EmailVerification() {
 	}
 
-	private EmailVerification(String email, String code, LocalDateTime sentAt, LocalDateTime expiresAt) {
+	private EmailVerification(String email) {
 		this.email = email;
-		this.code = code;
-		this.sentAt = sentAt;
-		this.expiresAt = expiresAt;
 	}
 
-	/** 최초 인증코드 발송 시 발급 */
-	public static EmailVerification issue(String email, String code, LocalDateTime sentAt, LocalDateTime expiresAt) {
-		return new EmailVerification(email, code, sentAt, expiresAt);
-	}
-
-	/** 재요청(쿨다운 경과 후) 시 기존 row를 새 코드로 교체(이메일당 1개 유지). 이전 인증 상태는 새 코드에 대해 다시 확인해야 하므로 초기화한다. */
-	public void replace(String code, LocalDateTime sentAt, LocalDateTime expiresAt) {
-		this.code = code;
-		this.sentAt = sentAt;
-		this.expiresAt = expiresAt;
-		this.verified = false;
-		this.verifiedAt = null;
-	}
-
-	/** 마지막 발송 이후 쿨다운 시간이 지나지 않았는지 확인 (재요청 스팸 방지) */
-	public boolean isCoolingDown(LocalDateTime now, long cooldownSeconds) {
-		return now.isBefore(sentAt.plusSeconds(cooldownSeconds));
-	}
-
-	/** 코드 만료 여부 확인 */
-	public boolean isExpired(LocalDateTime now) {
-		return now.isAfter(expiresAt);
-	}
-
-	/** 입력한 코드가 발송된 코드와 일치하는지 확인 */
-	public boolean matchesCode(String code) {
-		return this.code.equals(code);
+	/** 새 인증 코드로 인증에 성공했을 때 최초 발급 */
+	public static EmailVerification verified(String email, LocalDateTime verifiedAt) {
+		EmailVerification verification = new EmailVerification(email);
+		verification.verify(verifiedAt);
+		return verification;
 	}
 
 	/** 인증 완료로 표시 */
@@ -81,24 +53,18 @@ public class EmailVerification extends BaseTimeEntity {
 		this.verifiedAt = now;
 	}
 
+	/** 같은 이메일로 새 인증 코드를 재요청하면, 이전 인증 상태를 무효화한다(새 코드에 대해 다시 인증해야 함). */
+	public void unverify() {
+		this.verified = false;
+		this.verifiedAt = null;
+	}
+
 	public Long getId() {
 		return id;
 	}
 
 	public String getEmail() {
 		return email;
-	}
-
-	public String getCode() {
-		return code;
-	}
-
-	public LocalDateTime getSentAt() {
-		return sentAt;
-	}
-
-	public LocalDateTime getExpiresAt() {
-		return expiresAt;
 	}
 
 	public boolean isVerified() {

@@ -1,7 +1,7 @@
 package com.dongnemarket.auth.controller;
 
-import com.dongnemarket.auth.entity.EmailVerification;
 import com.dongnemarket.auth.mail.EmailSender;
+import com.dongnemarket.auth.repository.EmailVerificationCodeRepository;
 import com.dongnemarket.auth.repository.EmailVerificationRepository;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
@@ -14,10 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -43,6 +40,9 @@ class EmailVerificationControllerTest {
 
 	@Autowired
 	EmailVerificationRepository emailVerificationRepository;
+
+	@Autowired
+	EmailVerificationCodeRepository emailVerificationCodeRepository;
 
 	@MockitoBean
 	EmailSender emailSender;
@@ -119,7 +119,7 @@ class EmailVerificationControllerTest {
 		mockMvc.perform(post("/api/auth/email-verifications")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(String.format("{ \"email\": \"%s\" }", email)));
-		return emailVerificationRepository.findByEmail(email).orElseThrow().getCode();
+		return emailVerificationCodeRepository.findCode(email).orElseThrow();
 	}
 
 	@Test
@@ -149,18 +149,17 @@ class EmailVerificationControllerTest {
 	}
 
 	@Test
-	@DisplayName("만료된 코드로 확인하면 400과 EXPIRED_VERIFICATION_CODE를 반환한다")
-	void confirmVerification_expiredCode_returns400() throws Exception {
-		String code = requestVerificationAndGetCode("confirm-expired@example.com");
-		EmailVerification verification = emailVerificationRepository.findByEmail("confirm-expired@example.com").orElseThrow();
-		ReflectionTestUtils.setField(verification, "expiresAt", LocalDateTime.now().minusMinutes(1));
-		emailVerificationRepository.save(verification);
+	@DisplayName("코드 TTL이 만료되어 저장소에서 사라진 뒤 확인하면 404와 EMAIL_VERIFICATION_NOT_FOUND를 반환한다")
+	void confirmVerification_expiredCode_returns404() throws Exception {
+		requestVerificationAndGetCode("confirm-expired@example.com");
+		// 실제 5분을 기다리는 대신, TTL 만료로 코드가 저장소에서 사라진 상태를 직접 흉내낸다.
+		emailVerificationCodeRepository.delete("confirm-expired@example.com");
 
 		mockMvc.perform(post("/api/auth/email-verifications/confirm")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(String.format("{ \"email\": \"confirm-expired@example.com\", \"code\": \"%s\" }", code)))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error").value("EXPIRED_VERIFICATION_CODE"));
+						.content("{ \"email\": \"confirm-expired@example.com\", \"code\": \"123456\" }"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("EMAIL_VERIFICATION_NOT_FOUND"));
 	}
 
 	@Test

@@ -7,6 +7,7 @@ import com.dongnemarket.auth.dto.SignupResponse;
 import com.dongnemarket.auth.dto.TokenResponse;
 import com.dongnemarket.auth.entity.RefreshToken;
 import com.dongnemarket.auth.repository.EmailVerificationRepository;
+import com.dongnemarket.auth.repository.InMemoryLoginAttemptRepository;
 import com.dongnemarket.auth.repository.RefreshTokenRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
@@ -63,6 +64,7 @@ class AuthServiceTest {
 	PasswordEncoder passwordEncoder;
 	JwtTokenProvider jwtTokenProvider;
 	RefreshTokenService refreshTokenService;
+	LoginAttemptService loginAttemptService;
 	AuthService authService;
 
 	private static final String TEST_IP = "127.0.0.1";
@@ -74,8 +76,9 @@ class AuthServiceTest {
 		jwtTokenProvider = new JwtTokenProvider(
 				"test-jwt-secret-key-for-auth-service-unit-test-0123456789", 3600L, 604800L);
 		refreshTokenService = new RefreshTokenService(refreshTokenRepository, jwtTokenProvider);
+		loginAttemptService = new LoginAttemptService(new InMemoryLoginAttemptRepository());
 		authService = new AuthService(memberRepository, passwordEncoder, jwtTokenProvider, refreshTokenService,
-				emailVerificationRepository, memberAgreementRepository);
+				emailVerificationRepository, memberAgreementRepository, loginAttemptService);
 	}
 
 	// ===== signup =====
@@ -253,7 +256,6 @@ class AuthServiceTest {
 		Member member = Member.createUser(request.getEmail(), passwordEncoder.encode(request.getPassword()), "tester");
 		ReflectionTestUtils.setField(member, "id", 1L);
 		given(memberRepository.findByEmail(request.getEmail())).willReturn(Optional.of(member));
-		given(refreshTokenRepository.findByMemberId(1L)).willReturn(Optional.empty());
 
 		LoginResponse response = authService.login(request);
 
@@ -265,25 +267,25 @@ class AuthServiceTest {
 	}
 
 	@Test
-	@DisplayName("이미 Refresh Token이 저장된 회원이 재로그인하면 신규 저장 대신 기존 토큰을 교체한다")
-	void login_existingRefreshToken_replacesInsteadOfInserting() {
+	@DisplayName("이미 Refresh Token이 저장된 회원이 재로그인하면 새 토큰으로 저장소에 다시 save()한다")
+	void login_existingRefreshToken_savesNewToken() {
 		LoginRequest request = new LoginRequest("test@example.com", "password123");
 		Member member = Member.createUser(request.getEmail(), passwordEncoder.encode(request.getPassword()), "tester");
 		ReflectionTestUtils.setField(member, "id", 1L);
 		given(memberRepository.findByEmail(request.getEmail())).willReturn(Optional.of(member));
-		RefreshToken existing = RefreshToken.issue(1L, "old-token", LocalDateTime.now().plusDays(7));
-		given(refreshTokenRepository.findByMemberId(1L)).willReturn(Optional.of(existing));
 
 		LoginResponse response = authService.login(request);
 
-		assertThat(existing.getToken()).isEqualTo(response.getRefreshToken());
-		verify(refreshTokenRepository, never()).save(any());
+		ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
+		verify(refreshTokenRepository).save(captor.capture());
+		assertThat(captor.getValue().getMemberId()).isEqualTo(1L);
+		assertThat(captor.getValue().getToken()).isEqualTo(response.getRefreshToken());
 	}
 
 	// ===== reissue =====
 
 	@Test
-	@DisplayName("유효한 Refresh Token으로 재발급하면 새 accessToken과 동일한 refreshToken을 반환한다")
+	@DisplayName("유효한 Refresh Token으로 재발급하면 새 accessToken과 함께 회전된(기존과 다른) 새 refreshToken을 반환하고 저장소에 반영한다")
 	void reissue_success() {
 		String refreshToken = jwtTokenProvider.createRefreshToken(1L);
 		Member member = Member.createUser("test@example.com", "encoded", "tester");
@@ -294,8 +296,13 @@ class AuthServiceTest {
 
 		TokenResponse response = authService.reissue(refreshToken);
 
-		assertThat(response.getRefreshToken()).isEqualTo(refreshToken);
+		// JWT는 초 단위 iat/exp라 같은 초 안에 발급하면 문자열이 우연히 같아질 수 있어(회전 자체는 항상 일어남),
+		// "다른 문자열"이 아니라 "저장소에 다시 save()됐는지"로 회전 여부를 검증한다.
 		assertThat(jwtTokenProvider.getMemberId(response.getAccessToken())).isEqualTo(1L);
+		assertThat(jwtTokenProvider.getMemberId(response.getRefreshToken())).isEqualTo(1L);
+		ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
+		verify(refreshTokenRepository).save(captor.capture());
+		assertThat(captor.getValue().getToken()).isEqualTo(response.getRefreshToken());
 	}
 
 	@Test
@@ -472,5 +479,76 @@ class AuthServiceTest {
 		assertThatThrownBy(() -> authService.login(request))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.SUSPENDED_MEMBER);
+	}
+
+	// ===== login 실패 횟수 제한 =====
+
+	@Test
+	@DisplayName("비밀번호를 4번 틀려도 아직 차단되지 않고 매번 INVALID_PASSWORD 예외가 발생한다")
+	void login_wrongPasswordFourTimes_stillNotBlocked() {
+		LoginRequest request = new LoginRequest("lockout@example.com", "wrongPassword");
+		Member member = Member.createUser(request.getEmail(), passwordEncoder.encode("password123"), "tester");
+		given(memberRepository.findByEmail(request.getEmail())).willReturn(Optional.of(member));
+
+		for (int i = 0; i < 4; i++) {
+			assertThatThrownBy(() -> authService.login(request))
+					.isInstanceOf(BusinessException.class)
+					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_PASSWORD);
+		}
+	}
+
+	@Test
+	@DisplayName("비밀번호를 5번 틀리면 그 다음 로그인 시도는 자격증명 확인 전에 TOO_MANY_LOGIN_ATTEMPTS 예외가 발생한다")
+	void login_wrongPasswordFiveTimes_thenBlocksNextAttempt() {
+		LoginRequest request = new LoginRequest("lockout2@example.com", "wrongPassword");
+		Member member = Member.createUser(request.getEmail(), passwordEncoder.encode("password123"), "tester");
+		given(memberRepository.findByEmail(request.getEmail())).willReturn(Optional.of(member));
+
+		for (int i = 0; i < 5; i++) {
+			assertThatThrownBy(() -> authService.login(request))
+					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_PASSWORD);
+		}
+
+		assertThatThrownBy(() -> authService.login(request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+		// 차단 상태에서는 자격증명을 다시 확인하지 않는다.
+		verify(memberRepository, times(5)).findByEmail(request.getEmail());
+	}
+
+	@Test
+	@DisplayName("로그인에 성공하면 이전 실패 횟수가 초기화되어, 이후 실패는 다시 1회부터 카운트된다")
+	void login_success_resetsFailureCount() {
+		String email = "lockout3@example.com";
+		Member member = Member.createUser(email, passwordEncoder.encode("password123"), "tester");
+		given(memberRepository.findByEmail(email)).willReturn(Optional.of(member));
+
+		LoginRequest wrongRequest = new LoginRequest(email, "wrongPassword");
+		for (int i = 0; i < 4; i++) {
+			assertThatThrownBy(() -> authService.login(wrongRequest));
+		}
+
+		LoginRequest correctRequest = new LoginRequest(email, "password123");
+		assertThatCode(() -> authService.login(correctRequest)).doesNotThrowAnyException();
+
+		// 성공 이후 다시 실패해도(1회) 아직 차단되지 않는다 — 카운트가 리셋됐다는 뜻.
+		assertThatThrownBy(() -> authService.login(wrongRequest))
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_PASSWORD);
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 이메일로 5번 시도해도 실패 횟수에 반영되어 차단된다")
+	void login_memberNotFoundFiveTimes_thenBlocksNextAttempt() {
+		LoginRequest request = new LoginRequest("neverexisted@example.com", "password123");
+		given(memberRepository.findByEmail(request.getEmail())).willReturn(Optional.empty());
+
+		for (int i = 0; i < 5; i++) {
+			assertThatThrownBy(() -> authService.login(request))
+					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
+		}
+
+		assertThatThrownBy(() -> authService.login(request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
 	}
 }

@@ -40,6 +40,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'io.micrometer:micrometer-registry-prometheus'
 	// S3 이미지 저장(global/storage). 자격증명은 DefaultCredentialsProvider(로컬 ~/.aws 또는 EC2 IAM 역할).
 	implementation 'software.amazon.awssdk:s3'
@@ -67,8 +68,24 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// Testcontainers (RedisRefreshTokenRepositoryTest: 진짜 Redis) — 버전은 Spring Boot BOM이 관리
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:junit-jupiter'
 }
-// test = 단위/슬라이스 (H2)
+// 기본 test = 빠른 단위/슬라이스 (H2). integration 태그는 제외
 tasks.named('test') {
-	useJUnitPlatform()
+	useJUnitPlatform {
+		excludeTags 'integration'
+	}
+}
+
+// 통합테스트 = 진짜 Redis(Testcontainers). ./gradlew integrationTest
+tasks.register('integrationTest', Test) {
+	useJUnitPlatform {
+		includeTags 'integration'
+	}
+	shouldRunAfter('test')
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
 }

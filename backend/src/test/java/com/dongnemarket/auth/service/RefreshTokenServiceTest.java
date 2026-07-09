@@ -9,17 +9,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.RedisConnectionFailureException;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -40,12 +43,14 @@ class RefreshTokenServiceTest {
 	}
 
 	// ===== saveOrReplace =====
+	// insert/update(있으면 교체, 없으면 신규) 분기는 더 이상 서비스가 아니라 각 저장소 구현체(JPA/Redis)의
+	// 책임이다(JPA는 findByMemberId 후 mutate, Redis는 SET이 원래 덮어쓰기라 분기 자체가 없음). 그래서
+	// 서비스 레벨 테스트는 "항상 save()를 호출하는지"와 "정확한 값을 넘기는지"만 검증한다.
 
 	@Test
-	@DisplayName("저장된 Refresh Token이 없으면 새로 저장한다")
-	void saveOrReplace_noExisting_insertsNew() {
+	@DisplayName("saveOrReplace를 호출하면 항상 저장소에 save()한다")
+	void saveOrReplace_alwaysCallsSave() {
 		String token = jwtTokenProvider.createRefreshToken(1L);
-		given(refreshTokenRepository.findByMemberId(1L)).willReturn(Optional.empty());
 
 		refreshTokenService.saveOrReplace(1L, token);
 
@@ -53,16 +58,16 @@ class RefreshTokenServiceTest {
 	}
 
 	@Test
-	@DisplayName("이미 저장된 Refresh Token이 있으면 신규 저장 대신 기존 row를 교체한다")
-	void saveOrReplace_existing_replacesInPlace() {
+	@DisplayName("saveOrReplace는 주어진 memberId·token을 그대로 저장소에 전달한다(재로그인 시에도 새 값으로 덮어써진다)")
+	void saveOrReplace_passesGivenMemberIdAndToken() {
 		String token = jwtTokenProvider.createRefreshToken(1L);
-		RefreshToken existing = RefreshToken.issue(1L, "old-token", LocalDateTime.now().minusDays(1));
-		given(refreshTokenRepository.findByMemberId(1L)).willReturn(Optional.of(existing));
 
 		refreshTokenService.saveOrReplace(1L, token);
 
-		assertThat(existing.getToken()).isEqualTo(token);
-		verify(refreshTokenRepository, never()).save(any());
+		ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
+		verify(refreshTokenRepository).save(captor.capture());
+		assertThat(captor.getValue().getMemberId()).isEqualTo(1L);
+		assertThat(captor.getValue().getToken()).isEqualTo(token);
 	}
 
 	// ===== validateAndGetMemberId =====
@@ -153,5 +158,14 @@ class RefreshTokenServiceTest {
 		refreshTokenService.deleteByMemberId(1L);
 
 		verify(refreshTokenRepository, times(2)).deleteByMemberId(1L);
+	}
+
+	@Test
+	@DisplayName("저장소 삭제 중 예외가 발생해도(Redis 장애 등) 예외를 던지지 않는다 — 로그아웃은 fail-closed가 아니다")
+	void deleteByMemberId_repositoryThrows_doesNotPropagate() {
+		doThrow(new RedisConnectionFailureException("connection refused"))
+				.when(refreshTokenRepository).deleteByMemberId(1L);
+
+		assertThatCode(() -> refreshTokenService.deleteByMemberId(1L)).doesNotThrowAnyException();
 	}
 }

@@ -70,7 +70,8 @@ public class AuthController {
 	}
 
 	@Operation(summary = "로그인", description = "이메일/비밀번호로 로그인하고 JWT Access Token을 발급한다. Refresh Token은 HttpOnly 쿠키로 내려간다 " +
-			"(autoLogin=true면 Max-Age가 있는 영속 쿠키, false면 브라우저 종료 시 사라지는 세션 쿠키).")
+			"(autoLogin=true면 Max-Age가 있는 영속 쿠키, false면 브라우저 종료 시 사라지는 세션 쿠키). " +
+			"동일 이메일로 5회 연속 실패하면 10분간 로그인이 차단된다(429 AUTH_019).")
 	@PostMapping("/login")
 	public ResponseEntity<ApiResponse<AccessTokenResponse>> login(
 			@Valid @RequestBody LoginRequest request, HttpServletResponse httpResponse) {
@@ -80,14 +81,17 @@ public class AuthController {
 		return ResponseEntity.ok(ApiResponse.success("로그인이 완료되었습니다.", AccessTokenResponse.of(response.getAccessToken())));
 	}
 
-	@Operation(summary = "Access Token 재발급", description = "HttpOnly 쿠키의 Refresh Token으로 만료된 Access Token을 재발급한다. Refresh Token은 회전되지 않는다.")
+	@Operation(summary = "Access Token 재발급", description = "HttpOnly 쿠키의 Refresh Token으로 Access Token을 재발급한다. " +
+			"Refresh Token도 함께 회전(rotation)되며, 새 Refresh Token이 HttpOnly 쿠키로 다시 내려간다.")
 	@PostMapping("/reissue")
 	public ResponseEntity<ApiResponse<AccessTokenResponse>> reissue(
-			@CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken) {
+			@CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken,
+			HttpServletResponse httpResponse) {
 		if (refreshToken == null || refreshToken.isBlank()) {
 			throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN);
 		}
 		TokenResponse response = authService.reissue(refreshToken);
+		setRefreshTokenCookie(httpResponse, response.getRefreshToken(), Duration.ofSeconds(refreshTokenValiditySeconds));
 		return ResponseEntity.ok(ApiResponse.success("토큰이 재발급되었습니다.", AccessTokenResponse.of(response.getAccessToken())));
 	}
 

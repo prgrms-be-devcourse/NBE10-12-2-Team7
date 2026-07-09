@@ -62,10 +62,7 @@ class MemberControllerTest {
 
 	/** 회원가입은 이메일 인증 완료를 전제로 하므로, signup을 호출하기 전에 인증 완료 상태를 만들어둔다. */
 	private void verifyEmail(String email) {
-		EmailVerification verification = EmailVerification.issue(
-				email, "000000", LocalDateTime.now(), LocalDateTime.now().plusMinutes(5));
-		verification.verify(LocalDateTime.now());
-		emailVerificationRepository.save(verification);
+		emailVerificationRepository.save(EmailVerification.verified(email, LocalDateTime.now()));
 	}
 
 	private String getAccessToken(String email, String password, String nickname) throws Exception {

@@ -1,12 +1,12 @@
-# 온프레미스(로컬 전체 컨테이너) 배포. nginx·Next·Spring Boot·MySQL을 한 호스트에 자기완결로 올린다.
+# 온프레미스(로컬 전체 컨테이너) 배포. nginx·Next·Spring Boot·MySQL·Redis를 한 호스트에 자기완결로 올린다.
 # 클라우드(infra/cloud/)와 달리 이미지를 로컬에서 빌드하고, DB도 같은 스택의 MySQL 컨테이너를 쓴다.
 # 앱은 prod 프로파일 + FILE_STORAGE_TYPE=local(기본). 클라우드와의 차이는 프로파일이 아니라 env·이미지 출처뿐.
-# (설계·경계: docs/adr/0004-infra-boundary.md · docs/architecture/07-infra-inventory.md)
+# (설계·경계: docs/adr/0004-infra-boundary.md · docs/architecture/07-infra-inventory.md · Redis: docs/adr/0006-redis-for-auth-ttl-data.md)
 #
 # 사용(이 폴더에서):
 #   cp .env.example .env                                       # 값 채우기(.env는 gitignore)
 #   (cd ../../backend && ./gradlew clean build -x test)        # 앱 이미지용 JAR 선행 빌드(필수)
-#   docker compose --env-file .env up -d --build               # nginx+next+app+mysql
+#   docker compose --env-file .env up -d --build               # nginx+next+app+mysql+redis
 #   docker compose --env-file .env --profile observability up -d --build   # +관측
 #   docker compose --env-file .env --profile edge up -d        # +외부 임시 URL(Cloudflare 퀵터널)
 name: dongnemarket-onprem
@@ -35,6 +35,19 @@ services:
       timeout: 5s
       retries: 10
 
+  # 인증 관련 TTL 데이터(Refresh Token/로그인 실패 제한/이메일 인증 코드/비밀번호 재설정 토큰) 저장소.
+  redis:
+    image: redis:7-alpine
+    container_name: dongne-redis
+    restart: unless-stopped
+    volumes:
+      - dongne-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   app:
     build:
       context: ../../backend          # ← 리포 루트 기준(이 폴더에서 두 단계 위)
@@ -45,12 +58,17 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_URL: jdbc:mysql://mysql:3306/dongne_market?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
       DB_USERNAME: ${DB_USERNAME:-dongne}
       DB_PASSWORD: ${DB_PASSWORD:-dongne1234}
       JWT_SECRET: ${JWT_SECRET:-dongne-market-local-dev-secret-please-change-0123456789}
+      # 인증 관련 TTL 데이터 저장소(같은 스택의 redis 컨테이너)
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       # 이메일 인증/비밀번호 재설정 메일 발송. 계정 정보는 기본값 없이 .env에서만 관리.
       MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
       MAIL_PORT: ${MAIL_PORT:-587}
@@ -157,6 +175,7 @@ services:
 
 volumes:
   dongne-mysql-data:
+  dongne-redis-data:
   dongne-uploads:
   prometheus-data:
   grafana-data:

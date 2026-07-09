@@ -1,7 +1,7 @@
 name: dongnemarket
 
-# dev(매일 개발) 전용 — MySQL만 컨테이너로 띄우고 앱·프론트는 호스트에서 직접 실행한다.
-#   docker compose up -d --wait          # MySQL만
+# dev(매일 개발) 전용 — MySQL·Redis만 컨테이너로 띄우고 앱·프론트는 호스트에서 직접 실행한다.
+#   docker compose up -d --wait          # MySQL·Redis
 #   (cd backend && ./gradlew bootRun)    # 백엔드 :8080 (프로파일 미지정 → dev)
 #   (cd frontend && npm run dev)         # 프론트 :3000
 #
@@ -32,5 +32,21 @@ services:
       timeout: 5s
       retries: 10
 
+  # 인증 관련 TTL 데이터(Refresh Token/로그인 실패 제한/이메일 인증 코드/비밀번호 재설정 토큰) 저장소.
+  # mysql과 동급인 base 서비스(프로파일 없음) — dev 모드(호스트 bootRun)에서도 필요하다.
+  redis:
+    image: redis:7-alpine
+    container_name: dongne-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - dongne-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   dongne-mysql-data:
+  dongne-redis-data:
