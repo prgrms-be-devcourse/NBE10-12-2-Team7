@@ -14,7 +14,7 @@ PR은 작게·자주. feature/{도메인}_{기능} → develop.
 - [ ] ① ErrorCode 정의(예외 분석 포함)
 - [ ] ② 기능 구현
 - [ ] ③ 단위 테스트
-- [ ] ④ API 테스트(Postman)
+- [ ] ④ 통합 테스트(@SpringBootTest·@DataJpaTest)
 - [ ] 이 PR은 하나의 작은 작업 단위만 담았다 (여러 기능 섞지 않음)
 
 ## ★ 문서 영향 (드리프트 방지 — AGENTS.md §5)
@@ -34,7 +34,7 @@ PR은 작게·자주. feature/{도메인}_{기능} → develop.
 
 ## 검증 (머지 게이트)
 - [ ] 빌드 성공 / 서버 정상 기동
-- [ ] 담당 API 정상 동작 (Postman 확인)
+- [ ] 담당 API 정상 동작 (통합 테스트로 검증)
 - [ ] develop 최신 반영 / 충돌 해결
 - [ ] 공통 응답 형식(ApiResponse / ErrorResponse) 준수
 
