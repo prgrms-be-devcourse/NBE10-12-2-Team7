@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -61,6 +63,48 @@ public class LocalFileStorageService implements FileStorageService {
 			throw new StorageFileNotFoundException(filename);
 		}
 		return resource;
+	}
+
+	@Override
+	public List<StoredObject> list(String directory) {
+		Path dir = resolveDirectory(directory);
+		if (!Files.isDirectory(dir)) {
+			return List.of();
+		}
+		try (Stream<Path> paths = Files.list(dir)) {
+			return paths
+					.filter(Files::isRegularFile)
+					.map(this::toStoredObject)
+					.toList();
+		} catch (IOException e) {
+			throw new StorageException("저장 디렉터리를 나열할 수 없습니다: " + dir, e);
+		}
+	}
+
+	@Override
+	public boolean delete(String filename, String directory) {
+		Path dir = resolveDirectory(directory);
+		Path target = dir.resolve(filename).normalize();
+		// 경로 조작 방지: load()와 동일 규칙 — 정규화 경로가 저장 디렉터리 내부여야 한다.
+		if (!target.startsWith(dir)) {
+			throw new StorageFileNotFoundException(filename);
+		}
+		try {
+			return Files.deleteIfExists(target);
+		} catch (IOException e) {
+			throw new StorageException("파일 삭제에 실패했습니다: " + filename, e);
+		}
+	}
+
+	private StoredObject toStoredObject(Path path) {
+		try {
+			return new StoredObject(
+					path.getFileName().toString(),
+					Files.size(path),
+					Files.getLastModifiedTime(path).toInstant());
+		} catch (IOException e) {
+			throw new StorageException("파일 메타데이터를 읽을 수 없습니다: " + path, e);
+		}
 	}
 
 	private Path resolveDirectory(String directory) {

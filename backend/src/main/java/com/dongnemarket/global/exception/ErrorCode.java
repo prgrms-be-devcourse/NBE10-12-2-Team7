@@ -87,7 +87,9 @@ public enum ErrorCode {
 	// ===== ADMIN ERROR (팀장) =====
 	ADMIN_ONLY(403, "ADMIN_001", "관리자만 접근할 수 있습니다."),
 	INVALID_MEMBER_STATUS(400, "ADMIN_002", "잘못된 회원 상태 값입니다."),
-	INVALID_REPORT_STATUS(400, "ADMIN_003", "잘못된 신고 상태 값입니다.");
+	INVALID_REPORT_STATUS(400, "ADMIN_003", "잘못된 신고 상태 값입니다."),
+	STORAGE_ORPHAN_DELETE_FAILED(500, "ADMIN_004", "고아 파일 삭제 중 오류가 발생했습니다."),
+	INVALID_STORAGE_DIRECTORY(400, "ADMIN_005", "허용되지 않은 저장소 디렉터리입니다.");
 
 	private final int status;
 	private final String code;

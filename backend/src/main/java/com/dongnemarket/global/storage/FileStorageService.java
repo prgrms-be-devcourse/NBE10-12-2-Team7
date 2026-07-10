@@ -3,6 +3,8 @@ package com.dongnemarket.global.storage;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 /**
  * 파일 저장소 추상화. 구현체는 프로파일에 따라 갈린다.
  * <p>{@code test} → {@link LocalFileStorageService}(로컬 디스크, 외부 인프라 불필요)
@@ -18,4 +20,10 @@ public interface FileStorageService {
 
 	/** 저장된 파일을 조회한다. 없으면 {@link StorageFileNotFoundException}. */
 	Resource load(String filename, String directory);
+
+	/** 해당 {@code directory}에 실재하는 모든 파일의 메타데이터를 반환한다. 디렉터리가 없으면 빈 리스트. */
+	List<StoredObject> list(String directory);
+
+	/** 파일을 삭제한다. 실제로 지웠으면 {@code true}, 이미 없었으면 {@code false}(멱등). */
+	boolean delete(String filename, String directory);
 }

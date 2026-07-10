@@ -3,6 +3,9 @@ package com.dongnemarket.admin.repository;
 import com.dongnemarket.report.entity.Report;
 import com.dongnemarket.report.entity.ReportStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+import java.util.List;
 
 /**
  * Admin 전용 신고 Repository.
@@ -12,4 +15,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AdminReportRepository extends JpaRepository<Report, Long> {
 
     long countByStatus(ReportStatus status);
+    @Query("select r.evidenceImageUrl from Report r where r.evidenceImageUrl is not null")
+    List<String> findAllEvidenceImageUrls();
 }

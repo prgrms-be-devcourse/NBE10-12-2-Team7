@@ -1,6 +1,7 @@
 package com.dongnemarket.global.storage;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -13,9 +14,13 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 /**
  * {@code file.storage.type=s3}일 때 쓰이는 구현체. AWS S3에 저장한다.
@@ -69,6 +74,51 @@ public class S3FileStorageService implements FileStorageService {
 			throw new StorageFileNotFoundException(filename);
 		} catch (SdkException e) {
 			throw new StorageException("S3 다운로드에 실패했습니다: " + key, e);
+		}
+	}
+
+	@Override
+	public List<StoredObject> list(String directory) {
+		String prefix = directory + "/";
+		try {
+			return s3Client.listObjectsV2Paginator(ListObjectsV2Request.builder()
+							.bucket(bucket)
+							.prefix(prefix)
+							.build())
+					.contents().stream()
+					.filter(obj -> !obj.key().endsWith("/"))       // 디렉터리 플레이스홀더 제외
+					.map(obj -> new StoredObject(
+							obj.key().substring(prefix.length()),   // prefix 제거 → 순수 파일명
+							obj.size(),
+							obj.lastModified()))
+					.toList();
+		} catch (SdkException e) {
+			throw new StorageException("S3 목록 조회에 실패했습니다: " + prefix, e);
+		}
+	}
+
+	@Override
+	public boolean delete(String filename, String directory) {
+		// load()와 동일 방어: 디렉터리 이탈 문자 거부.
+		if (filename == null || filename.isBlank() || filename.contains("/") || filename.contains("..")) {
+			throw new StorageFileNotFoundException(filename);
+		}
+		String key = key(directory, filename);
+		try {
+			s3Client.headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build());
+		} catch (NoSuchKeyException e) {
+			return false;
+		} catch (S3Exception e) {
+			if (e.statusCode() == 404) {
+				return false;   // HeadObject는 404를 NoSuchKey 대신 S3Exception로 줄 수 있어 함께 처리
+			}
+			throw new StorageException("S3 조회에 실패했습니다: " + key, e);
+		}
+		try {
+			s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+			return true;
+		} catch (SdkException e) {
+			throw new StorageException("S3 삭제에 실패했습니다: " + key, e);
 		}
 	}
 
