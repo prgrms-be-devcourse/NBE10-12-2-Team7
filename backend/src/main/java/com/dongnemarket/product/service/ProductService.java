@@ -2,6 +2,7 @@ package com.dongnemarket.product.service;
 
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.category.repository.CategoryRepository;
+import com.dongnemarket.global.common.event.ProductCompletedEvent;
 import com.dongnemarket.global.common.event.ProductPriceChangedEvent;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
@@ -250,6 +251,10 @@ public class ProductService {
 
 		if (product.getTradeStatus() != requestedStatus) {
 			product.changeTradeStatus(requestedStatus);
+			// 매너온도 반영은 커밋 후 별도 트랜잭션에서 처리(best-effort), 상품 상태 변경 자체를 막지 않는다.
+			if (requestedStatus == TradeStatus.COMPLETED) {
+				eventPublisher.publishEvent(new ProductCompletedEvent(productId, product.getMember().getId()));
+			}
 		}
 		List<String> imageUrls = getImageUrls(productId);
 		return ProductResponse.from(product, imageUrls);

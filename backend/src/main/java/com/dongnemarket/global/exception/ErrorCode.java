@@ -84,6 +84,11 @@ public enum ErrorCode {
 	EVIDENCE_IMAGE_NOT_FOUND(404, "REPORT_009", "증빙 이미지를 찾을 수 없습니다."),
 	EVIDENCE_IMAGE_UPLOAD_FAILED(500, "REPORT_010", "이미지 업로드 중 오류가 발생했습니다."),
 
+	// ===== MANNER ERROR (서유진) =====
+	MANNER_RATING_TRADE_NOT_COMPLETED(400, "MANNER_001", "거래가 완료된 상품만 후기를 등록할 수 있습니다."),
+	MANNER_RATING_NOT_A_PARTICIPANT(403, "MANNER_002", "해당 거래의 구매자만 후기를 등록할 수 있습니다."),
+	MANNER_RATING_ALREADY_EXISTS(409, "MANNER_003", "이미 해당 거래에 대한 후기를 등록했습니다."),
+
 	// ===== ADMIN ERROR (팀장) =====
 	ADMIN_ONLY(403, "ADMIN_001", "관리자만 접근할 수 있습니다."),
 	INVALID_MEMBER_STATUS(400, "ADMIN_002", "잘못된 회원 상태 값입니다."),

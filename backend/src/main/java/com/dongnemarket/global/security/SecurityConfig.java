@@ -61,6 +61,7 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.GET, "/api/regions").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/products/{productId}/comments").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/members/{memberId}/manner-score").permitAll()
 
 						// 관리자 전용
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
