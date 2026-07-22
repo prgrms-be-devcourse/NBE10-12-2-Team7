@@ -33,8 +33,7 @@ function formatNotifTime(iso: string) {
 const NAV_LINKS = [
   { href: '/products',     label: '상품목록' },
   { href: '/products/new', label: '상품등록' },
-  { href: '/my-products',  label: '내상품' },
-  { href: '/favorites',    label: '관심상품' },
+  { href: '/my-products',  label: '나의 마켓온', match: ['/my-products', '/favorites'] },
   { href: '/my-reports',   label: '내신고내역' },
   { href: '/my-profile',   label: '내정보' },
 ]
@@ -156,8 +155,8 @@ export default function Header() {
           Market<span>ON</span>
         </Link>
         <nav className="main-nav">
-          {NAV_LINKS.map(({ href, label }) => (
-            <Link key={href} href={href} className={pathname === href ? 'on' : ''}>
+          {NAV_LINKS.map(({ href, label, match }) => (
+            <Link key={href} href={href} className={(match ?? [href]).includes(pathname ?? '') ? 'on' : ''}>
               {label}
             </Link>
           ))}
