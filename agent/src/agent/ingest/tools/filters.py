@@ -1,7 +1,7 @@
-"""filter tools — 거래 관련 지식만 남기는 캐스케이드.
+"""filter tool — 거래 관련 지식만 남기는 키워드 필터.
 
-1단계 keyword_prefilter: 거래 키워드가 있는 것만 남기는 값싼 결정적 필터.
-(2단계 NIM 관련성 게이트는 통과분에만 태운다 — 이후 추가)
+keyword_prefilter: 거래 키워드가 하나라도 있는 Document만 남기는
+값싼 결정적 필터. (v1은 키워드 분류만 — NIM 관계성 게이트는 보류)
 """
 
 from __future__ import annotations
