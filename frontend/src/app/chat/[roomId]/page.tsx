@@ -34,6 +34,7 @@ interface ChatRoom {
   roomId: number
   product: ChatProductSummary
   opponent: ChatMemberSummary
+  viewerRole: 'BUYER' | 'SELLER'
   createdAt: string
   lastMessage: ChatMessage | null
 }
@@ -221,7 +222,7 @@ export default function ChatRoomPage() {
         )}
       </div>
 
-      {room && room.product.tradeStatus === 'COMPLETED' && (
+      {room && room.product.tradeStatus === 'COMPLETED' && room.viewerRole === 'BUYER' && (
         <div className={styles.completeBanner}>
           <span>거래가 완료됐어요</span>
           <button type="button" onClick={() => setRatingModalOpen(true)}>후기 남기기</button>
