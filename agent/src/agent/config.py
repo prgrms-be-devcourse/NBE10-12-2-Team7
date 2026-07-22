@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # --- 생성 LLM (런타임 답변 · 클라우드 NVIDIA NIM · OpenAI 호환) ---
     # 포폴/학습 목적이라 로컬 qwen3:4b 대신 NIM으로 생성(질문이 클라우드로 감).
     nim_base_url: str = "https://integrate.api.nvidia.com/v1"
-    nim_model: str = "qwen/qwen3-next-80b-a3b-instruct"
+    nim_model: str = "meta/llama-3.1-8b-instruct"
     nim_api_key: str = ""                 # .env에만 — 커밋 금지
     agent_temperature: float = 0.1        # 생성 결정성
     agent_num_predict: int = 1024         # 최대 토큰(4단 답변이 512에 잘려 상향)
