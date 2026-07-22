@@ -15,7 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 매너온도 핵심 조정 로직. 모든 온도 변화(별점/거래완료/신고확정/무고성페널티/시간회복)는
@@ -132,6 +135,19 @@ public class MannerScoreService {
 
     public List<MannerScore> findLowTrustMembers(BigDecimal threshold) {
         return mannerScoreRepository.findAllByScoreLessThanEqualOrderByScoreAsc(threshold);
+    }
+
+    /**
+     * 신고 목록 신뢰도 가중 정렬 등에서 쓰는 회원별 매너온도 일괄 조회.
+     * 아직 레코드가 없는 회원(가입 직후 등)은 기본값(36.5)으로 채워 반환한다 — 정렬 목적이라 조회만으로 새 행을 만들지 않는다.
+     */
+    public Map<Long, BigDecimal> getScoresByMemberIds(Collection<Long> memberIds) {
+        Map<Long, BigDecimal> scores = mannerScoreRepository.findAllByMember_IdIn(memberIds).stream()
+                .collect(Collectors.toMap(ms -> ms.getMember().getId(), MannerScore::getScore));
+        for (Long memberId : memberIds) {
+            scores.putIfAbsent(memberId, MannerScore.DEFAULT_SCORE);
+        }
+        return scores;
     }
 
     /** 회복 배치 대상(기본값 36.5 미만) 조회 */
