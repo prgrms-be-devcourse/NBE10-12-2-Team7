@@ -12,10 +12,13 @@ const TABS = [
 export default function MyMarketOnTabs() {
   const pathname = usePathname()
 
+  const activeIndex = TABS.findIndex(tab => tab.href === pathname)
+
   return (
     <div className={styles.wrap}>
       <h1 className={styles.title}>나의 마켓온</h1>
-      <nav className={styles.tabs}>
+      <nav className={styles.track} data-active={Math.max(activeIndex, 0)}>
+        <span className={styles.thumb} />
         {TABS.map(tab => (
           <Link
             key={tab.href}
