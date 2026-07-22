@@ -45,6 +45,11 @@ def search(query: str, k: int = 5) -> list[dict]:
     ]
 
 
+def count() -> int:
+    """저장된 청크(벡터) 총 개수."""
+    return _collection().count()
+
+
 def _doc_id(doc: Document) -> str:
     key = f"{doc.metadata.get('source_file', '')}|{doc.metadata.get('chunk', 0)}|{doc.text}"
     return hashlib.sha1(key.encode("utf-8")).hexdigest()
