@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     # 프로바이더 교체는 base_url/model/key만 바꾸면 됨 (기본: NVIDIA NIM)
     filter_provider: str = "nvidia_nim"
     filter_base_url: str = "https://integrate.api.nvidia.com/v1"
-    filter_model: str = "qwen/qwen2.5-72b-instruct"
+    filter_model: str = "qwen/qwen3-next-80b-a3b-instruct"  # NIM 카탈로그 갱신 대응 (qwen2.5-72b 퇴역)
     filter_api_key: str = ""              # .env에만 — 커밋 금지
     filter_temperature: float = 0.0
 
