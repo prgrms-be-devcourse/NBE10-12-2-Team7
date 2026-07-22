@@ -43,4 +43,20 @@ public class EscrowController {
     public ApiResponse<EscrowResponse> getEscrow(@PathVariable Long escrowId) {
         return ApiResponse.success(escrowService.get(escrowId));
     }
+
+    @Operation(summary = "구매확정", description = "구매자가 물건을 확인하고 거래를 확정합니다. 대금이 판매자에게 정산(가정)됩니다.")
+    @PostMapping("/{escrowId}/confirm")
+    public ApiResponse<EscrowResponse> confirmEscrow(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long escrowId) {
+        return ApiResponse.success("구매가 확정되었습니다.", escrowService.confirm(memberId, escrowId));
+    }
+
+    @Operation(summary = "거래 취소", description = "구매확정 전 거래를 취소하고 환불(가정)합니다.")
+    @PostMapping("/{escrowId}/cancel")
+    public ApiResponse<EscrowResponse> cancelEscrow(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long escrowId) {
+        return ApiResponse.success("거래가 취소되었습니다.", escrowService.cancel(memberId, escrowId));
+    }
 }

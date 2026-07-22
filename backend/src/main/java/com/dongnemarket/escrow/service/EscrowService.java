@@ -70,4 +70,32 @@ public class EscrowService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.ESCROW_NOT_FOUND));
         return EscrowResponse.from(escrow);
     }
+
+    /** 구매확정: 본인 거래 검증 → DONE 전이 → 상품 거래완료(COMPLETED). */
+    @Transactional
+    public EscrowResponse confirm(Long buyerId, Long escrowId) {
+        Escrow escrow = findOwnedEscrow(buyerId, escrowId);
+        escrow.confirm();
+        escrow.getProduct().complete();
+        return EscrowResponse.from(escrow);
+    }
+
+    /** 취소·환불: 본인 거래 검증 → CANCELED 전이 → 상품 판매중(ON_SALE) 복귀. */
+    @Transactional
+    public EscrowResponse cancel(Long buyerId, Long escrowId) {
+        Escrow escrow = findOwnedEscrow(buyerId, escrowId);
+        escrow.cancel();
+        escrow.getProduct().changeTradeStatus(TradeStatus.ON_SALE);
+        return EscrowResponse.from(escrow);
+    }
+
+    /** 거래를 찾고, 요청자가 이 거래의 구매자 본인인지 검증한다. */
+    private Escrow findOwnedEscrow(Long buyerId, Long escrowId) {
+        Escrow escrow = escrowRepository.findById(escrowId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ESCROW_NOT_FOUND));
+        if (!escrow.isBuyer(buyerId)) {
+            throw new BusinessException(ErrorCode.ESCROW_ACCESS_DENIED);
+        }
+        return escrow;
+    }
 }
