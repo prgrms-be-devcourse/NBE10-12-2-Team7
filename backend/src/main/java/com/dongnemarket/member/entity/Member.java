@@ -43,25 +43,43 @@ public class Member extends BaseTimeEntity {
 	@Column
 	private LocalDateTime deletedAt;
 
+	/**
+	 * 비밀번호 기반 로그인이 가능한 계정인지 여부. 소셜 전용 가입 회원은 false로 생성되며,
+	 * {@code password} 컬럼에는 로그인에 쓰이지 않는 더미 해시가 들어있다.
+	 * 로그인/비밀번호 재설정/비밀번호 변경 등 비밀번호 관련 진입점은 반드시 이 값을 먼저 확인한다.
+	 */
+	@Column(nullable = false)
+	private boolean localLoginEnabled;
+
 	protected Member() {
 	}
 
-	private Member(String email, String password, String nickname, Role role, MemberStatus status) {
+	private Member(String email, String password, String nickname, Role role, MemberStatus status,
+			boolean localLoginEnabled) {
 		this.email = email;
 		this.password = password;
 		this.nickname = nickname;
 		this.role = role;
 		this.status = status;
+		this.localLoginEnabled = localLoginEnabled;
 	}
 
 	/** 회원가입 시 일반 사용자(ROLE_USER, ACTIVE) 생성 */
 	public static Member createUser(String email, String password, String nickname) {
-		return new Member(email, password, nickname, Role.ROLE_USER, MemberStatus.ACTIVE);
+		return new Member(email, password, nickname, Role.ROLE_USER, MemberStatus.ACTIVE, true);
 	}
 
 	/** 관리자 계정 시드용 (ROLE_ADMIN, ACTIVE) */
 	public static Member createAdmin(String email, String password, String nickname) {
-		return new Member(email, password, nickname, Role.ROLE_ADMIN, MemberStatus.ACTIVE);
+		return new Member(email, password, nickname, Role.ROLE_ADMIN, MemberStatus.ACTIVE, true);
+	}
+
+	/**
+	 * 소셜 로그인 최초 가입 시 생성(ROLE_USER, ACTIVE, 로컬 로그인 불가).
+	 * @param dummyPasswordHash 로그인에 쓰이지 않는 더미 해시. 원문은 어디에도 저장하지 않는다(호출부 책임).
+	 */
+	public static Member createSocialUser(String email, String dummyPasswordHash, String nickname) {
+		return new Member(email, dummyPasswordHash, nickname, Role.ROLE_USER, MemberStatus.ACTIVE, false);
 	}
 
 	public void update(String nickname) {
@@ -127,5 +145,9 @@ public class Member extends BaseTimeEntity {
 
 	public LocalDateTime getDeletedAt() {
 		return deletedAt;
+	}
+
+	public boolean isLocalLoginEnabled() {
+		return localLoginEnabled;
 	}
 }
