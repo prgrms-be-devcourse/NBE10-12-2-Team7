@@ -6,6 +6,8 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/apiClient'
 import { getCurrentMemberId } from '@/lib/auth'
 import type { TradeStatus } from '@/lib/tradeStatus'
+import MannerScoreBadge from '@/components/MannerScoreBadge'
+import MannerRatingModal from '@/components/MannerRatingModal'
 import styles from './page.module.css'
 
 interface ChatProductSummary {
@@ -32,6 +34,7 @@ interface ChatRoom {
   roomId: number
   product: ChatProductSummary
   opponent: ChatMemberSummary
+  viewerRole: 'BUYER' | 'SELLER'
   createdAt: string
   lastMessage: ChatMessage | null
 }
@@ -76,6 +79,7 @@ export default function ChatRoomPage() {
   const [toastText, setToastText] = useState('')
   const [toastOn, setToastOn] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [ratingModalOpen, setRatingModalOpen] = useState(false)
 
   const listRef = useRef<HTMLDivElement | null>(null)
   const seenIds = useRef<Set<number>>(new Set())
@@ -200,7 +204,10 @@ export default function ChatRoomPage() {
         </Link>
         <div className={styles.avatar}>{room?.opponent.nickname.charAt(0) ?? '?'}</div>
         <div className={styles.headInfo}>
-          <div className={styles.nick}>{room?.opponent.nickname}</div>
+          <div className={styles.nick}>
+            {room?.opponent.nickname}
+            {room && <MannerScoreBadge memberId={room.opponent.memberId} />}
+          </div>
           <div className={styles.pname}>{room?.product.title} · {room ? priceText(room.product.price) : ''}</div>
         </div>
         {room && (
@@ -214,6 +221,13 @@ export default function ChatRoomPage() {
           </Link>
         )}
       </div>
+
+      {room && room.product.tradeStatus === 'COMPLETED' && room.viewerRole === 'BUYER' && (
+        <div className={styles.completeBanner}>
+          <span>거래가 완료됐어요</span>
+          <button type="button" onClick={() => setRatingModalOpen(true)}>후기 남기기</button>
+        </div>
+      )}
 
       <div className={styles.messages} ref={listRef}>
         {messages.length === 0 && (
@@ -264,6 +278,16 @@ export default function ChatRoomPage() {
       </form>
 
       <div className={`toast${toastOn ? ' show' : ''}`}>{toastText}</div>
+
+      {ratingModalOpen && room && (
+        <MannerRatingModal
+          productId={room.product.productId}
+          productTitle={room.product.title}
+          rateeNickname={room.opponent.nickname}
+          onClose={() => setRatingModalOpen(false)}
+          onSubmitted={() => showToast('후기를 등록했어요')}
+        />
+      )}
     </main>
   )
 }

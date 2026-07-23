@@ -34,7 +34,7 @@ const NAV_LINKS = [
   { href: '/products',     label: '상품목록' },
   { href: '/products/new', label: '상품등록' },
   { href: '/my-products',  label: '나의 마켓온', match: ['/my-products', '/favorites'] },
-  { href: '/my-reports',   label: '내신고내역' },
+  { href: '/my-reports',   label: '신고내역' },
   { href: '/my-profile',   label: '내정보' },
 ]
 

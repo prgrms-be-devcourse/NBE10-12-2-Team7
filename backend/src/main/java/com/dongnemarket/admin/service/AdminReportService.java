@@ -3,10 +3,12 @@ package com.dongnemarket.admin.service;
 import com.dongnemarket.admin.dto.AdminReportResponse;
 import com.dongnemarket.admin.dto.AdminReportStatusUpdateRequest;
 import com.dongnemarket.admin.repository.AdminReportRepository;
+import com.dongnemarket.global.common.event.ReportStatusChangedEvent;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
 import com.dongnemarket.report.entity.Report;
 import com.dongnemarket.report.entity.ReportStatus;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,9 +19,12 @@ import java.util.List;
 public class AdminReportService {
 
     private final AdminReportRepository adminReportRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public AdminReportService(AdminReportRepository adminReportRepository) {
+    public AdminReportService(AdminReportRepository adminReportRepository,
+                               ApplicationEventPublisher eventPublisher) {
         this.adminReportRepository = adminReportRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     /** 전체 신고 목록 */
@@ -41,7 +46,11 @@ public class AdminReportService {
     public AdminReportResponse changeReportStatus(Long reportId, AdminReportStatusUpdateRequest request) {
         Report report = adminReportRepository.findById(reportId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.REPORT_NOT_FOUND));
-        report.changeStatus(parseStatus(request));
+        ReportStatus newStatus = parseStatus(request);
+        if (report.getStatus() != newStatus) {
+            report.changeStatus(newStatus);
+            eventPublisher.publishEvent(new ReportStatusChangedEvent(report.getId(), newStatus));
+        }
         return AdminReportResponse.from(report);
     }
 
