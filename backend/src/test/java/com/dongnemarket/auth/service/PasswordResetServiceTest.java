@@ -180,7 +180,37 @@ class PasswordResetServiceTest {
 		verify(emailSender).send(anyString(), anyString(), anyString());
 	}
 
+	@Test
+	@DisplayName("소셜 로그인 전용 회원이면 예외 없이 조용히 종료하고 아무것도 저장·발송하지 않는다(가입되지 않은 이메일과 동일한 응답)")
+	void requestReset_socialOnlyAccount_doesNotSendEmail() {
+		Member member = Member.createSocialUser("social@example.com", "dummy-encoded", "kakao_abcdefghij");
+		given(memberRepository.findByEmail("social@example.com")).willReturn(Optional.of(member));
+
+		passwordResetService.requestReset(new PasswordResetRequest("social@example.com"));
+
+		verify(emailSender, never()).send(anyString(), anyString(), anyString());
+	}
+
 	// ===== confirmReset =====
+
+	@Test
+	@DisplayName("[방어적 가드] 소셜 로그인 전용 회원의 memberId로 저장된 토큰이 있어도(정상 흐름상 불가능) INVALID_RESET_TOKEN 예외가 발생하고 비밀번호를 바꾸지 않는다")
+	void confirmReset_tokenBelongsToSocialOnlyAccount_throwsException() {
+		Member member = Member.createSocialUser("social-confirm@example.com", "dummy-encoded", "kakao_zzzzzzzzzz");
+		ReflectionTestUtils.setField(member, "id", 8L);
+		String rawToken = "social-only-raw-token";
+		passwordResetTokenRepository.save(8L, sha256(rawToken), Duration.ofMinutes(29));
+		given(memberRepository.findById(8L)).willReturn(Optional.of(member));
+		String originalPassword = member.getPassword();
+
+		assertThatThrownBy(() -> passwordResetService.confirmReset(
+				new PasswordResetConfirmRequest(rawToken, "newPassword123!")))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_RESET_TOKEN);
+
+		assertThat(member.getPassword()).isEqualTo(originalPassword);
+		verify(refreshTokenService, never()).deleteByMemberId(anyLong());
+	}
 
 	@Test
 	@DisplayName("유효한 토큰이면 비밀번호를 변경하고 토큰을 즉시 삭제하며 Refresh Token을 삭제한다")

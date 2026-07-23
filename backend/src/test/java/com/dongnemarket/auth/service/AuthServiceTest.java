@@ -1,13 +1,20 @@
 package com.dongnemarket.auth.service;
 
+import com.dongnemarket.auth.client.OAuthClient;
+import com.dongnemarket.auth.client.OAuthUserIdentity;
 import com.dongnemarket.auth.dto.LoginRequest;
 import com.dongnemarket.auth.dto.LoginResponse;
 import com.dongnemarket.auth.dto.SignupRequest;
 import com.dongnemarket.auth.dto.SignupResponse;
 import com.dongnemarket.auth.dto.TokenResponse;
+import com.dongnemarket.auth.entity.MemberSocialAccount;
+import com.dongnemarket.auth.entity.OAuthProvider;
 import com.dongnemarket.auth.entity.RefreshToken;
 import com.dongnemarket.auth.repository.EmailVerificationRepository;
 import com.dongnemarket.auth.repository.InMemoryLoginAttemptRepository;
+import com.dongnemarket.auth.repository.MemberSocialAccountRepository;
+import com.dongnemarket.auth.repository.OAuthAuthorizationState;
+import com.dongnemarket.auth.repository.OAuthStateRepository;
 import com.dongnemarket.auth.repository.RefreshTokenRepository;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
@@ -61,6 +68,21 @@ class AuthServiceTest {
 	@Mock
 	MemberAgreementRepository memberAgreementRepository;
 
+	@Mock
+	OAuthStateRepository oauthStateRepository;
+
+	@Mock
+	MemberSocialAccountRepository memberSocialAccountRepository;
+
+	@Mock
+	OAuthSignupTransaction oauthSignupTransaction;
+
+	@Mock
+	OAuthClient oauthClient;
+
+	@Mock
+	com.dongnemarket.auth.client.OAuthAuthorizationUrlFactory oauthAuthorizationUrlFactory;
+
 	PasswordEncoder passwordEncoder;
 	JwtTokenProvider jwtTokenProvider;
 	RefreshTokenService refreshTokenService;
@@ -78,7 +100,9 @@ class AuthServiceTest {
 		refreshTokenService = new RefreshTokenService(refreshTokenRepository, jwtTokenProvider);
 		loginAttemptService = new LoginAttemptService(new InMemoryLoginAttemptRepository());
 		authService = new AuthService(memberRepository, passwordEncoder, jwtTokenProvider, refreshTokenService,
-				emailVerificationRepository, memberAgreementRepository, loginAttemptService);
+				emailVerificationRepository, memberAgreementRepository, loginAttemptService,
+				oauthStateRepository, memberSocialAccountRepository, oauthSignupTransaction,
+				oauthAuthorizationUrlFactory, 300L, 5);
 	}
 
 	// ===== signup =====
@@ -456,6 +480,18 @@ class AuthServiceTest {
 	}
 
 	@Test
+	@DisplayName("소셜 로그인 전용 회원이 비밀번호 로그인을 시도하면 존재하지 않는 이메일과 동일하게 MEMBER_NOT_FOUND 예외가 발생한다(INVALID_PASSWORD로 새지 않음)")
+	void login_socialOnlyAccount_throwsMemberNotFoundLikeUnknownEmail() {
+		LoginRequest request = new LoginRequest("social@example.com", "anyPassword123!");
+		Member member = Member.createSocialUser(request.getEmail(), "dummy-encoded-hash", "kakao_loginguard1");
+		given(memberRepository.findByEmail(request.getEmail())).willReturn(Optional.of(member));
+
+		assertThatThrownBy(() -> authService.login(request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
+	}
+
+	@Test
 	@DisplayName("탈퇴한 회원이 로그인하면 DELETED_MEMBER 예외가 발생한다")
 	void login_deletedMember_throwsException() {
 		LoginRequest request = new LoginRequest("deleted@example.com", "password123");
@@ -550,5 +586,155 @@ class AuthServiceTest {
 		assertThatThrownBy(() -> authService.login(request))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+	}
+
+	// ===== oauthLogin =====
+
+	private static final String STATE = "state-value";
+	private static final String BROWSER_CORRELATION_HASH = "bcid-hash";
+	private static final String CODE = "auth-code";
+
+	private OAuthAuthorizationState sampleAuthState() {
+		return new OAuthAuthorizationState(OAuthProvider.KAKAO, BROWSER_CORRELATION_HASH,
+				"https://app.example.com/callback", "code-verifier", null, java.time.Instant.now());
+	}
+
+	private OAuthUserIdentity sampleIdentity(String email) {
+		return new OAuthUserIdentity(OAuthProvider.KAKAO, "provider-user-1", email);
+	}
+
+	@Test
+	@DisplayName("state가 유효하지 않으면(만료·재사용·불일치) INVALID_OAUTH_STATE 예외가 발생하고 제공자 호출은 일어나지 않는다")
+	void oauthLogin_invalidState_throwsAndNeverCallsProvider() {
+		given(oauthClient.provider()).willReturn(OAuthProvider.KAKAO);
+		given(oauthStateRepository.consume(STATE, OAuthProvider.KAKAO, BROWSER_CORRELATION_HASH))
+				.willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> authService.oauthLogin(oauthClient, CODE, STATE, BROWSER_CORRELATION_HASH))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_OAUTH_STATE);
+
+		verify(oauthClient, never()).resolveIdentity(any(), any(), any(), any());
+	}
+
+	@Test
+	@DisplayName("이미 연동된 소셜 계정으로 로그인하면 신규가입 없이 바로 토큰을 발급한다")
+	void oauthLogin_existingLinkedMember_issuesTokensWithoutSignup() {
+		Member member = Member.createSocialUser("existing@kakao.com", "dummy-hash", "kakao_existing");
+		ReflectionTestUtils.setField(member, "id", 10L);
+		given(oauthClient.provider()).willReturn(OAuthProvider.KAKAO);
+		given(oauthStateRepository.consume(STATE, OAuthProvider.KAKAO, BROWSER_CORRELATION_HASH))
+				.willReturn(Optional.of(sampleAuthState()));
+		given(oauthClient.resolveIdentity(CODE, "code-verifier", "https://app.example.com/callback", null))
+				.willReturn(sampleIdentity("existing@kakao.com"));
+		given(memberSocialAccountRepository.findByProviderAndProviderUserIdFetchMember(OAuthProvider.KAKAO, "provider-user-1"))
+				.willReturn(Optional.of(MemberSocialAccount.of(member, OAuthProvider.KAKAO, "provider-user-1")));
+
+		LoginResponse response = authService.oauthLogin(oauthClient, CODE, STATE, BROWSER_CORRELATION_HASH);
+
+		assertThat(jwtTokenProvider.getMemberId(response.getAccessToken())).isEqualTo(10L);
+		verify(oauthSignupTransaction, never()).signUp(any());
+	}
+
+	@Test
+	@DisplayName("처음 보는 소셜 계정이고 이메일도 겹치지 않으면 신규가입 후 토큰을 발급한다")
+	void oauthLogin_newIdentity_signsUpAndIssuesTokens() {
+		Member newMember = Member.createSocialUser("new@kakao.com", "dummy-hash", "kakao_newbie");
+		ReflectionTestUtils.setField(newMember, "id", 11L);
+		given(oauthClient.provider()).willReturn(OAuthProvider.KAKAO);
+		given(oauthStateRepository.consume(STATE, OAuthProvider.KAKAO, BROWSER_CORRELATION_HASH))
+				.willReturn(Optional.of(sampleAuthState()));
+		given(oauthClient.resolveIdentity(CODE, "code-verifier", "https://app.example.com/callback", null))
+				.willReturn(sampleIdentity("new@kakao.com"));
+		given(memberSocialAccountRepository.findByProviderAndProviderUserIdFetchMember(OAuthProvider.KAKAO, "provider-user-1"))
+				.willReturn(Optional.empty());
+		given(memberRepository.existsByEmail("new@kakao.com")).willReturn(false);
+		given(oauthSignupTransaction.signUp(any(OAuthUserIdentity.class))).willReturn(newMember);
+
+		LoginResponse response = authService.oauthLogin(oauthClient, CODE, STATE, BROWSER_CORRELATION_HASH);
+
+		assertThat(jwtTokenProvider.getMemberId(response.getAccessToken())).isEqualTo(11L);
+	}
+
+	@Test
+	@DisplayName("이메일이 이미 다른 계정(로컬 또는 다른 provider)에 쓰이고 있으면 신규가입을 시도하지 않고 OAUTH_EMAIL_CONFLICT를 던진다")
+	void oauthLogin_emailAlreadyUsed_throwsConflictWithoutAttemptingSignup() {
+		given(oauthClient.provider()).willReturn(OAuthProvider.KAKAO);
+		given(oauthStateRepository.consume(STATE, OAuthProvider.KAKAO, BROWSER_CORRELATION_HASH))
+				.willReturn(Optional.of(sampleAuthState()));
+		given(oauthClient.resolveIdentity(CODE, "code-verifier", "https://app.example.com/callback", null))
+				.willReturn(sampleIdentity("taken@example.com"));
+		given(memberSocialAccountRepository.findByProviderAndProviderUserIdFetchMember(OAuthProvider.KAKAO, "provider-user-1"))
+				.willReturn(Optional.empty());
+		given(memberRepository.existsByEmail("taken@example.com")).willReturn(true);
+
+		assertThatThrownBy(() -> authService.oauthLogin(oauthClient, CODE, STATE, BROWSER_CORRELATION_HASH))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.OAUTH_EMAIL_CONFLICT);
+
+		verify(oauthSignupTransaction, never()).signUp(any());
+	}
+
+	@Test
+	@DisplayName("동시 최초 로그인 레이스로 signUp이 UNIQUE 위반이 나도, 재조회에서 동일 연동을 찾으면 그 회원으로 로그인을 이어간다")
+	void oauthLogin_raceConditionDuringSignup_reconciledMemberFound_succeeds() {
+		Member concurrentlyCreated = Member.createSocialUser("race@kakao.com", "dummy-hash", "kakao_race");
+		ReflectionTestUtils.setField(concurrentlyCreated, "id", 12L);
+		given(oauthClient.provider()).willReturn(OAuthProvider.KAKAO);
+		given(oauthStateRepository.consume(STATE, OAuthProvider.KAKAO, BROWSER_CORRELATION_HASH))
+				.willReturn(Optional.of(sampleAuthState()));
+		given(oauthClient.resolveIdentity(CODE, "code-verifier", "https://app.example.com/callback", null))
+				.willReturn(sampleIdentity("race@kakao.com"));
+		given(memberSocialAccountRepository.findByProviderAndProviderUserIdFetchMember(OAuthProvider.KAKAO, "provider-user-1"))
+				.willReturn(Optional.empty());
+		given(memberRepository.existsByEmail("race@kakao.com")).willReturn(false);
+		given(oauthSignupTransaction.signUp(any(OAuthUserIdentity.class)))
+				.willThrow(new DataIntegrityViolationException("duplicate entry"));
+		given(oauthSignupTransaction.reconcileAfterConflict(OAuthProvider.KAKAO, "provider-user-1"))
+				.willReturn(Optional.of(concurrentlyCreated));
+
+		LoginResponse response = authService.oauthLogin(oauthClient, CODE, STATE, BROWSER_CORRELATION_HASH);
+
+		assertThat(jwtTokenProvider.getMemberId(response.getAccessToken())).isEqualTo(12L);
+	}
+
+	@Test
+	@DisplayName("signUp이 UNIQUE 위반이 났는데 재조회에서도 동일 연동을 못 찾으면(다른 제약 충돌) OAUTH_EMAIL_CONFLICT를 던진다")
+	void oauthLogin_raceConditionDuringSignup_reconcileFindsNothing_throwsConflict() {
+		given(oauthClient.provider()).willReturn(OAuthProvider.KAKAO);
+		given(oauthStateRepository.consume(STATE, OAuthProvider.KAKAO, BROWSER_CORRELATION_HASH))
+				.willReturn(Optional.of(sampleAuthState()));
+		given(oauthClient.resolveIdentity(CODE, "code-verifier", "https://app.example.com/callback", null))
+				.willReturn(sampleIdentity("conflict@kakao.com"));
+		given(memberSocialAccountRepository.findByProviderAndProviderUserIdFetchMember(OAuthProvider.KAKAO, "provider-user-1"))
+				.willReturn(Optional.empty());
+		given(memberRepository.existsByEmail("conflict@kakao.com")).willReturn(false);
+		given(oauthSignupTransaction.signUp(any(OAuthUserIdentity.class)))
+				.willThrow(new DataIntegrityViolationException("duplicate entry"));
+		given(oauthSignupTransaction.reconcileAfterConflict(OAuthProvider.KAKAO, "provider-user-1"))
+				.willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> authService.oauthLogin(oauthClient, CODE, STATE, BROWSER_CORRELATION_HASH))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.OAUTH_EMAIL_CONFLICT);
+	}
+
+	@Test
+	@DisplayName("탈퇴한 회원과 연동된 소셜 계정으로 로그인하면 DELETED_MEMBER 예외가 발생한다")
+	void oauthLogin_deletedLinkedMember_throwsException() {
+		Member member = Member.createSocialUser("deleted@kakao.com", "dummy-hash", "kakao_deleted");
+		ReflectionTestUtils.setField(member, "id", 13L);
+		member.changeStatus(MemberStatus.DELETED);
+		given(oauthClient.provider()).willReturn(OAuthProvider.KAKAO);
+		given(oauthStateRepository.consume(STATE, OAuthProvider.KAKAO, BROWSER_CORRELATION_HASH))
+				.willReturn(Optional.of(sampleAuthState()));
+		given(oauthClient.resolveIdentity(CODE, "code-verifier", "https://app.example.com/callback", null))
+				.willReturn(sampleIdentity("deleted@kakao.com"));
+		given(memberSocialAccountRepository.findByProviderAndProviderUserIdFetchMember(OAuthProvider.KAKAO, "provider-user-1"))
+				.willReturn(Optional.of(MemberSocialAccount.of(member, OAuthProvider.KAKAO, "provider-user-1")));
+
+		assertThatThrownBy(() -> authService.oauthLogin(oauthClient, CODE, STATE, BROWSER_CORRELATION_HASH))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DELETED_MEMBER);
 	}
 }

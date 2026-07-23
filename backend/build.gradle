@@ -79,6 +79,10 @@ dependencies {
 	// Testcontainers (RedisRefreshTokenRepositoryTest: 진짜 Redis) — 버전은 Spring Boot BOM이 관리
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.testcontainers:junit-jupiter'
+	// V3SocialLoginSchemaValidationTest: 진짜 MySQL(운영과 동일 이미지)로 Flyway 스키마 ↔ 엔티티 매핑 검증
+	testImplementation 'org.testcontainers:mysql'
+	// 소셜 로그인 OAuth Client(Kakao/Google) 테스트: 실제 HTTP 서버로 4xx/5xx/timeout/비정상 응답 재현
+	testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
 }
 // 기본 test = 빠른 단위/슬라이스 (H2). integration 태그는 제외
 tasks.named('test') {

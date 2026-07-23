@@ -22,6 +22,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -239,6 +240,22 @@ class MemberServiceTest {
 		assertThatThrownBy(() -> memberService.changePassword(1L, request))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.SUSPENDED_MEMBER);
+	}
+
+	@Test
+	@DisplayName("소셜 로그인 전용 회원이 비밀번호를 변경하려 하면 SOCIAL_ONLY_ACCOUNT_PASSWORD_CHANGE 예외가 발생하고 현재 비밀번호는 확인하지 않는다")
+	void changePassword_socialOnlyAccount_throwsException() {
+		Member member = Member.createSocialUser("social@example.com", "dummy-encoded", "kakao_socialuser1");
+		PasswordChangeRequest request = new PasswordChangeRequest("anyPassword123!", "newPassword123!");
+		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
+
+		assertThatThrownBy(() -> memberService.changePassword(1L, request))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.SOCIAL_ONLY_ACCOUNT_PASSWORD_CHANGE);
+
+		assertThat(member.getPassword()).isEqualTo("dummy-encoded");
+		verify(passwordEncoder, never()).matches(anyString(), anyString());
+		verify(refreshTokenService, never()).deleteByMemberId(anyLong());
 	}
 
 	// ===== deleteMyInfo =====
