@@ -57,6 +57,9 @@ public class MemberService {
 		Member member = memberRepository.findById(memberId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 		validateActiveMember(member);
+		if (!member.isLocalLoginEnabled()) {
+			throw new BusinessException(ErrorCode.SOCIAL_ONLY_ACCOUNT_PASSWORD_CHANGE);
+		}
 
 		if (!passwordEncoder.matches(request.getCurrentPassword(), member.getPassword())) {
 			throw new BusinessException(ErrorCode.INVALID_PASSWORD);
