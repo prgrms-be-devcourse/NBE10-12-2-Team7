@@ -13,6 +13,7 @@ public class MyReportResponse {
     private final ReportType reportType;
     private final Long targetId;
     private final ReportReason reason;
+    private final String content;
     private final ReportStatus status;
     private final String evidenceImageUrl;
     private final LocalDateTime createdAt;
@@ -24,6 +25,7 @@ public class MyReportResponse {
                 ? report.getTargetProduct().getId()
                 : report.getTargetMember().getId();
         this.reason = report.getReason();
+        this.content = report.getContent();
         this.status = report.getStatus();
         this.evidenceImageUrl = report.getEvidenceImageUrl();
         this.createdAt = report.getCreatedAt();
@@ -37,6 +39,7 @@ public class MyReportResponse {
     public ReportType getReportType() { return reportType; }
     public Long getTargetId() { return targetId; }
     public ReportReason getReason() { return reason; }
+    public String getContent() { return content; }
     public ReportStatus getStatus() { return status; }
     public String getEvidenceImageUrl() { return evidenceImageUrl; }
     public LocalDateTime getCreatedAt() { return createdAt; }

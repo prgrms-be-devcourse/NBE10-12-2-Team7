@@ -79,7 +79,7 @@ public enum ErrorCode {
 	INVALID_REPORT_TARGET(400, "REPORT_004", "잘못된 신고 대상입니다."),
 	DUPLICATE_REPORT(409, "REPORT_005", "이미 신고한 대상입니다."),
 	CANNOT_CANCEL_REPORT(400, "REPORT_006", "이미 처리 중이거나 완료된 신고는 취소할 수 없습니다."),
-	REPORT_OWNER_ONLY(403, "REPORT_007", "본인이 신고한 내역만 취소할 수 있습니다."),
+	REPORT_OWNER_ONLY(403, "REPORT_007", "본인이 신고한 내역만 조회·취소할 수 있습니다."),
 	INVALID_EVIDENCE_IMAGE(400, "REPORT_008", "이미지 파일(jpg/png/gif/webp)만 5MB 이하로 업로드할 수 있습니다."),
 	EVIDENCE_IMAGE_NOT_FOUND(404, "REPORT_009", "증빙 이미지를 찾을 수 없습니다."),
 	EVIDENCE_IMAGE_UPLOAD_FAILED(500, "REPORT_010", "이미지 업로드 중 오류가 발생했습니다."),
