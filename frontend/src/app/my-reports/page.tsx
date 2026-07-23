@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/apiClient'
 import { REPORT_REASON_LABEL, type ReportReason } from '@/lib/reportReasons'
 import MannerScoreCard from '@/components/MannerScoreCard'
+import ReportDetailModal from '@/components/ReportDetailModal'
 import styles from './page.module.css'
 
 type ReportType = 'PRODUCT' | 'MEMBER'
@@ -44,6 +45,12 @@ function statusTag(status: ReportStatus) {
 
 function formatDate(iso: string) {
   return iso.slice(0, 10)
+}
+
+function targetLabelOf(report: MyReport, productTitles: Record<number, string>) {
+  return report.reportType === 'MEMBER'
+    ? `회원 #${report.targetId}`
+    : (productTitles[report.targetId] ?? `상품 #${report.targetId}`)
 }
 
 function formatRelative(iso: string) {
@@ -125,6 +132,7 @@ export default function MyReportsPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [cancellingId, setCancellingId] = useState<number | null>(null)
   const [productTitles, setProductTitles] = useState<Record<number, string>>({})
+  const [detailReportId, setDetailReportId] = useState<number | null>(null)
 
   const [toastText, setToastText] = useState('')
   const [toastOn, setToastOn] = useState(false)
@@ -267,9 +275,7 @@ export default function MyReportsPage() {
               {filtered.map(report => {
                 const tt = typeTag(report.reportType)
                 const st = statusTag(report.status)
-                const targetLabel = report.reportType === 'MEMBER'
-                  ? `회원 #${report.targetId}`
-                  : (productTitles[report.targetId] ?? `상품 #${report.targetId}`)
+                const targetLabel = targetLabelOf(report, productTitles)
                 return (
                   <div key={report.reportId} className={styles.rcard}>
                     <div className={styles.top}>
@@ -293,6 +299,13 @@ export default function MyReportsPage() {
                     )}
                     <StatusStepper status={report.status} />
                     <div className={styles.foot}>
+                      <button
+                        type="button"
+                        className={styles.detailBtn}
+                        onClick={() => setDetailReportId(report.reportId)}
+                      >
+                        상세보기
+                      </button>
                       <span className={styles.date}>{formatRelative(report.createdAt)}</span>
                       {report.status === 'RECEIVED' && (
                         <button
@@ -368,6 +381,17 @@ export default function MyReportsPage() {
           )}
         </>
       )}
+
+      {detailReportId != null && (() => {
+        const detailReport = reports.find(r => r.reportId === detailReportId)
+        return (
+          <ReportDetailModal
+            reportId={detailReportId}
+            targetLabel={detailReport ? targetLabelOf(detailReport, productTitles) : ''}
+            onClose={() => setDetailReportId(null)}
+          />
+        )
+      })()}
 
       <div className={`toast${toastOn ? ' show' : ''}`}>{toastText}</div>
     </main>
