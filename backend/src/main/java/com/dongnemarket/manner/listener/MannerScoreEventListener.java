@@ -5,7 +5,6 @@ import com.dongnemarket.global.common.event.ReportStatusChangedEvent;
 import com.dongnemarket.manner.service.MannerScoreService;
 import com.dongnemarket.report.entity.Report;
 import com.dongnemarket.report.entity.ReportStatus;
-import com.dongnemarket.report.entity.ReportType;
 import com.dongnemarket.report.repository.ReportRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -46,7 +45,7 @@ public class MannerScoreEventListener {
         }
 
         if (event.newStatus() == ReportStatus.COMPLETED) {
-            Long targetMemberId = resolveTargetMemberId(report);
+            Long targetMemberId = report.resolveTargetMemberId();
             BigDecimal severity = mannerScoreService.severityOf(report.getReason().name());
             mannerScoreService.applyReportConfirmed(targetMemberId, severity, report.getId());
 
@@ -64,12 +63,5 @@ public class MannerScoreEventListener {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleProductCompleted(ProductCompletedEvent event) {
         mannerScoreService.applyTradeCompleted(event.sellerId());
-    }
-
-    /** 상품 신고면 그 상품의 소유자(판매자)가, 회원 신고면 신고 대상 회원이 매너온도 반영 대상이다. */
-    private Long resolveTargetMemberId(Report report) {
-        return report.getReportType() == ReportType.MEMBER
-                ? report.getTargetMember().getId()
-                : report.getTargetProduct().getMember().getId();
     }
 }

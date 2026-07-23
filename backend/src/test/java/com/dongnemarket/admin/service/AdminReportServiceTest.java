@@ -21,6 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import com.dongnemarket.manner.service.MannerScoreService;
 
 import java.util.Optional;
 
@@ -42,6 +43,9 @@ class AdminReportServiceTest {
 
     @Mock
     ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    MannerScoreService mannerScoreService;
 
     @InjectMocks
     AdminReportService adminReportService;
