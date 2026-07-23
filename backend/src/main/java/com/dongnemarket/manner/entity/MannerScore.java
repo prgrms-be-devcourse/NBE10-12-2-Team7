@@ -27,6 +27,8 @@ public class MannerScore extends BaseTimeEntity {
     public static final BigDecimal DEFAULT_SCORE = BigDecimal.valueOf(36.5);
     public static final BigDecimal MIN_SCORE = BigDecimal.ZERO;
     public static final BigDecimal MAX_SCORE = BigDecimal.valueOf(99.9);
+    /** 저신뢰 기준. 기본값(36.5)보다 한참 낮은 값을 저신뢰 임계치로 둔다(관리자 저신뢰 회원 조회·상품 노출 우선순위 하락 등에서 공용으로 참조). */
+    public static final BigDecimal LOW_TRUST_THRESHOLD = BigDecimal.valueOf(20.0);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
