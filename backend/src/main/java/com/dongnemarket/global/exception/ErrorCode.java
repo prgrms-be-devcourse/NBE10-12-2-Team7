@@ -33,6 +33,10 @@ public enum ErrorCode {
 	TERMS_NOT_AGREED(400, "AUTH_017", "이용약관에 동의해야 합니다."),
 	PERSONAL_INFO_COLLECTION_NOT_AGREED(400, "AUTH_018", "개인정보 수집 및 이용에 동의해야 합니다."),
 	TOO_MANY_LOGIN_ATTEMPTS(429, "AUTH_019", "로그인 시도가 너무 많습니다. 10분 후 다시 시도해주세요."),
+	OAUTH_EMAIL_NOT_PROVIDED(400, "AUTH_021", "소셜 계정에서 이메일 제공에 동의해주세요."),
+	OAUTH_EMAIL_NOT_VERIFIED(400, "AUTH_022", "인증되지 않은 이메일은 소셜 로그인에 사용할 수 없습니다."),
+	OAUTH_PROVIDER_ERROR(502, "AUTH_024", "소셜 로그인 제공자 응답 처리 중 오류가 발생했습니다."),
+	OAUTH_AUTHORIZATION_FAILED(400, "AUTH_027", "소셜 로그인 인가 코드가 유효하지 않거나 만료되었습니다. 다시 시도해주세요."),
 
 	// ===== MEMBER ERROR (김대연) =====
 	MEMBER_NOT_FOUND(404, "MEMBER_001", "회원을 찾을 수 없습니다."),

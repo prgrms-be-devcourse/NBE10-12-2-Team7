@@ -50,10 +50,17 @@ dependencies {
 	// Spring AI (로컬 Ollama 모델 연동, 버전은 spring-ai-bom이 관리)
 	implementation 'org.springframework.ai:spring-ai-starter-model-ollama'
 
-	// JWT (jjwt)
+	// JWT (jjwt) — 우리 자체 Access/Refresh Token 발급용
 	implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
 	runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
 	runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+	// 소셜 로그인: Google ID Token(JWS) 서명 검증(JWKS) — NimbusJwtDecoder. 버전은 Spring Boot BOM이 관리.
+	implementation 'org.springframework.security:spring-security-oauth2-jose'
+	// 소셜 로그인: 카카오/구글 REST API 호출용 WebClient. reactor-core는 이미 classpath에 있지만
+	// WebClient의 기본 HTTP 커넥터(reactor-netty-http)는 없어서 명시적으로 추가한다(연결/응답 타임아웃을
+	// 정확히 제어하기 위해 auto-detect 대체 커넥터에 기대지 않는다).
+	implementation 'io.projectreactor.netty:reactor-netty-http'
 
 	// DB 마이그레이션 (Flyway) — 스키마를 버전드 SQL로 관리. prod는 ddl-auto:validate와 세트.
 	// dev/test에서는 spring.flyway.enabled=false로 끄고 ddl-auto가 스키마를 담당한다.
