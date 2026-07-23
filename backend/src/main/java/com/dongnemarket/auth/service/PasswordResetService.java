@@ -64,6 +64,7 @@ public class PasswordResetService {
 	public void requestReset(PasswordResetRequest request) {
 		memberRepository.findByEmail(request.getEmail())
 				.filter(member -> member.getStatus() != MemberStatus.DELETED)
+				.filter(Member::isLocalLoginEnabled)
 				.ifPresent(this::issueAndSendTokenIfNotCoolingDown);
 	}
 
@@ -106,6 +107,10 @@ public class PasswordResetService {
 
 		Member member = memberRepository.findById(memberId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+		// 정상 흐름상 도달 불가(소셜 전용 회원에게는 애초에 토큰이 발급되지 않는다) — 방어적 가드.
+		if (!member.isLocalLoginEnabled()) {
+			throw new BusinessException(ErrorCode.INVALID_RESET_TOKEN);
+		}
 
 		member.changePassword(passwordEncoder.encode(request.getNewPassword()));
 		passwordResetTokenRepository.deleteByTokenHash(tokenHash);

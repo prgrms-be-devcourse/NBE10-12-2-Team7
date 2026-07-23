@@ -102,6 +102,40 @@ rate-limit:
   capacity: ${RATE_LIMIT_CAPACITY:60}
   window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:10}
 
+# 소셜 로그인(카카오/구글). 실제 REST API 키/Client Secret은 이 프로젝트에 아직 발급되지 않아 기본값이
+# 비어 있다 — 발급 전까지는 로그인 시도 시 제공자 호출에서 실패한다(런타임 실패, 기동 실패 아님).
+oauth:
+  authorization-state:
+    ttl-seconds: ${OAUTH_STATE_TTL_SECONDS:300}          # state/PKCE/nonce 유효기간
+    max-pending-per-browser: ${OAUTH_MAX_PENDING_PER_BROWSER:5}  # 브라우저당 동시 미완료 시도 한도
+  http:
+    connect-timeout-millis: ${OAUTH_HTTP_CONNECT_TIMEOUT_MS:3000}
+    response-timeout-millis: ${OAUTH_HTTP_RESPONSE_TIMEOUT_MS:5000}
+    max-in-memory-size-bytes: ${OAUTH_HTTP_MAX_RESPONSE_BYTES:1048576}   # 1MB. 정상 응답보다 훨씬 크게 잡은 상한선
+  kakao:
+    client-id: ${KAKAO_CLIENT_ID:}
+    client-secret: ${KAKAO_CLIENT_SECRET:}
+    redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:3000/oauth/kakao/callback}
+    authorization-uri: ${KAKAO_AUTHORIZATION_URI:https://kauth.kakao.com/oauth/authorize}
+    token-uri: ${KAKAO_TOKEN_URI:https://kauth.kakao.com/oauth/token}
+    user-info-uri: ${KAKAO_USER_INFO_URI:https://kapi.kakao.com/v2/user/me}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
+    redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:3000/oauth/google/callback}
+    authorization-uri: ${GOOGLE_AUTHORIZATION_URI:https://accounts.google.com/o/oauth2/v2/auth}
+    token-uri: ${GOOGLE_TOKEN_URI:https://oauth2.googleapis.com/token}
+    issuer: ${GOOGLE_ISSUER:https://accounts.google.com}
+    jwk-set-uri: ${GOOGLE_JWK_SET_URI:https://www.googleapis.com/oauth2/v3/certs}
+
+# oauth_bcid(브라우저 귀속) 쿠키. Secure는 auth.cookie.secure와 동일 정책을 따른다.
+oauth-bcid-cookie:
+  max-age-seconds: ${OAUTH_BCID_COOKIE_MAX_AGE_SECONDS:600}
+
+# CORS 허용 origin(콤마 구분). 와일드카드 금지 — 프론트/백엔드가 다른 origin일 수 있는 배포 구성 대비.
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
 # Swagger / Springdoc
 springdoc:
   swagger-ui:
