@@ -6,6 +6,8 @@ import com.dongnemarket.global.common.event.ProductCompletedEvent;
 import com.dongnemarket.global.common.event.ProductPriceChangedEvent;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
+import com.dongnemarket.manner.entity.MannerScore;
+import com.dongnemarket.manner.service.MannerScoreService;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.member.repository.MemberRepository;
@@ -30,7 +32,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -46,19 +52,22 @@ public class ProductService {
 	private final CategoryRepository categoryRepository;
 	private final RegionRepository regionRepository;
 	private final ApplicationEventPublisher eventPublisher;
+	private final MannerScoreService mannerScoreService;
 
 	public ProductService(ProductRepository productRepository,
 						  ProductImageRepository productImageRepository,
 						  MemberRepository memberRepository,
 						  CategoryRepository categoryRepository,
 						  RegionRepository regionRepository,
-						  ApplicationEventPublisher eventPublisher) {
+						  ApplicationEventPublisher eventPublisher,
+						  MannerScoreService mannerScoreService) {
 		this.productRepository = productRepository;
 		this.productImageRepository = productImageRepository;
 		this.memberRepository = memberRepository;
 		this.categoryRepository = categoryRepository;
 		this.regionRepository = regionRepository;
 		this.eventPublisher = eventPublisher;
+		this.mannerScoreService = mannerScoreService;
 	}
 
 	@Transactional
@@ -106,7 +115,9 @@ public class ProductService {
 		boolean hasNext = rows.size() > limit;
 		List<Product> page = hasNext ? rows.subList(0, limit) : rows;
 		Long nextCursor = hasNext ? page.get(page.size() - 1).getId() : null;
-		List<ProductSummaryResponse> items = page
+		// 커서(다음 페이지 기준)는 항상 id 내림차순 조회 결과 그대로 계산한다 — 신뢰도 하락 정렬은
+		// 여기서 확정된 페이지 내부의 노출 순서만 바꿀 뿐, 페이지네이션 자체에는 영향을 주지 않는다.
+		List<ProductSummaryResponse> items = demoteLowTrustSellers(page)
 					.stream()
 					.map(ProductSummaryResponse::from)
 					.toList();
@@ -118,10 +129,11 @@ public class ProductService {
 			throw new BusinessException(ErrorCode.CATEGORY_NOT_FOUND);
 		}
 
-		return productRepository.findAll(
-						ProductSpecification.categoryList(categoryId),
-						Sort.by(Sort.Direction.DESC, "id")
-				)
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.categoryList(categoryId),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+		return demoteLowTrustSellers(products)
 				.stream()
 				.map(ProductSummaryResponse::from)
 				.toList();
@@ -142,20 +154,44 @@ public class ProductService {
 		validateSearchPrice(searchRequest.getMinPrice(), searchRequest.getMaxPrice());
 		TradeStatus tradeStatus = parseSearchTradeStatus(searchRequest.getTradeStatus());
 
-		return productRepository.findAll(
-						ProductSpecification.search(
-								searchRequest.getKeyword(),
-								searchRequest.getCategoryId(),
-								searchRequest.getMinPrice(),
-								searchRequest.getMaxPrice(),
-								tradeStatus,
-								regions
-						),
-						Sort.by(Sort.Direction.DESC, "id")
-				)
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.search(
+						searchRequest.getKeyword(),
+						searchRequest.getCategoryId(),
+						searchRequest.getMinPrice(),
+						searchRequest.getMaxPrice(),
+						tradeStatus,
+						regions
+				),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+		return demoteLowTrustSellers(products)
 				.stream()
 				.map(ProductSummaryResponse::from)
 				.toList();
+	}
+
+	/**
+	 * 판매자 매너온도가 저신뢰 임계치({@link MannerScore#LOW_TRUST_THRESHOLD}) 이하인 상품을
+	 * 목록 뒤쪽으로 밀어낸다(신고 목록 신뢰도 가중 정렬과 대칭되는 "노출 우선순위 하락").
+	 * 안정 정렬(stable sort)이라 각 그룹 내부의 원래 id 내림차순은 그대로 유지된다.
+	 */
+	private List<Product> demoteLowTrustSellers(List<Product> products) {
+		if (products.isEmpty()) {
+			return products;
+		}
+		Set<Long> sellerIds = products.stream()
+				.map(product -> product.getMember().getId())
+				.collect(Collectors.toSet());
+		Map<Long, BigDecimal> trustScores = mannerScoreService.getScoresByMemberIds(sellerIds);
+		return products.stream()
+				.sorted(Comparator.comparing(product -> isLowTrustSeller(product, trustScores)))
+				.toList();
+	}
+
+	private boolean isLowTrustSeller(Product product, Map<Long, BigDecimal> trustScores) {
+		BigDecimal score = trustScores.getOrDefault(product.getMember().getId(), MannerScore.DEFAULT_SCORE);
+		return score.compareTo(MannerScore.LOW_TRUST_THRESHOLD) <= 0;
 	}
 
 	@Transactional
