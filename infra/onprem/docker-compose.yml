@@ -123,6 +123,7 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-remote-write-receiver'   # k6 → Prometheus remote-write 수신(부하테스트 클라이언트측 p95/p99)
 
   grafana:
     profiles: ["observability"]
