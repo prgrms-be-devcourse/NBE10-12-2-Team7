@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/apiClient'
 import { clearAccessToken } from '@/lib/auth'
+import TradeHistorySection from '@/components/TradeHistorySection'
 import styles from './page.module.css'
 
 const NEW_PW_RE = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{10,64}$/
@@ -330,6 +331,9 @@ export default function MyProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* 거래내역 */}
+      <TradeHistorySection />
 
       {/* 프로필 수정 카드 */}
       <div className={styles.card}>
