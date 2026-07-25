@@ -4,7 +4,19 @@
 (scope NIM·retrieve·generate를 목킹한 본격 단위테스트는 ③ 단위 테스트 단계에서.)
 """
 
-from agent.graph import build_graph
+from agent.graph import _after_retrieve, _after_scope, build_graph
+
+
+def test_router_after_scope_branches_on_in_scope():
+    # 범위 안이면 검색으로, 밖이면 마무리로
+    assert _after_scope({"in_scope": True}) == "retrieve"
+    assert _after_scope({"in_scope": False}) == "finalize"
+
+
+def test_router_after_retrieve_branches_on_grounded():
+    # 근거 있으면 생성으로, 없으면 마무리로
+    assert _after_retrieve({"grounded": True}) == "generate"
+    assert _after_retrieve({"grounded": False}) == "finalize"
 
 
 def test_emergency_routes_to_safety_notice():
