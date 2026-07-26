@@ -6,6 +6,7 @@ import com.dongnemarket.chat.repository.ChatMessageRepository;
 import com.dongnemarket.chat.repository.ChatRoomRepository;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.product.entity.Product;
+import com.dongnemarket.region.entity.Region;
 import com.dongnemarket.product.service.ProductService;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
@@ -79,7 +80,11 @@ class ChatServiceTest {
     /** DTO 매핑에 필요한 최소 스텁만 둔 방(세부 값은 검증 대상 아님). */
     private ChatRoom stubRoom() {
         ChatRoom room = mock(ChatRoom.class);
-        given(room.getProduct()).willReturn(mock(Product.class));
+        Product product = mock(Product.class);
+        Region region = mock(Region.class);
+        given(region.getFullName()).willReturn("서울특별시 강남구 역삼동");
+        given(product.getRegion()).willReturn(region);
+        given(room.getProduct()).willReturn(product);
         given(room.getSeller()).willReturn(mock(Member.class));
         return room;
     }

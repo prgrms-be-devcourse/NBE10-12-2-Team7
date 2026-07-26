@@ -50,7 +50,7 @@ public class AdminProductResponse {
                 product.getDescription(),
                 product.getPrice(),
                 product.getTradeStatus(),
-                product.getRegion(),
+                product.getRegion().getFullName(),
                 product.getViewCount(),
                 product.isHidden(),
                 product.getDeletedAt(),

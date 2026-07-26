@@ -33,7 +33,7 @@ public class FavoriteProductSummary {
                 product.getCategory().getId(),
                 product.getTitle(),
                 product.getPrice(),
-                product.getRegion(),
+                product.getRegion().getFullName(),
                 product.getTradeStatus(),
                 product.getThumbnailUrl()
         );

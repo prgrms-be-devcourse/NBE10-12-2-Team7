@@ -6,6 +6,7 @@ import com.dongnemarket.chat.repository.ChatRoomRepository;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.entity.Region;
 import com.dongnemarket.trade.dto.MonthlyTradeStatsResponse;
 import com.dongnemarket.trade.dto.TradePurchaseResponse;
 import com.dongnemarket.trade.dto.TradeSaleResponse;
@@ -172,7 +173,8 @@ class TradeServiceTest {
     }
 
     private Product product(Long id, String title, BigDecimal price, LocalDateTime completedAt) {
-        Product product = Product.create(member(ME_ID), new Category("디지털기기"), title, "설명", price, "서울 강남구");
+        Region region = new Region("1168010100", 3, null, "서울특별시 강남구 역삼동", "역삼동");
+        Product product = Product.create(member(ME_ID), new Category("디지털기기"), title, "설명", price, region);
         ReflectionTestUtils.setField(product, "id", id);
         if (completedAt != null) {
             ReflectionTestUtils.setField(product, "completedAt", completedAt);

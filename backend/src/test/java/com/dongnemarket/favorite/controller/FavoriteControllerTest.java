@@ -10,6 +10,8 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -58,6 +60,9 @@ class FavoriteControllerTest {
     @Autowired
     FavoriteRepository favoriteRepository;
 
+    @Autowired
+    RegionRepository regionRepository;
+
     private Long productId;
     private Long otherProductId;
     private Long categoryId;
@@ -69,11 +74,12 @@ class FavoriteControllerTest {
         Member seller = memberRepository.save(Member.createUser("seller@example.com", "encoded-pw", "seller"));
         // 시드된 기본 카테고리(CategorySeeder)와 이름이 겹치지 않도록 테스트 전용 카테고리를 만든다.
         Category category = categoryRepository.save(new Category("관심테스트전용카테고리"));
-        Product product = Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), "서울 강남구");
+        Region region = regionRepository.findFirstByLevelOrderByCodeAsc(3).orElseThrow();
+        Product product = Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), region);
         product.changeThumbnailUrl("https://img.example/macbook.jpg");
         product = productRepository.save(product);
         Product otherProduct = productRepository.save(
-                Product.create(seller, category, "아이패드", "상태 좋음", BigDecimal.valueOf(700_000), "서울 강남구"));
+                Product.create(seller, category, "아이패드", "상태 좋음", BigDecimal.valueOf(700_000), region));
 
         categoryId = category.getId();
         productId = product.getId();

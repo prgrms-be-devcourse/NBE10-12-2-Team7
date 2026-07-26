@@ -13,6 +13,8 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -49,7 +51,9 @@ class ChatControllerTest {
     @Autowired ProductRepository productRepository;
     @Autowired ChatRoomRepository chatRoomRepository;
     @Autowired ChatMessageRepository chatMessageRepository;
+    @Autowired RegionRepository regionRepository;
 
+    private Region region;
     private Long categoryId;
     private Long productId;
     private Member buyer;
@@ -65,8 +69,12 @@ class ChatControllerTest {
         seller = memberRepository.save(Member.createUser("seller@example.com", "encoded-pw", "seller"));
         outsider = memberRepository.save(Member.createUser("outsider@example.com", "encoded-pw", "outsider"));
         Category category = categoryRepository.save(new Category("채팅테스트전용카테고리"));
+        // 공유 H2가 다른 컨텍스트에 의해 재생성돼 시드가 소실될 수 있으므로 없으면 직접 생성한다.
+        region = regionRepository.findFirstByLevelOrderByCodeAsc(3)
+                .orElseGet(() -> regionRepository.save(
+                        new Region("1168010100", 3, null, "서울특별시 강남구 역삼동", "역삼동")));
         Product product = Product.create(seller, category, "맥북 프로", "상태 좋음",
-                BigDecimal.valueOf(1_500_000), "서울 강남구");
+                BigDecimal.valueOf(1_500_000), region);
         product.changeThumbnailUrl("https://img.example/macbook.jpg");
         productRepository.save(product);
 
@@ -99,7 +107,7 @@ class ChatControllerTest {
     private ChatRoom saveRoomOnNewProduct() {
         Category category = categoryRepository.findById(categoryId).orElseThrow();
         Product product = Product.create(seller, category, "상품", "설명",
-                BigDecimal.valueOf(10_000), "서울");
+                BigDecimal.valueOf(10_000), region);
         productRepository.save(product);
         return chatRoomRepository.save(ChatRoom.of(product, buyer, seller));
     }
@@ -108,7 +116,7 @@ class ChatControllerTest {
     private ChatRoom saveRoomWhereBuyerIsSeller() {
         Category category = categoryRepository.findById(categoryId).orElseThrow();
         Product product = Product.create(buyer, category, "내가 파는 상품", "설명",
-                BigDecimal.valueOf(5_000), "서울");
+                BigDecimal.valueOf(5_000), region);
         productRepository.save(product);
         return chatRoomRepository.save(ChatRoom.of(product, outsider, buyer));
     }
@@ -129,7 +137,7 @@ class ChatControllerTest {
                     .andExpect(jsonPath("$.data.product.productId").value(productId))
                     .andExpect(jsonPath("$.data.product.title").value("맥북 프로"))
                     .andExpect(jsonPath("$.data.product.description").value("상태 좋음"))
-                    .andExpect(jsonPath("$.data.product.region").value("서울 강남구"))
+                    .andExpect(jsonPath("$.data.product.region").value(region.getFullName()))
                     .andExpect(jsonPath("$.data.product.thumbnailUrl").value("https://img.example/macbook.jpg"))
                     .andExpect(jsonPath("$.data.seller.nickname").value("seller"));
         }

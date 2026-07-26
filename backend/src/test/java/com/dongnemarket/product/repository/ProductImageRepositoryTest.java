@@ -20,6 +20,8 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.ProductImage;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
 
 @DataJpaTest
 @ActiveProfiles("test")
@@ -38,6 +40,9 @@ class ProductImageRepositoryTest {
 
 	@Autowired
 	CategoryRepository categoryRepository;
+
+	@Autowired
+	RegionRepository regionRepository;
 
 	@Test
 	@DisplayName("상품 이미지는 정렬 순서 오름차순으로 조회한다")
@@ -73,13 +78,14 @@ class ProductImageRepositoryTest {
 	private Product saveProduct(String email) {
 		Member member = memberRepository.save(Member.createUser(email, "encodedPassword", "판매자-" + Math.abs(email.hashCode())));
 		Category category = categoryRepository.save(new Category("이미지-" + Math.abs(email.hashCode())));
+		Region region = regionRepository.save(new Region(String.format("%010d", Math.abs(email.hashCode())), 3, null, "서울특별시 강남구 역삼동", "역삼동"));
 		return productRepository.saveAndFlush(Product.create(
 				member,
 				category,
 				"이미지 테스트 상품",
 				"이미지 테스트 상품 설명입니다.",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				region
 		));
 	}
 }

@@ -13,6 +13,7 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
+import com.dongnemarket.region.entity.Region;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -41,7 +42,8 @@ class AdminProductServiceTest {
     AdminProductService adminProductService;
 
     private Product existingProduct() {
-        return Product.create(null, null, "부적절 상품", "설명", new BigDecimal("10000"), "서울시 강남구");
+        Region region = new Region("1168010100", 3, null, "서울특별시 강남구 역삼동", "역삼동");
+        return Product.create(null, null, "부적절 상품", "설명", new BigDecimal("10000"), region);
     }
 
     @Nested
@@ -121,7 +123,8 @@ class AdminProductServiceTest {
         ReflectionTestUtils.setField(member, "id", id);
         Category category = new Category("관리자상품카테고리" + id);
         ReflectionTestUtils.setField(category, "id", id);
-        Product product = Product.create(member, category, title, "설명", new BigDecimal("10000"), "서울 강남구");
+        Region region = new Region("1168010100", 3, null, "서울특별시 강남구 역삼동", "역삼동");
+        Product product = Product.create(member, category, title, "설명", new BigDecimal("10000"), region);
         ReflectionTestUtils.setField(product, "id", id);
         product.changeTradeStatus(tradeStatus);
         return product;

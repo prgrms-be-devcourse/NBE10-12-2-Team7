@@ -15,6 +15,8 @@ import com.dongnemarket.product.repository.ProductRepository;
 import com.dongnemarket.report.entity.Report;
 import com.dongnemarket.report.entity.ReportReason;
 import com.dongnemarket.report.entity.ReportType;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
 import jakarta.persistence.EntityManager;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -41,6 +43,7 @@ class ReportRepositoryTest {
     @Autowired MemberRepository memberRepository;
     @Autowired ProductRepository productRepository;
     @Autowired CategoryRepository categoryRepository;
+    @Autowired RegionRepository regionRepository;
     @Autowired EntityManager entityManager;
 
     @Test
@@ -50,11 +53,12 @@ class ReportRepositoryTest {
         Member seller = memberRepository.save(Member.createUser("seller@example.com", "pw", "판매자"));
         Member targetMember = memberRepository.save(Member.createUser("target@example.com", "pw", "신고대상"));
         Category category = categoryRepository.save(new Category("디지털기기"));
+        Region region = regionRepository.save(new Region("1168010100", 3, null, "서울특별시 강남구 역삼동", "역삼동"));
 
         int productReportCount = 5;
         for (int i = 0; i < productReportCount; i++) {
             Product product = productRepository.save(Product.create(
-                    seller, category, "상품 " + i, "설명", BigDecimal.valueOf(10000), "서울 강남구"));
+                    seller, category, "상품 " + i, "설명", BigDecimal.valueOf(10000), region));
             reportRepository.save(Report.ofProduct(reporter, product, ReportReason.FAKE_ITEM, "신고 " + i));
         }
         reportRepository.save(Report.ofMember(reporter, targetMember, ReportReason.FRAUD_SUSPECTED, "회원 신고"));

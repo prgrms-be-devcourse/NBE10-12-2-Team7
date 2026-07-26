@@ -34,7 +34,7 @@ public class ChatProductDetail {
                 product.getDescription(),
                 product.getPrice(),
                 product.getTradeStatus(),
-                product.getRegion(),
+                product.getRegion().getFullName(),
                 product.getThumbnailUrl()
         );
     }

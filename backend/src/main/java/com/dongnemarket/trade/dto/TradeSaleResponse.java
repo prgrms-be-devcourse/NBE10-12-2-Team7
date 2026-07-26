@@ -31,7 +31,7 @@ public class TradeSaleResponse {
                 product.getTitle(),
                 product.getThumbnailUrl(),
                 product.getPrice(),
-                product.getRegion(),
+                product.getRegion().getFullName(),
                 product.getCompletedAt()
         );
     }

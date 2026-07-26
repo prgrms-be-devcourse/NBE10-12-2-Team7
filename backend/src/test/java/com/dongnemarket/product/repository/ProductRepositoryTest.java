@@ -11,6 +11,9 @@ import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.spec.ProductSpecification;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,7 +47,35 @@ class ProductRepositoryTest {
 	CategoryRepository categoryRepository;
 
 	@Autowired
+	RegionRepository regionRepository;
+
+	@Autowired
 	EntityManager entityManager;
+
+	// 지역 계층 픽스처: 서울(1) → 각 구(2) → 각 동(3). 상품은 동(level3)에만 붙는다.
+	// code prefix: 서울=11, 강남구=11680, 마포구=11440, 송파구=11710, 서초구=11650, 용산구=11170.
+	private Region seoul;
+	private Region gangnamGu;
+	private Region gangnamDong;
+	private Region mapoDong;
+	private Region songpaDong;
+	private Region seochoDong;
+	private Region yongsanDong;
+
+	@BeforeEach
+	void setUpRegions() {
+		seoul = regionRepository.save(new Region("1100000000", 1, null, "서울특별시", "서울특별시"));
+		gangnamGu = regionRepository.save(new Region("1168000000", 2, seoul, "서울특별시 강남구", "강남구"));
+		Region mapoGu = regionRepository.save(new Region("1144000000", 2, seoul, "서울특별시 마포구", "마포구"));
+		Region songpaGu = regionRepository.save(new Region("1171000000", 2, seoul, "서울특별시 송파구", "송파구"));
+		Region seochoGu = regionRepository.save(new Region("1165000000", 2, seoul, "서울특별시 서초구", "서초구"));
+		Region yongsanGu = regionRepository.save(new Region("1117000000", 2, seoul, "서울특별시 용산구", "용산구"));
+		gangnamDong = regionRepository.save(new Region("1168010100", 3, gangnamGu, "서울특별시 강남구 역삼동", "역삼동"));
+		mapoDong = regionRepository.save(new Region("1144010100", 3, mapoGu, "서울특별시 마포구 공덕동", "공덕동"));
+		songpaDong = regionRepository.save(new Region("1171010100", 3, songpaGu, "서울특별시 송파구 잠실동", "잠실동"));
+		seochoDong = regionRepository.save(new Region("1165010100", 3, seochoGu, "서울특별시 서초구 서초동", "서초동"));
+		yongsanDong = regionRepository.save(new Region("1117010100", 3, yongsanGu, "서울특별시 용산구 한강로동", "한강로동"));
+	}
 
 	@Test
 	@DisplayName("상품을 저장하고 기본 필드와 시간 필드를 조회할 수 있다")
@@ -58,7 +89,7 @@ class ProductRepositoryTest {
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
 				BigDecimal.valueOf(800000),
-				"서울 강남구"
+				gangnamDong
 		);
 
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -70,7 +101,7 @@ class ProductRepositoryTest {
 		assertThat(savedProduct.getDescription()).isEqualTo("상태 좋은 아이폰입니다.");
 		assertThat(savedProduct.getPrice()).isEqualByComparingTo("800000");
 		assertThat(savedProduct.getTradeStatus()).isEqualTo(TradeStatus.ON_SALE);
-		assertThat(savedProduct.getRegion()).isEqualTo("서울 강남구");
+		assertThat(savedProduct.getRegion().getId()).isEqualTo(gangnamDong.getId());
 		assertThat(savedProduct.getViewCount()).isZero();
 		assertThat(savedProduct.isHidden()).isFalse();
 		assertThat(savedProduct.getDeletedAt()).isNull();
@@ -89,7 +120,7 @@ class ProductRepositoryTest {
 				"공기청정기",
 				"상태 좋은 공기청정기입니다.",
 				BigDecimal.valueOf(120000),
-				"서울 강남구"
+				gangnamDong
 		));
 
 		boolean exists = productRepository.existsByIdAndDeletedAtIsNullAndHiddenFalse(product.getId());
@@ -108,7 +139,7 @@ class ProductRepositoryTest {
 				"아이패드",
 				"깨끗한 아이패드입니다.",
 				BigDecimal.valueOf(500000),
-				"서울 강남구"
+				gangnamDong
 		));
 
 		assertThat(product.getFavoriteCount()).isZero();
@@ -125,7 +156,7 @@ class ProductRepositoryTest {
 				"청소기",
 				"상태 좋은 청소기입니다.",
 				BigDecimal.valueOf(150000),
-				"서울 서초구"
+				seochoDong
 		));
 
 		productRepository.incrementFavoriteCount(product.getId());
@@ -147,7 +178,7 @@ class ProductRepositoryTest {
 				"책상",
 				"튼튼한 책상입니다.",
 				BigDecimal.valueOf(70000),
-				"서울 송파구"
+				songpaDong
 		));
 		productRepository.incrementFavoriteCount(product.getId());
 		productRepository.flush();
@@ -172,7 +203,7 @@ class ProductRepositoryTest {
 				"자바 책",
 				"깨끗한 자바 책입니다.",
 				BigDecimal.valueOf(20000),
-				"서울 마포구"
+				mapoDong
 		));
 
 		productRepository.decrementFavoriteCount(product.getId());
@@ -248,7 +279,7 @@ class ProductRepositoryTest {
 					title,
 					"관심 수 원자 업데이트 테스트 상품입니다.",
 					BigDecimal.valueOf(10000),
-					"서울 강남구"
+					gangnamDong
 			));
 		}
 	}
@@ -264,7 +295,7 @@ class ProductRepositoryTest {
 				"의자",
 				"사용감 있는 의자입니다.",
 				BigDecimal.valueOf(30000),
-				"서울 서초구"
+				seochoDong
 		);
 		product.softDelete();
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -285,7 +316,7 @@ class ProductRepositoryTest {
 				"자바 책",
 				"깨끗한 자바 책입니다.",
 				BigDecimal.valueOf(15000),
-				"서울 송파구"
+				songpaDong
 		);
 		product.hide();
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -307,7 +338,7 @@ class ProductRepositoryTest {
 				"오래된 생활가전",
 				"오래된 생활가전 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				gangnamDong
 		));
 		Product newProduct = productRepository.save(Product.create(
 				member,
@@ -315,7 +346,7 @@ class ProductRepositoryTest {
 				"최신 생활가전",
 				"최신 생활가전 설명",
 				BigDecimal.valueOf(20000),
-				"서울 서초구"
+				seochoDong
 		));
 		productRepository.save(Product.create(
 				member,
@@ -323,12 +354,12 @@ class ProductRepositoryTest {
 				"다른 카테고리 상품",
 				"다른 카테고리 상품 설명",
 				BigDecimal.valueOf(30000),
-				"서울 송파구"
+				songpaDong
 		));
-		Product hiddenProduct = Product.create(member, targetCategory, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
+		Product hiddenProduct = Product.create(member, targetCategory, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(40000), mapoDong);
 		hiddenProduct.hide();
 		productRepository.save(hiddenProduct);
-		Product deletedProduct = Product.create(member, targetCategory, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(50000), "서울 용산구");
+		Product deletedProduct = Product.create(member, targetCategory, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(50000), yongsanDong);
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
@@ -352,9 +383,9 @@ class ProductRepositoryTest {
 				"오래된 내 상품",
 				"오래된 내 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				gangnamDong
 		));
-		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", BigDecimal.valueOf(20000), "서울 서초구");
+		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", BigDecimal.valueOf(20000), seochoDong);
 		hiddenProduct.hide();
 		Product savedHiddenProduct = productRepository.save(hiddenProduct);
 		productRepository.save(Product.create(
@@ -363,9 +394,9 @@ class ProductRepositoryTest {
 				"다른 회원 상품",
 				"다른 회원 상품 설명",
 				BigDecimal.valueOf(30000),
-				"서울 송파구"
+				songpaDong
 		));
-		Product deletedProduct = Product.create(member, category, "삭제 내 상품", "삭제 내 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
+		Product deletedProduct = Product.create(member, category, "삭제 내 상품", "삭제 내 상품 설명", BigDecimal.valueOf(40000), mapoDong);
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
@@ -385,7 +416,7 @@ class ProductRepositoryTest {
 				"맥북 프로",
 				"상태 좋은 노트북입니다.",
 				BigDecimal.valueOf(1200000),
-				"서울 강남구"
+				gangnamDong
 		));
 		Product descriptionMatchedProduct = productRepository.save(Product.create(
 				member,
@@ -393,17 +424,17 @@ class ProductRepositoryTest {
 				"노트북 거치대",
 				"맥북과 함께 쓰기 좋습니다.",
 				BigDecimal.valueOf(30000),
-				"서울 서초구"
+				seochoDong
 		));
-		Product hiddenProduct = Product.create(member, category, "숨김 맥북", "숨김 상품입니다.", BigDecimal.valueOf(900000), "서울 송파구");
+		Product hiddenProduct = Product.create(member, category, "숨김 맥북", "숨김 상품입니다.", BigDecimal.valueOf(900000), songpaDong);
 		hiddenProduct.hide();
 		productRepository.save(hiddenProduct);
-		Product deletedProduct = Product.create(member, category, "삭제 맥북", "삭제 상품입니다.", BigDecimal.valueOf(800000), "서울 마포구");
+		Product deletedProduct = Product.create(member, category, "삭제 맥북", "삭제 상품입니다.", BigDecimal.valueOf(800000), mapoDong);
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
 		List<Product> products = productRepository.findAll(
-				ProductSpecification.search("맥북", null, (BigDecimal) null, null, null, null),
+				ProductSpecification.search("맥북", null, null, null, null, null),
 				Sort.by(Sort.Direction.DESC, "id")
 		);
 
@@ -422,7 +453,7 @@ class ProductRepositoryTest {
 				"예약 중인 청소기",
 				"상태 좋은 청소기입니다.",
 				BigDecimal.valueOf(150000),
-				"서울 강남구"
+				gangnamDong
 		);
 		targetProduct.changeTradeStatus(TradeStatus.RESERVED);
 		Product savedTargetProduct = productRepository.save(targetProduct);
@@ -432,12 +463,12 @@ class ProductRepositoryTest {
 				"판매 중인 청소기",
 				"상태 좋은 청소기입니다.",
 				BigDecimal.valueOf(160000),
-				"서울 서초구"
+				seochoDong
 		));
-		Product wrongCategoryProduct = Product.create(member, otherCategory, "예약 중인 책", "청소기 설명이 있는 책입니다.", BigDecimal.valueOf(150000), "서울 송파구");
+		Product wrongCategoryProduct = Product.create(member, otherCategory, "예약 중인 책", "청소기 설명이 있는 책입니다.", BigDecimal.valueOf(150000), songpaDong);
 		wrongCategoryProduct.changeTradeStatus(TradeStatus.RESERVED);
 		productRepository.save(wrongCategoryProduct);
-		Product wrongPriceProduct = Product.create(member, targetCategory, "비싼 청소기", "비싼 청소기입니다.", BigDecimal.valueOf(500000), "서울 마포구");
+		Product wrongPriceProduct = Product.create(member, targetCategory, "비싼 청소기", "비싼 청소기입니다.", BigDecimal.valueOf(500000), mapoDong);
 		wrongPriceProduct.changeTradeStatus(TradeStatus.RESERVED);
 		productRepository.saveAndFlush(wrongPriceProduct);
 
@@ -468,7 +499,7 @@ class ProductRepositoryTest {
 				"오래된 상품",
 				"오래된 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				gangnamDong
 		));
 		Product newProduct = productRepository.save(Product.create(
 				member,
@@ -476,19 +507,19 @@ class ProductRepositoryTest {
 				"최신 상품",
 				"최신 상품 설명",
 				BigDecimal.valueOf(20000),
-				"서울 마포구"
+				mapoDong
 		));
-		Product hiddenProduct = Product.create(member, category, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(30000), "서울 서초구");
+		Product hiddenProduct = Product.create(member, category, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(30000), seochoDong);
 		hiddenProduct.hide();
 		productRepository.save(hiddenProduct);
-		Product deletedProduct = Product.create(member, category, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(40000), "서울 송파구");
+		Product deletedProduct = Product.create(member, category, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(40000), songpaDong);
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
-			List<Product> products = productRepository.findAll(
-					ProductSpecification.list(null, null),
-					Sort.by(Sort.Direction.DESC, "id")
-			);
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.list(null, null),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
 
 		assertThat(products).containsExactly(newProduct, oldProduct);
 		assertThat(products).doesNotContain(hiddenProduct, deletedProduct);
@@ -509,12 +540,12 @@ class ProductRepositoryTest {
 				"판매중 공개 상품",
 				"판매중 공개 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				gangnamDong
 		));
-		Product reservedProduct = Product.create(activeMember, category, "예약중 공개 상품", "예약중 공개 상품 설명", BigDecimal.valueOf(20000), "서울 마포구");
+		Product reservedProduct = Product.create(activeMember, category, "예약중 공개 상품", "예약중 공개 상품 설명", BigDecimal.valueOf(20000), mapoDong);
 		reservedProduct.changeTradeStatus(TradeStatus.RESERVED);
 		Product savedReservedProduct = productRepository.save(reservedProduct);
-		Product completedProduct = Product.create(activeMember, category, "거래완료 상품", "거래완료 상품 설명", BigDecimal.valueOf(30000), "서울 서초구");
+		Product completedProduct = Product.create(activeMember, category, "거래완료 상품", "거래완료 상품 설명", BigDecimal.valueOf(30000), seochoDong);
 		completedProduct.complete();
 		productRepository.save(completedProduct);
 		Product deletedSellerProduct = productRepository.save(Product.create(
@@ -523,7 +554,7 @@ class ProductRepositoryTest {
 				"탈퇴 판매자 상품",
 				"탈퇴 판매자 상품 설명",
 				BigDecimal.valueOf(40000),
-				"서울 송파구"
+				songpaDong
 		));
 		Product suspendedSellerProduct = productRepository.saveAndFlush(Product.create(
 				suspendedMember,
@@ -531,7 +562,7 @@ class ProductRepositoryTest {
 				"정지 판매자 상품",
 				"정지 판매자 상품 설명",
 				BigDecimal.valueOf(50000),
-				"서울 용산구"
+				yongsanDong
 		));
 
 		List<Product> products = productRepository.findAll(
@@ -544,8 +575,8 @@ class ProductRepositoryTest {
 	}
 
 	@Test
-	@DisplayName("상품 목록 조건은 지역 1개를 지정하면 해당 지역 상품만 조회한다")
-	void findsProductsByOneRegion() {
+	@DisplayName("상품 목록 조건은 구(level2) prefix를 지정하면 그 구 소속 동 상품만 조회한다")
+	void findsProductsByGuLevelRegionPrefix() {
 		Member member = memberRepository.save(Member.createUser("region-one@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("지역필터1"));
 		Product gangnamProduct = productRepository.save(Product.create(
@@ -554,7 +585,7 @@ class ProductRepositoryTest {
 				"강남 상품",
 				"강남 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				gangnamDong
 		));
 		Product mapoProduct = productRepository.saveAndFlush(Product.create(
 				member,
@@ -562,21 +593,22 @@ class ProductRepositoryTest {
 				"마포 상품",
 				"마포 상품 설명",
 				BigDecimal.valueOf(20000),
-				"서울 마포구"
+				mapoDong
 		));
 
-			List<Product> products = productRepository.findAll(
-					ProductSpecification.list(List.of("서울 강남구"), null),
-					Sort.by(Sort.Direction.DESC, "id")
-			);
+		// 강남구(level2) prefix 5자리 → 강남 소속 동만 매칭
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.list(gangnamGu.getCode().substring(0, 5), null),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
 
 		assertThat(products).containsExactly(gangnamProduct);
 		assertThat(products).doesNotContain(mapoProduct);
 	}
 
 	@Test
-	@DisplayName("상품 목록 조건은 지역 2개를 지정하면 두 지역 상품을 최신순으로 조회한다")
-	void findsProductsByTwoRegionsInLatestOrder() {
+	@DisplayName("상품 목록 조건은 시도(level1) prefix를 지정하면 그 시도 하위 전체 동 상품을 최신순으로 조회한다")
+	void findsProductsBySidoLevelRegionPrefix() {
 		Member member = memberRepository.save(Member.createUser("region-two@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("지역필터2"));
 		Product gangnamProduct = productRepository.save(Product.create(
@@ -585,37 +617,29 @@ class ProductRepositoryTest {
 				"강남 상품",
 				"강남 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				gangnamDong
 		));
-		Product mapoProduct = productRepository.save(Product.create(
+		Product mapoProduct = productRepository.saveAndFlush(Product.create(
 				member,
 				category,
 				"마포 상품",
 				"마포 상품 설명",
 				BigDecimal.valueOf(20000),
-				"서울 마포구"
-		));
-		Product otherProduct = productRepository.saveAndFlush(Product.create(
-				member,
-				category,
-				"송파 상품",
-				"송파 상품 설명",
-				BigDecimal.valueOf(30000),
-				"서울 송파구"
+				mapoDong
 		));
 
-			List<Product> products = productRepository.findAll(
-					ProductSpecification.list(List.of("서울 강남구", "서울 마포구"), null),
-					Sort.by(Sort.Direction.DESC, "id")
-			);
+		// 서울(level1) prefix 2자리 → 서울 소속 모든 구의 동 매칭
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.list(seoul.getCode().substring(0, 2), null),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
 
 		assertThat(products).containsExactly(mapoProduct, gangnamProduct);
-		assertThat(products).doesNotContain(otherProduct);
 	}
 
 	@Test
-	@DisplayName("상품 목록 조건은 존재하지 않는 지역을 지정하면 빈 목록을 반환한다")
-	void returnsEmptyListWhenFilteringByUnknownRegion() {
+	@DisplayName("상품 목록 조건은 매칭되지 않는 지역 prefix를 지정하면 빈 목록을 반환한다")
+	void returnsEmptyListWhenFilteringByUnmatchedRegionPrefix() {
 		Member member = memberRepository.save(Member.createUser("region-unknown@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("지역필터없음"));
 		productRepository.saveAndFlush(Product.create(
@@ -624,106 +648,106 @@ class ProductRepositoryTest {
 				"강남 상품",
 				"강남 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				gangnamDong
 		));
 
-			List<Product> products = productRepository.findAll(
-					ProductSpecification.list(List.of("서울 없는구"), null),
-					Sort.by(Sort.Direction.DESC, "id")
-			);
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.list("99999", null),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
 
-			assertThat(products).isEmpty();
-		}
-
-		@Test
-		@DisplayName("상품 목록 조건은 커서가 있으면 커서보다 작은 id의 상품만 조회한다")
-		void findsProductsBeforeCursor() {
-			Member member = memberRepository.save(Member.createUser("cursor-repository@example.com", "encodedPassword", "판매자"));
-			Category category = categoryRepository.save(new Category("커서필터"));
-			Product oldProduct = productRepository.save(Product.create(
-					member,
-					category,
-					"오래된 상품",
-					"오래된 상품 설명",
-					BigDecimal.valueOf(10000),
-					"서울 강남구"
-			));
-			Product cursorProduct = productRepository.save(Product.create(
-					member,
-					category,
-					"커서 상품",
-					"커서 상품 설명",
-					BigDecimal.valueOf(20000),
-					"서울 강남구"
-			));
-			Product newProduct = productRepository.saveAndFlush(Product.create(
-					member,
-					category,
-					"최신 상품",
-					"최신 상품 설명",
-					BigDecimal.valueOf(30000),
-					"서울 강남구"
-			));
-
-			List<Product> products = productRepository.findAll(
-					ProductSpecification.list(null, cursorProduct.getId()),
-					Sort.by(Sort.Direction.DESC, "id")
-			);
-
-			assertThat(products).containsExactly(oldProduct);
-			assertThat(products).doesNotContain(cursorProduct, newProduct);
-		}
-
-		@Test
-		@DisplayName("상품 목록 조건은 지역 필터와 커서 조건을 함께 적용한다")
-		void findsProductsByRegionsAndCursor() {
-			Member member = memberRepository.save(Member.createUser("cursor-region-repository@example.com", "encodedPassword", "판매자"));
-			Category category = categoryRepository.save(new Category("커서지역필터"));
-			Product gangnamOldProduct = productRepository.save(Product.create(
-					member,
-					category,
-					"강남 오래된 상품",
-					"강남 오래된 상품 설명",
-					BigDecimal.valueOf(10000),
-					"서울 강남구"
-			));
-			Product mapoProduct = productRepository.save(Product.create(
-					member,
-					category,
-					"마포 상품",
-					"마포 상품 설명",
-					BigDecimal.valueOf(20000),
-					"서울 마포구"
-			));
-			Product gangnamCursorProduct = productRepository.save(Product.create(
-					member,
-					category,
-					"강남 커서 상품",
-					"강남 커서 상품 설명",
-					BigDecimal.valueOf(30000),
-					"서울 강남구"
-			));
-			Product gangnamNewProduct = productRepository.saveAndFlush(Product.create(
-					member,
-					category,
-					"강남 최신 상품",
-					"강남 최신 상품 설명",
-					BigDecimal.valueOf(40000),
-					"서울 강남구"
-			));
-
-			List<Product> products = productRepository.findAll(
-					ProductSpecification.list(List.of("서울 강남구"), gangnamCursorProduct.getId()),
-					Sort.by(Sort.Direction.DESC, "id")
-			);
-
-			assertThat(products).containsExactly(gangnamOldProduct);
-			assertThat(products).doesNotContain(mapoProduct, gangnamCursorProduct, gangnamNewProduct);
-		}
+		assertThat(products).isEmpty();
+	}
 
 	@Test
-	@DisplayName("상품 검색 조건은 키워드와 지역 필터를 함께 적용한다")
-	void searchesProductsByKeywordAndRegions() {
+	@DisplayName("상품 목록 조건은 커서가 있으면 커서보다 작은 id의 상품만 조회한다")
+	void findsProductsBeforeCursor() {
+		Member member = memberRepository.save(Member.createUser("cursor-repository@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("커서필터"));
+		Product oldProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"오래된 상품",
+				"오래된 상품 설명",
+				BigDecimal.valueOf(10000),
+				gangnamDong
+		));
+		Product cursorProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"커서 상품",
+				"커서 상품 설명",
+				BigDecimal.valueOf(20000),
+				gangnamDong
+		));
+		Product newProduct = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"최신 상품",
+				"최신 상품 설명",
+				BigDecimal.valueOf(30000),
+				gangnamDong
+		));
+
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.list(null, cursorProduct.getId()),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+
+		assertThat(products).containsExactly(oldProduct);
+		assertThat(products).doesNotContain(cursorProduct, newProduct);
+	}
+
+	@Test
+	@DisplayName("상품 목록 조건은 지역 prefix와 커서 조건을 함께 적용한다")
+	void findsProductsByRegionPrefixAndCursor() {
+		Member member = memberRepository.save(Member.createUser("cursor-region-repository@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("커서지역필터"));
+		Product gangnamOldProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"강남 오래된 상품",
+				"강남 오래된 상품 설명",
+				BigDecimal.valueOf(10000),
+				gangnamDong
+		));
+		Product mapoProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"마포 상품",
+				"마포 상품 설명",
+				BigDecimal.valueOf(20000),
+				mapoDong
+		));
+		Product gangnamCursorProduct = productRepository.save(Product.create(
+				member,
+				category,
+				"강남 커서 상품",
+				"강남 커서 상품 설명",
+				BigDecimal.valueOf(30000),
+				gangnamDong
+		));
+		Product gangnamNewProduct = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"강남 최신 상품",
+				"강남 최신 상품 설명",
+				BigDecimal.valueOf(40000),
+				gangnamDong
+		));
+
+		List<Product> products = productRepository.findAll(
+				ProductSpecification.list(gangnamGu.getCode().substring(0, 5), gangnamCursorProduct.getId()),
+				Sort.by(Sort.Direction.DESC, "id")
+		);
+
+		assertThat(products).containsExactly(gangnamOldProduct);
+		assertThat(products).doesNotContain(mapoProduct, gangnamCursorProduct, gangnamNewProduct);
+	}
+
+	@Test
+	@DisplayName("상품 검색 조건은 키워드와 지역 prefix 필터를 함께 적용한다")
+	void searchesProductsByKeywordAndRegionPrefix() {
 		Member member = memberRepository.save(Member.createUser("region-search@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("지역검색"));
 		Product matchedProduct = productRepository.save(Product.create(
@@ -732,7 +756,7 @@ class ProductRepositoryTest {
 				"맥북 프로",
 				"상태 좋은 노트북입니다.",
 				BigDecimal.valueOf(1200000),
-				"서울 강남구"
+				gangnamDong
 		));
 		Product wrongRegionProduct = productRepository.save(Product.create(
 				member,
@@ -740,7 +764,7 @@ class ProductRepositoryTest {
 				"맥북 에어",
 				"가벼운 노트북입니다.",
 				BigDecimal.valueOf(900000),
-				"서울 송파구"
+				songpaDong
 		));
 		Product wrongKeywordProduct = productRepository.saveAndFlush(Product.create(
 				member,
@@ -748,11 +772,11 @@ class ProductRepositoryTest {
 				"아이패드",
 				"상태 좋은 태블릿입니다.",
 				BigDecimal.valueOf(700000),
-				"서울 강남구"
+				gangnamDong
 		));
 
 		List<Product> products = productRepository.findAll(
-				ProductSpecification.search("맥북", null, (BigDecimal) null, null, null, List.of("서울 강남구")),
+				ProductSpecification.search("맥북", null, null, null, null, gangnamGu.getCode().substring(0, 5)),
 				Sort.by(Sort.Direction.DESC, "id")
 		);
 
@@ -775,9 +799,9 @@ class ProductRepositoryTest {
 				"정책 맥북",
 				"공개 검색 상품입니다.",
 				BigDecimal.valueOf(1000000),
-				"서울 강남구"
+				gangnamDong
 		));
-		Product completedProduct = Product.create(activeMember, category, "정책 완료 맥북", "거래완료 검색 상품입니다.", BigDecimal.valueOf(900000), "서울 강남구");
+		Product completedProduct = Product.create(activeMember, category, "정책 완료 맥북", "거래완료 검색 상품입니다.", BigDecimal.valueOf(900000), gangnamDong);
 		completedProduct.complete();
 		productRepository.save(completedProduct);
 		Product deletedSellerProduct = productRepository.save(Product.create(
@@ -786,7 +810,7 @@ class ProductRepositoryTest {
 				"정책 탈퇴 맥북",
 				"탈퇴 판매자 검색 상품입니다.",
 				BigDecimal.valueOf(800000),
-				"서울 강남구"
+				gangnamDong
 		));
 		Product suspendedSellerProduct = productRepository.saveAndFlush(Product.create(
 				suspendedMember,
@@ -794,11 +818,11 @@ class ProductRepositoryTest {
 				"정책 정지 맥북",
 				"정지 판매자 검색 상품입니다.",
 				BigDecimal.valueOf(700000),
-				"서울 강남구"
+				gangnamDong
 		));
 
 		List<Product> products = productRepository.findAll(
-				ProductSpecification.search("정책", null, null, null, null, List.of("서울 강남구")),
+				ProductSpecification.search("정책", null, null, null, null, null),
 				Sort.by(Sort.Direction.DESC, "id")
 		);
 
@@ -817,7 +841,7 @@ class ProductRepositoryTest {
 				"거래완료 맥북",
 				"거래완료 검색 상품입니다.",
 				BigDecimal.valueOf(1000000),
-				"서울 강남구"
+				gangnamDong
 		);
 		completedProduct.complete();
 		productRepository.saveAndFlush(completedProduct);
@@ -845,9 +869,9 @@ class ProductRepositoryTest {
 				"카테고리 공개 상품",
 				"카테고리 공개 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				gangnamDong
 		));
-		Product completedProduct = Product.create(activeMember, category, "카테고리 거래완료 상품", "카테고리 거래완료 상품 설명", BigDecimal.valueOf(20000), "서울 강남구");
+		Product completedProduct = Product.create(activeMember, category, "카테고리 거래완료 상품", "카테고리 거래완료 상품 설명", BigDecimal.valueOf(20000), gangnamDong);
 		completedProduct.complete();
 		productRepository.save(completedProduct);
 		Product deletedSellerProduct = productRepository.save(Product.create(
@@ -856,7 +880,7 @@ class ProductRepositoryTest {
 				"카테고리 탈퇴 판매자 상품",
 				"카테고리 탈퇴 판매자 상품 설명",
 				BigDecimal.valueOf(30000),
-				"서울 강남구"
+				gangnamDong
 		));
 		Product suspendedSellerProduct = productRepository.saveAndFlush(Product.create(
 				suspendedMember,
@@ -864,7 +888,7 @@ class ProductRepositoryTest {
 				"카테고리 정지 판매자 상품",
 				"카테고리 정지 판매자 상품 설명",
 				BigDecimal.valueOf(40000),
-				"서울 강남구"
+				gangnamDong
 		));
 
 		List<Product> products = productRepository.findAll(
@@ -875,4 +899,4 @@ class ProductRepositoryTest {
 		assertThat(products).containsExactly(visibleProduct);
 		assertThat(products).doesNotContain(completedProduct, deletedSellerProduct, suspendedSellerProduct);
 	}
-	}
+}

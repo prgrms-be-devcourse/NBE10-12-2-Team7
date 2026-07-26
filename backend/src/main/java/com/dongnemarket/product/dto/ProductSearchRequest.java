@@ -1,9 +1,6 @@
 package com.dongnemarket.product.dto;
 
 import java.math.BigDecimal;
-import java.util.List;
-
-import jakarta.validation.constraints.Size;
 
 public class ProductSearchRequest {
 
@@ -12,21 +9,21 @@ public class ProductSearchRequest {
 	private final BigDecimal minPrice;
 	private final BigDecimal maxPrice;
 	private final String tradeStatus;
-	@Size(max = 2, message = "지역 필터는 최대 2개까지 선택할 수 있습니다.")
-	private final List<String> regions;
+	// 선택한 지역 id. 해당 지역 하위 전체 동을 code prefix로 매칭한다.
+	private final Long regionId;
 
 	public ProductSearchRequest(String keyword, Long categoryId, BigDecimal minPrice, BigDecimal maxPrice, String tradeStatus) {
 		this(keyword, categoryId, minPrice, maxPrice, tradeStatus, null);
 	}
 
 	public ProductSearchRequest(String keyword, Long categoryId, BigDecimal minPrice, BigDecimal maxPrice,
-								String tradeStatus, List<String> regions) {
+								String tradeStatus, Long regionId) {
 		this.keyword = keyword;
 		this.categoryId = categoryId;
 		this.minPrice = minPrice;
 		this.maxPrice = maxPrice;
 		this.tradeStatus = tradeStatus;
-		this.regions = regions;
+		this.regionId = regionId;
 	}
 
 	public String getKeyword() {
@@ -49,8 +46,8 @@ public class ProductSearchRequest {
 		return tradeStatus;
 	}
 
-	public List<String> getRegions() {
-		return regions;
+	public Long getRegionId() {
+		return regionId;
 	}
 
 }

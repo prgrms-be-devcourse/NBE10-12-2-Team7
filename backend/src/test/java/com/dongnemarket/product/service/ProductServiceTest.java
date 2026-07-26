@@ -48,6 +48,7 @@ import com.dongnemarket.product.entity.ProductImage;
 import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.ProductImageRepository;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.entity.Region;
 import com.dongnemarket.region.repository.RegionRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -59,6 +60,9 @@ class ProductServiceTest {
 	private static final Long PRODUCT_ID = 1L;
 	private static final Long CATEGORY_ID = 1L;
 	private static final Long UPDATE_CATEGORY_ID = 2L;
+	private static final Long REGION_ID = 10L;
+	private static final Long BAD_REGION_ID = 999L;
+	private static final String REGION_FULL_NAME = "서울특별시 강남구 역삼동";
 
 	@Mock
 	MemberRepository memberRepository;
@@ -96,7 +100,7 @@ class ProductServiceTest {
 			ProductCreateRequest request = createRequest("아이폰 15", BigDecimal.valueOf(800000));
 			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(member));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category));
-			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
+			given(regionRepository.findById(REGION_ID)).willReturn(Optional.of(region()));
 			given(productRepository.save(any(Product.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 			ProductResponse response = productService.createProduct(SELLER_ID, request);
@@ -105,7 +109,8 @@ class ProductServiceTest {
 			assertThat(response.getDescription()).isEqualTo("상태 좋은 아이폰입니다.");
 			assertThat(response.getPrice()).isEqualByComparingTo("800000");
 			assertThat(response.getTradeStatus()).isEqualTo(TradeStatus.ON_SALE);
-			assertThat(response.getRegion()).isEqualTo("서울 강남구");
+			assertThat(response.getRegionId()).isEqualTo(REGION_ID);
+			assertThat(response.getRegionName()).isEqualTo(REGION_FULL_NAME);
 			assertThat(response.getViewCount()).isZero();
 			assertThat(response.isHidden()).isFalse();
 		}
@@ -265,17 +270,6 @@ class ProductServiceTest {
 				assertThat(response.isHasNext()).isTrue();
 			}
 
-			@Test
-			@DisplayName("상품 목록 지역 필터가 3개이면 조회할 수 없다")
-			void throwsInvalidInputWhenGettingProductsWithMoreThanTwoRegions() {
-				assertBusinessException(
-						() -> productService.getProducts(List.of("서울 강남구", "서울 마포구", "서울 송파구"), null, 30),
-						ErrorCode.INVALID_INPUT_VALUE
-				);
-
-				verify(productRepository, never()).findBy(anyProductSpecification(), any());
-			}
-
 		@Test
 		@DisplayName("카테고리별 상품 목록을 최신 등록순으로 조회한다")
 			void getsProductsByCategoryInLatestOrder() {
@@ -398,8 +392,7 @@ class ProductServiceTest {
 					CATEGORY_ID,
 					BigDecimal.valueOf(1000000),
 					BigDecimal.valueOf(1500000),
-					"ON_SALE",
-					List.of("서울 강남구", "서울 마포구")
+					"ON_SALE"
 			);
 			given(productRepository.findAll(anyProductSpecification(), any(Sort.class))).willReturn(List.of(product));
 
@@ -478,25 +471,6 @@ class ProductServiceTest {
 			assertInvalidTradeStatus(() -> productService.searchProducts(request));
 		}
 
-		@Test
-		@DisplayName("검색 지역 필터가 3개이면 검색할 수 없다")
-		void throwsInvalidInputWhenSearchingWithMoreThanTwoRegions() {
-			ProductSearchRequest request = new ProductSearchRequest(
-					null,
-					null,
-					null,
-					null,
-					null,
-					List.of("서울 강남구", "서울 마포구", "서울 송파구")
-			);
-
-			assertBusinessException(
-					() -> productService.searchProducts(request),
-					ErrorCode.INVALID_INPUT_VALUE
-			);
-
-			verify(productRepository, never()).findAll(anyProductSpecification(), any(Sort.class));
-		}
 	}
 
 	@Nested
@@ -602,14 +576,14 @@ class ProductServiceTest {
 			ProductUpdateRequest request = updateRequest("맥북 프로", BigDecimal.valueOf(1500000));
 			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
-			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
+			given(regionRepository.findById(REGION_ID)).willReturn(Optional.of(region()));
 
 			ProductResponse response = productService.updateProduct(SELLER_ID, PRODUCT_ID, request);
 
 			assertThat(response.getTitle()).isEqualTo("맥북 프로");
 			assertThat(response.getDescription()).isEqualTo("수정된 상품 설명입니다.");
 			assertThat(response.getPrice()).isEqualByComparingTo("1500000");
-			assertThat(response.getRegion()).isEqualTo("서울 서초구");
+			assertThat(response.getRegionName()).isEqualTo(REGION_FULL_NAME);
 			assertThat(product.getCategory()).isEqualTo(newCategory);
 		}
 
@@ -621,7 +595,7 @@ class ProductServiceTest {
 			ProductUpdateRequest request = updateRequest("맥북 프로", BigDecimal.valueOf(1500000));
 			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
-			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
+			given(regionRepository.findById(REGION_ID)).willReturn(Optional.of(region()));
 
 			productService.updateProduct(SELLER_ID, PRODUCT_ID, request);
 
@@ -637,7 +611,7 @@ class ProductServiceTest {
 			ProductUpdateRequest request = updateRequest("맥북 프로", new BigDecimal("800000.00"));
 			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
-			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
+			given(regionRepository.findById(REGION_ID)).willReturn(Optional.of(region()));
 
 			productService.updateProduct(SELLER_ID, PRODUCT_ID, request);
 
@@ -758,11 +732,11 @@ class ProductServiceTest {
 					BigDecimal.valueOf(1500000),
 					List.of("https://example.com/update-default.jpg"),
 					0,
-					"서울시 강남구"
+					BAD_REGION_ID
 			);
 			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
-			given(regionRepository.existsByName(request.getRegion())).willReturn(false);
+			given(regionRepository.findById(BAD_REGION_ID)).willReturn(Optional.empty());
 
 			assertBusinessException(
 					() -> productService.updateProduct(SELLER_ID, PRODUCT_ID, request),
@@ -1041,7 +1015,7 @@ class ProductServiceTest {
 			);
 			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(member));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category));
-			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
+			given(regionRepository.findById(REGION_ID)).willReturn(Optional.of(region()));
 			given(productRepository.save(any(Product.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 			ProductResponse response = productService.createProduct(SELLER_ID, request);
@@ -1072,7 +1046,7 @@ class ProductServiceTest {
 			);
 			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
-			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
+			given(regionRepository.findById(REGION_ID)).willReturn(Optional.of(region()));
 
 			ProductResponse response = productService.updateProduct(SELLER_ID, PRODUCT_ID, request);
 
@@ -1100,7 +1074,7 @@ class ProductServiceTest {
 			);
 			given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(newCategory));
-			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
+			given(regionRepository.findById(REGION_ID)).willReturn(Optional.of(region()));
 
 			ProductResponse response = productService.updateProduct(SELLER_ID, PRODUCT_ID, request);
 
@@ -1128,7 +1102,7 @@ class ProductServiceTest {
 			);
 			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(seller()));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category("디지털기기")));
-			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
+			given(regionRepository.findById(REGION_ID)).willReturn(Optional.of(region()));
 			given(productRepository.save(any(Product.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 			productService.createProduct(SELLER_ID, request);
@@ -1149,7 +1123,7 @@ class ProductServiceTest {
 			);
 			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(seller()));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category("디지털기기")));
-			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
+			given(regionRepository.findById(REGION_ID)).willReturn(Optional.of(region()));
 			given(productRepository.save(any(Product.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 			ProductResponse response = productService.createProduct(SELLER_ID, request);
@@ -1172,7 +1146,7 @@ class ProductServiceTest {
 			);
 			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(seller()));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category("디지털기기")));
-			given(regionRepository.existsByName(request.getRegion())).willReturn(true);
+			given(regionRepository.findById(REGION_ID)).willReturn(Optional.of(region()));
 			given(productRepository.save(any(Product.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 			ProductResponse response = productService.createProduct(SELLER_ID, request);
@@ -1294,11 +1268,11 @@ class ProductServiceTest {
 					BigDecimal.valueOf(800000),
 					List.of("https://example.com/default.jpg"),
 					0,
-					"강남"
+					BAD_REGION_ID
 			);
 			given(memberRepository.findById(SELLER_ID)).willReturn(Optional.of(seller()));
 			given(categoryRepository.findById(request.getCategoryId())).willReturn(Optional.of(category("디지털기기")));
-			given(regionRepository.existsByName(request.getRegion())).willReturn(false);
+			given(regionRepository.findById(BAD_REGION_ID)).willReturn(Optional.empty());
 
 			assertBusinessException(
 					() -> productService.createProduct(SELLER_ID, request),
@@ -1342,7 +1316,7 @@ class ProductServiceTest {
 				title,
 				"상품 설명입니다.",
 				price,
-				"서울 강남구"
+				region()
 		);
 		if (id != null) {
 			ReflectionTestUtils.setField(product, "id", id);
@@ -1377,7 +1351,7 @@ class ProductServiceTest {
 					title,
 					"상품 설명입니다.",
 					BigDecimal.valueOf(800000),
-					"서울 강남구"
+					region()
 			);
 		}
 
@@ -1391,17 +1365,17 @@ class ProductServiceTest {
 	}
 
 	private ProductCreateRequest createRequest(String title, BigDecimal price, List<String> imageUrls, int thumbnailIndex) {
-		return createRequest(title, price, imageUrls, thumbnailIndex, "서울 강남구");
+		return createRequest(title, price, imageUrls, thumbnailIndex, REGION_ID);
 	}
 
 	private ProductCreateRequest createRequest(String title, BigDecimal price, List<String> imageUrls,
-											   int thumbnailIndex, String region) {
+											   int thumbnailIndex, Long regionId) {
 		return new ProductCreateRequest(
 				CATEGORY_ID,
 				title,
 				"상태 좋은 아이폰입니다.",
 				price,
-				region,
+				regionId,
 				imageUrls,
 				thumbnailIndex
 		);
@@ -1417,20 +1391,26 @@ class ProductServiceTest {
 	}
 
 	private ProductUpdateRequest updateRequest(String title, BigDecimal price, List<String> imageUrls, int thumbnailIndex) {
-		return updateRequest(title, price, imageUrls, thumbnailIndex, "서울 서초구");
+		return updateRequest(title, price, imageUrls, thumbnailIndex, REGION_ID);
 	}
 
 	private ProductUpdateRequest updateRequest(String title, BigDecimal price, List<String> imageUrls,
-											   int thumbnailIndex, String region) {
+											   int thumbnailIndex, Long regionId) {
 		return new ProductUpdateRequest(
 				UPDATE_CATEGORY_ID,
 				title,
 				"수정된 상품 설명입니다.",
 				price,
-				region,
+				regionId,
 				imageUrls,
 				thumbnailIndex
 		);
+	}
+
+	private Region region() {
+		Region region = new Region("1168010100", 3, null, REGION_FULL_NAME, "역삼동");
+		ReflectionTestUtils.setField(region, "id", REGION_ID);
+		return region;
 	}
 
 	private ProductStatusUpdateRequest statusRequest(String status) {

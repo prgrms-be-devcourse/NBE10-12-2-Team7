@@ -24,6 +24,7 @@ import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.ProductImageRepository;
 import com.dongnemarket.product.repository.ProductRepository;
 import com.dongnemarket.product.repository.spec.ProductSpecification;
+import com.dongnemarket.region.entity.Region;
 import com.dongnemarket.region.repository.RegionRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
@@ -42,7 +43,6 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ProductService {
 
-	private static final int MAX_REGION_FILTER_SIZE = 2;
 	private static final int DEFAULT_PAGE_SIZE = 30;
 	private static final int MAX_PAGE_SIZE = 100;
 
@@ -77,7 +77,7 @@ public class ProductService {
 				.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 		Category category = categoryRepository.findById(request.getCategoryId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND));
-		validateRegionExists(request.getRegion());
+		Region region = resolveLevel3Region(request.getRegionId());
 
 		Product product = Product.create(
 				member,
@@ -85,7 +85,7 @@ public class ProductService {
 				request.getTitle(),
 				request.getDescription(),
 				request.getPrice(),
-				request.getRegion()
+				region
 		);
 		Product savedProduct = productRepository.save(product);
 		saveProductImages(savedProduct, request.getImageUrls(), request.getThumbnailIndex());
@@ -96,17 +96,20 @@ public class ProductService {
 		return getProducts(null, null, DEFAULT_PAGE_SIZE);
 	}
 
-	public ProductPageResponse getProducts(List<String> regions) {
-		return getProducts(regions, null, DEFAULT_PAGE_SIZE);
+	public ProductPageResponse getProducts(Long regionId) {
+		return getProducts(regionId, null, DEFAULT_PAGE_SIZE);
 	}
 
-	public ProductPageResponse getProducts(List<String> regions, Long cursor, int size) {
-		List<String> normalizedRegions = normalizeRegions(regions);
-		validateRegionFilterSize(normalizedRegions);
+	public ProductPageResponse getProducts(Long regionId, Long cursor, int size) {
 		int limit = clampPageSize(size);
+		String regionCodePrefix = regionCodePrefixOrEmpty(regionId);
+		// 지역이 지정됐는데 존재하지 않으면 매칭 대상이 없다 → 빈 페이지.
+		if (regionId != null && regionCodePrefix == null) {
+			return ProductPageResponse.of(List.of(), null, false);
+		}
 
 		List<Product> rows = productRepository.findBy(
-				ProductSpecification.list(normalizedRegions, cursor),
+				ProductSpecification.list(regionCodePrefix, cursor),
 				query -> query
 						.sortBy(Sort.by(Sort.Direction.DESC, "id"))
 						.limit(limit + 1)
@@ -149,10 +152,14 @@ public class ProductService {
 
 	public List<ProductSummaryResponse> searchProducts(ProductSearchRequest request) {
 		ProductSearchRequest searchRequest = normalizeSearchRequest(request);
-		List<String> regions = normalizeRegions(searchRequest.getRegions());
-		validateRegionFilterSize(regions);
 		validateSearchPrice(searchRequest.getMinPrice(), searchRequest.getMaxPrice());
 		TradeStatus tradeStatus = parseSearchTradeStatus(searchRequest.getTradeStatus());
+
+		String regionCodePrefix = regionCodePrefixOrEmpty(searchRequest.getRegionId());
+		// 지역이 지정됐는데 존재하지 않으면 매칭 대상이 없다 → 빈 결과.
+		if (searchRequest.getRegionId() != null && regionCodePrefix == null) {
+			return List.of();
+		}
 
 		List<Product> products = productRepository.findAll(
 				ProductSpecification.search(
@@ -161,7 +168,7 @@ public class ProductService {
 						searchRequest.getMinPrice(),
 						searchRequest.getMaxPrice(),
 						tradeStatus,
-						regions
+						regionCodePrefix
 				),
 				Sort.by(Sort.Direction.DESC, "id")
 		);
@@ -233,14 +240,14 @@ public class ProductService {
 
 		Category category = categoryRepository.findById(request.getCategoryId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND));
-		validateRegionExists(request.getRegion());
+		Region region = resolveLevel3Region(request.getRegionId());
 		BigDecimal oldPrice = product.getPrice(); // update() 로 덮이기 전에 캡처
 		product.update(
 				category,
 				request.getTitle(),
 				request.getDescription(),
 				request.getPrice(),
-				request.getRegion()
+				region
 		);
 		productImageRepository.deleteAllByProductId(productId);
 		Product managedProduct = productRepository.findById(productId)
@@ -327,10 +334,35 @@ public class ProductService {
 		}
 	}
 
-	private void validateRegionExists(String region) {
-		if (!StringUtils.hasText(region) || !regionRepository.existsByName(region)) {
+	// 상품은 동(level3)에만 붙는다. 존재하지 않거나 동이 아니면 거부.
+	private Region resolveLevel3Region(Long regionId) {
+		if (regionId == null) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
 		}
+		Region region = regionRepository.findById(regionId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT_VALUE));
+		if (region.getLevel() != 3) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+		}
+		return region;
+	}
+
+	// 필터용: 선택 지역의 code prefix(시도=앞2, 시군구=앞5, 동=전체10)를 반환한다.
+	// regionId가 null이면 필터 없음(null 반환). 지정됐으나 존재하지 않으면 null(호출측이 빈 결과 처리).
+	private String regionCodePrefixOrEmpty(Long regionId) {
+		if (regionId == null) {
+			return null;
+		}
+		Region region = regionRepository.findById(regionId).orElse(null);
+		if (region == null) {
+			return null;
+		}
+		int prefixLength = switch (region.getLevel()) {
+			case 1 -> 2;
+			case 2 -> 5;
+			default -> 10;
+		};
+		return region.getCode().substring(0, prefixLength);
 	}
 
 	private void validateProductImages(List<String> imageUrls, int thumbnailIndex) {
@@ -378,24 +410,9 @@ public class ProductService {
 
 	private ProductSearchRequest normalizeSearchRequest(ProductSearchRequest request) {
 		if (request == null) {
-			return new ProductSearchRequest(null, null, (BigDecimal) null, null, null, null);
+			return new ProductSearchRequest(null, null, null, null, null, (Long) null);
 		}
 		return request;
-	}
-
-	private List<String> normalizeRegions(List<String> regions) {
-		if (regions == null) {
-			return List.of();
-		}
-		return regions.stream()
-				.filter(StringUtils::hasText)
-				.toList();
-	}
-
-	private void validateRegionFilterSize(List<String> regions) {
-		if (regions.size() > MAX_REGION_FILTER_SIZE) {
-			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
-		}
 	}
 
 	private int clampPageSize(int size) {

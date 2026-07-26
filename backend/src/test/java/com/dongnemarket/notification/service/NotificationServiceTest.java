@@ -12,6 +12,8 @@ import com.dongnemarket.notification.entity.NotificationType;
 import com.dongnemarket.notification.repository.NotificationRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -47,6 +49,9 @@ class NotificationServiceTest {
     @Autowired
     ProductRepository productRepository;
 
+    @Autowired
+    RegionRepository regionRepository;
+
     private Member recipient;
     private Long productId;
     private Long categoryId;
@@ -55,8 +60,9 @@ class NotificationServiceTest {
     void setUp() {
         recipient = memberRepository.save(Member.createUser("owner@example.com", "encoded-pw", "owner"));
         Category category = categoryRepository.save(new Category("알림서비스테스트전용카테고리"));
+        Region region = regionRepository.findFirstByLevelOrderByCodeAsc(3).orElseThrow();
         Product product = productRepository.save(
-                Product.create(recipient, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), "서울 강남구"));
+                Product.create(recipient, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), region));
         categoryId = category.getId();
         productId = product.getId();
     }

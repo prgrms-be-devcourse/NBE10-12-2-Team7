@@ -3,6 +3,7 @@ package com.dongnemarket.product.entity;
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.global.common.BaseTimeEntity;
 import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.region.entity.Region;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -20,7 +21,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "products", indexes = @Index(name = "idx_products_region", columnList = "region"))
+@Table(name = "products", indexes = @Index(name = "idx_products_region", columnList = "region_id"))
 public class Product extends BaseTimeEntity {
 
 	@Id
@@ -48,8 +49,9 @@ public class Product extends BaseTimeEntity {
 	@Column(nullable = false, length = 20)
 	private TradeStatus tradeStatus;
 
-	@Column(nullable = false, length = 100)
-	private String region;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "region_id", nullable = false)
+	private Region region;
 
 	@Column(nullable = false)
 	private long viewCount;
@@ -73,7 +75,7 @@ public class Product extends BaseTimeEntity {
 	}
 
 	private Product(Member member, Category category, String title, String description,
-					BigDecimal price, String region) {
+					BigDecimal price, Region region) {
 		this.member = member;
 		this.category = category;
 		this.title = title;
@@ -87,7 +89,7 @@ public class Product extends BaseTimeEntity {
 	}
 
 	public static Product create(Member member, Category category, String title, String description,
-								 BigDecimal price, String region) {
+								 BigDecimal price, Region region) {
 		return new Product(member, category, title, description, price, region);
 	}
 
@@ -103,7 +105,7 @@ public class Product extends BaseTimeEntity {
 		this.viewCount++;
 	}
 
-	public void update(Category category, String title, String description, BigDecimal price, String region) {
+	public void update(Category category, String title, String description, BigDecimal price, Region region) {
 		this.category = category;
 		this.title = title;
 		this.description = description;
@@ -162,7 +164,7 @@ public class Product extends BaseTimeEntity {
 		return tradeStatus;
 	}
 
-	public String getRegion() {
+	public Region getRegion() {
 		return region;
 	}
 

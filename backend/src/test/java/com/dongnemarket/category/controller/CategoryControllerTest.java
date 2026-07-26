@@ -8,6 +8,8 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,6 +40,9 @@ class CategoryControllerTest {
 	@Autowired
 	ProductRepository productRepository;
 
+	@Autowired
+	RegionRepository regionRepository;
+
 	@AfterEach
 	void cleanUp() {
 		productRepository.deleteAll();
@@ -62,6 +67,7 @@ class CategoryControllerTest {
 	@DisplayName("카테고리별 상품 목록은 인증 없이 최신 등록순으로 조회하고 숨김·삭제 상품은 제외한다")
 	void getsProductsByCategoryWithoutAuthentication() throws Exception {
 		Member member = memberRepository.save(Member.createUser("category-seller@example.com", "encodedPassword", "판매자"));
+		Region region = regionRepository.findFirstByLevelOrderByCodeAsc(3).orElseThrow();
 		Category targetCategory = categoryRepository.findAllByOrderByIdAsc().get(0);
 		Category otherCategory = categoryRepository.findAllByOrderByIdAsc().get(1);
 		Product oldProduct = productRepository.save(Product.create(
@@ -70,7 +76,7 @@ class CategoryControllerTest {
 				"오래된 상품",
 				"오래된 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				region
 		));
 		Product newProduct = productRepository.save(Product.create(
 				member,
@@ -78,7 +84,7 @@ class CategoryControllerTest {
 				"최신 상품",
 				"최신 상품 설명",
 				BigDecimal.valueOf(20000),
-				"서울 서초구"
+				region
 		));
 		productRepository.save(Product.create(
 				member,
@@ -86,12 +92,12 @@ class CategoryControllerTest {
 				"다른 카테고리 상품",
 				"다른 카테고리 상품 설명",
 				BigDecimal.valueOf(30000),
-				"서울 송파구"
+				region
 		));
-		Product hiddenProduct = Product.create(member, targetCategory, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
+		Product hiddenProduct = Product.create(member, targetCategory, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(40000), region);
 		hiddenProduct.hide();
 		productRepository.save(hiddenProduct);
-		Product deletedProduct = Product.create(member, targetCategory, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(50000), "서울 용산구");
+		Product deletedProduct = Product.create(member, targetCategory, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(50000), region);
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 

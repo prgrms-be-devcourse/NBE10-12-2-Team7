@@ -16,7 +16,8 @@ public class ProductResponse {
 	private final String description;
 	private final BigDecimal price;
 	private final TradeStatus tradeStatus;
-	private final String region;
+	private final Long regionId;
+	private final String regionName;
 	private final long viewCount;
 	private final int favoriteCount;
 	private final String thumbnailUrl;
@@ -24,9 +25,9 @@ public class ProductResponse {
 	private final boolean hidden;
 
 	private ProductResponse(Long productId, Long memberId, String sellerNickname, Long categoryId, String title,
-							String description, BigDecimal price, TradeStatus tradeStatus, String region,
-							long viewCount, int favoriteCount, String thumbnailUrl, List<String> imageUrls,
-							boolean hidden) {
+							String description, BigDecimal price, TradeStatus tradeStatus, Long regionId,
+							String regionName, long viewCount, int favoriteCount, String thumbnailUrl,
+							List<String> imageUrls, boolean hidden) {
 		this.productId = productId;
 		this.memberId = memberId;
 		this.sellerNickname = sellerNickname;
@@ -35,7 +36,8 @@ public class ProductResponse {
 		this.description = description;
 		this.price = price;
 		this.tradeStatus = tradeStatus;
-		this.region = region;
+		this.regionId = regionId;
+		this.regionName = regionName;
 		this.viewCount = viewCount;
 		this.favoriteCount = favoriteCount;
 		this.thumbnailUrl = thumbnailUrl;
@@ -57,7 +59,8 @@ public class ProductResponse {
 				product.getDescription(),
 				product.getPrice(),
 				product.getTradeStatus(),
-				product.getRegion(),
+				product.getRegion().getId(),
+				product.getRegion().getFullName(),
 				product.getViewCount(),
 				product.getFavoriteCount(),
 				product.getThumbnailUrl(),
@@ -98,8 +101,12 @@ public class ProductResponse {
 		return tradeStatus;
 	}
 
-	public String getRegion() {
-		return region;
+	public Long getRegionId() {
+		return regionId;
+	}
+
+	public String getRegionName() {
+		return regionName;
 	}
 
 	public long getViewCount() {

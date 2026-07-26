@@ -7,32 +7,27 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 public class ProductSpecification {
 
 	private ProductSpecification() {
 	}
 
-	public static Specification<Product> list(List<String> regions) {
-		return list(regions, null);
-	}
-
-	public static Specification<Product> list(List<String> regions, Long cursor) {
+	public static Specification<Product> list(String regionCodePrefix, Long cursor) {
 		return visibleProducts()
-				.and(regionIn(regions))
+				.and(regionCodeStartsWith(regionCodePrefix))
 				.and(idLessThan(cursor));
 	}
 
 	public static Specification<Product> search(String keyword, Long categoryId, BigDecimal minPrice,
-												BigDecimal maxPrice, TradeStatus tradeStatus, List<String> regions) {
+												BigDecimal maxPrice, TradeStatus tradeStatus, String regionCodePrefix) {
 		return visibleProducts()
 				.and(keywordContains(keyword))
 				.and(categoryEquals(categoryId))
 				.and(priceGreaterThanOrEqualTo(minPrice))
 				.and(priceLessThanOrEqualTo(maxPrice))
 				.and(tradeStatusEquals(tradeStatus))
-					.and(regionIn(regions));
+				.and(regionCodeStartsWith(regionCodePrefix));
 	}
 
 	public static Specification<Product> categoryList(Long categoryId) {
@@ -112,12 +107,14 @@ public class ProductSpecification {
 		};
 	}
 
-	private static Specification<Product> regionIn(List<String> regions) {
+	// 선택한 지역의 code prefix로 하위 전체를 매칭한다(시도=앞2, 시군구=앞5, 동=전체10).
+	// 상품은 동(level3)에만 붙으므로 prefix로 하위 동 전체가 걸린다. 하강 깊이 무관(세종 포함).
+	private static Specification<Product> regionCodeStartsWith(String regionCodePrefix) {
 		return (root, query, criteriaBuilder) -> {
-			if (regions == null || regions.isEmpty()) {
+			if (!StringUtils.hasText(regionCodePrefix)) {
 				return null;
 			}
-			return root.get("region").in(regions);
+			return criteriaBuilder.like(root.get("region").get("code"), regionCodePrefix + "%");
 		};
 	}
 
