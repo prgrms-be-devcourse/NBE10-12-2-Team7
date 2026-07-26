@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  debug 빌드 전용 매니페스트. main 매니페스트에 병합된다.
+  Android 9(API 28)부터 평문 HTTP 통신이 기본 차단되므로,
+  로컬 백엔드(http://10.0.2.2:8080)에 붙는 debug 빌드에서만 예외로 허용한다.
+  release(https 온프렘)에는 적용되지 않는다.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application android:usesCleartextTraffic="true" />
+
+</manifest>
