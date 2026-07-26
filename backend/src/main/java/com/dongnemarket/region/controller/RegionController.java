@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Region", description = "지역 API")
@@ -22,9 +23,12 @@ public class RegionController {
 		this.regionService = regionService;
 	}
 
-	@Operation(summary = "지역 목록 조회", description = "상품 등록과 지역 필터에 사용할 지역 목록을 조회합니다.")
+	@Operation(summary = "지역 계단식 조회",
+			description = "parentId가 없으면 최상위(시도) 목록, 있으면 해당 지역의 자식 목록을 조회합니다. "
+					+ "응답의 level이 3이면 말단(동)입니다.")
 	@GetMapping
-	public ApiResponse<List<RegionResponse>> getRegions() {
-		return ApiResponse.success(regionService.getRegions());
+	public ApiResponse<List<RegionResponse>> getRegions(
+			@RequestParam(required = false) Long parentId) {
+		return ApiResponse.success(regionService.getRegions(parentId));
 	}
 }

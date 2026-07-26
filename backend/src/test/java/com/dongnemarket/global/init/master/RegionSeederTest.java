@@ -3,6 +3,8 @@ package com.dongnemarket.global.init.master;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.dongnemarket.region.entity.Region;
 import com.dongnemarket.region.repository.RegionRepository;
@@ -16,25 +18,8 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("test")
 class RegionSeederTest {
 
-	private static final List<String> REPRESENTATIVE_REGION_NAMES = List.of(
-			"서울 강남구",
-			"부산 해운대구",
-			"대구 군위군",
-			"인천 강화군",
-			"광주 광산구",
-			"대전 유성구",
-			"울산 울주군",
-			"세종",
-			"경기 성남시",
-			"강원 춘천시",
-			"충북 청주시",
-			"충남 천안시",
-			"전북 전주시",
-			"전남 여수시",
-			"경북 포항시",
-			"경남 창원시",
-			"제주 제주시"
-	);
+	// 세종특별자치시 법정동코드. 시(level1) 바로 아래에 동(level3)이 직속으로 붙는다.
+	private static final String SEJONG_CODE = "3611000000";
 
 	@Autowired
 	RegionRepository regionRepository;
@@ -43,46 +28,54 @@ class RegionSeederTest {
 	RegionSeeder regionSeeder;
 
 	@Test
-	@DisplayName("애플리케이션 시작 시 전국 지역 마스터가 저장된다")
-	void savesDefaultRegions() {
-		List<String> regionNames = regionRepository.findAllByOrderByNameAsc()
-				.stream()
-				.map(Region::getName)
-				.toList();
+	@DisplayName("전국 지역 마스터가 계층별 정확한 개수로 저장된다")
+	void savesFullHierarchy() {
+		List<Region> all = regionRepository.findAll();
+		Map<Integer, Long> byLevel = all.stream()
+				.collect(Collectors.groupingBy(Region::getLevel, Collectors.counting()));
 
-		assertThat(regionNames).isNotEmpty();
-		assertThat(regionNames).containsAll(REPRESENTATIVE_REGION_NAMES);
+		assertThat(all).hasSize(5338);
+		assertThat(byLevel.get(1)).isEqualTo(16);
+		assertThat(byLevel.get(2)).isEqualTo(255);
+		assertThat(byLevel.get(3)).isEqualTo(5067);
+	}
+
+	@Test
+	@DisplayName("최상위(시도)만 parent가 없고, 나머지는 모두 유효한 parent를 가진다")
+	void hasNoOrphans() {
+		List<Region> all = regionRepository.findAll();
+
+		long roots = all.stream().filter(r -> r.getParent() == null).count();
+		assertThat(roots).isEqualTo(16);
+
+		// 최상위가 아닌 모든 지역은 parent가 연결되어 있고, parent의 level이 더 작다.
+		assertThat(all.stream()
+				.filter(r -> r.getLevel() != 1)
+				.allMatch(r -> r.getParent() != null && r.getParent().getLevel() < r.getLevel()))
+				.isTrue();
+	}
+
+	@Test
+	@DisplayName("세종은 시(level1) 바로 아래에 동(level3) 33개가 직속으로 붙는다")
+	void sejongHasDirectDongChildren() {
+		Region sejong = regionRepository.findAll().stream()
+				.filter(r -> r.getCode().equals(SEJONG_CODE))
+				.findFirst()
+				.orElseThrow();
+		assertThat(sejong.getLevel()).isEqualTo(1);
+
+		List<Region> children = regionRepository.findByParentIdOrderByCodeAsc(sejong.getId());
+		assertThat(children).hasSize(33);
+		assertThat(children).allMatch(r -> r.getLevel() == 3);
 	}
 
 	@Test
 	@DisplayName("시더를 다시 실행해도 지역이 중복 저장되지 않는다")
-	void doesNotDuplicateRegions() {
+	void doesNotDuplicateOnReseed() {
 		long beforeCount = regionRepository.count();
 
 		regionSeeder.seed();
 
 		assertThat(regionRepository.count()).isEqualTo(beforeCount);
-	}
-
-	@Test
-	@DisplayName("일부 지역만 저장되어 있으면 누락된 지역만 보충한다")
-	void fillsOnlyMissingRegions() throws Exception {
-		regionRepository.deleteAll();
-		regionRepository.save(new Region("서울 강남구"));
-		regionRepository.save(new Region("서울 마포구"));
-
-		regionSeeder.seed();
-
-		List<String> regionNames = regionRepository.findAllByOrderByNameAsc()
-				.stream()
-				.map(Region::getName)
-				.toList();
-		assertThat(regionNames).containsAll(REPRESENTATIVE_REGION_NAMES);
-		assertThat(regionNames)
-				.filteredOn(regionName -> regionName.equals("서울 강남구"))
-				.hasSize(1);
-		assertThat(regionNames)
-				.filteredOn(regionName -> regionName.equals("서울 마포구"))
-				.hasSize(1);
 	}
 }
