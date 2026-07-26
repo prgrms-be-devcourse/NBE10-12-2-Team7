@@ -18,7 +18,6 @@ import com.dongnemarket.member.entity.MemberLocation;
 import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.member.repository.MemberLocationRepository;
 import com.dongnemarket.member.repository.MemberRepository;
-import com.dongnemarket.region.repository.RegionRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +26,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+// 지역 계층화 전환 중, member는 아직 문자열이라 마스터 대조 검증(existsByName)을 일시 제거했다.
+// 중복·개수 검증만 유지되며, region은 자유 문자열로 저장된다.
 @ExtendWith(MockitoExtension.class)
 class MemberLocationServiceTest {
 
@@ -36,9 +37,6 @@ class MemberLocationServiceTest {
 	@Mock
 	MemberLocationRepository memberLocationRepository;
 
-	@Mock
-	RegionRepository regionRepository;
-
 	@InjectMocks
 	MemberLocationService memberLocationService;
 
@@ -47,7 +45,6 @@ class MemberLocationServiceTest {
 	void updatesOneLocation() {
 		Member member = Member.createUser("one@example.com", "encodedPassword", "oneUser");
 		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
-		given(regionRepository.existsByName("서울 강남구")).willReturn(true);
 		given(memberLocationRepository.saveAll(any())).willAnswer(invocation -> invocation.getArgument(0));
 
 		List<MemberLocationResponse> responses = memberLocationService.updateMyLocations(
@@ -67,8 +64,6 @@ class MemberLocationServiceTest {
 	void updatesTwoLocations() {
 		Member member = Member.createUser("two@example.com", "encodedPassword", "twoUser");
 		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
-		given(regionRepository.existsByName("서울 강남구")).willReturn(true);
-		given(regionRepository.existsByName("서울 마포구")).willReturn(true);
 		given(memberLocationRepository.saveAll(any())).willAnswer(invocation -> invocation.getArgument(0));
 
 		List<MemberLocationResponse> responses = memberLocationService.updateMyLocations(
@@ -89,7 +84,6 @@ class MemberLocationServiceTest {
 	void replacesExistingLocations() {
 		Member member = Member.createUser("replace@example.com", "encodedPassword", "replaceUser");
 		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
-		given(regionRepository.existsByName("서울 송파구")).willReturn(true);
 		given(memberLocationRepository.saveAll(any())).willAnswer(invocation -> invocation.getArgument(0));
 
 		memberLocationService.updateMyLocations(
@@ -121,7 +115,6 @@ class MemberLocationServiceTest {
 	void updatesSameLocationAgain() {
 		Member member = Member.createUser("same@example.com", "encodedPassword", "sameUser");
 		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
-		given(regionRepository.existsByName("서울 강남구")).willReturn(true);
 		given(memberLocationRepository.saveAll(any())).willAnswer(invocation -> invocation.getArgument(0));
 
 		List<MemberLocationResponse> responses = memberLocationService.updateMyLocations(
@@ -143,20 +136,6 @@ class MemberLocationServiceTest {
 		assertThatThrownBy(() -> memberLocationService.updateMyLocations(
 				1L,
 				new MemberLocationUpdateRequest(List.of("서울 강남구", "서울 강남구"))
-		)).isInstanceOf(BusinessException.class)
-				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_VALUE);
-	}
-
-	@Test
-	@DisplayName("지역 마스터에 없는 지역이면 동네를 설정할 수 없다")
-	void rejectsUnknownRegion() {
-		Member member = Member.createUser("unknown@example.com", "encodedPassword", "unknownUser");
-		given(memberRepository.findById(1L)).willReturn(Optional.of(member));
-		given(regionRepository.existsByName("강남")).willReturn(false);
-
-		assertThatThrownBy(() -> memberLocationService.updateMyLocations(
-				1L,
-				new MemberLocationUpdateRequest(List.of("강남"))
 		)).isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_VALUE);
 	}

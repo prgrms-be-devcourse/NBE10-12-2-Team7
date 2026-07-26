@@ -14,7 +14,6 @@ import com.dongnemarket.member.entity.MemberLocation;
 import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.member.repository.MemberLocationRepository;
 import com.dongnemarket.member.repository.MemberRepository;
-import com.dongnemarket.region.repository.RegionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,14 +23,11 @@ public class MemberLocationService {
 
 	private final MemberRepository memberRepository;
 	private final MemberLocationRepository memberLocationRepository;
-	private final RegionRepository regionRepository;
 
 	public MemberLocationService(MemberRepository memberRepository,
-								 MemberLocationRepository memberLocationRepository,
-								 RegionRepository regionRepository) {
+								 MemberLocationRepository memberLocationRepository) {
 		this.memberRepository = memberRepository;
 		this.memberLocationRepository = memberLocationRepository;
-		this.regionRepository = regionRepository;
 	}
 
 	@Transactional
@@ -74,16 +70,13 @@ public class MemberLocationService {
 		}
 	}
 
+	// 지역 마스터 계층화(문자열→FK) 전환 중, member는 아직 문자열이라 마스터 대조 검증을
+	// 일시 제거한다. 중복·개수 검증만 유지. member FK 전환 시 regionId 검증으로 복구할 것.
+	// (원 담당 김대연 영역 침범: region 마스터 재구성으로 기존 existsByName 대조가 불가해짐)
 	private void validateRegions(List<String> regions) {
 		Set<String> uniqueRegions = new HashSet<>(regions);
 		if (uniqueRegions.size() != regions.size()) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
-		}
-
-		for (String region : regions) {
-			if (!regionRepository.existsByName(region)) {
-				throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
-			}
 		}
 	}
 }
