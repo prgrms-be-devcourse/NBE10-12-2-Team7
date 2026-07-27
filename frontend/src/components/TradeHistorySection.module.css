@@ -1,0 +1,138 @@
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 26px 28px;
+  margin-bottom: 18px;
+}
+.card h2 {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  margin: 0 0 6px;
+}
+
+.desc {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.msg {
+  margin: 0;
+  padding: 30px 0;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.tab {
+  padding: 9px 15px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 700;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all .15s;
+}
+.tab:hover { color: var(--primary); border-color: var(--primary-soft); }
+.tab.on    { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--bg);
+}
+
+.thumb {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+.itemBody { flex: 1; min-width: 0; }
+.itemTitle {
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.itemMeta {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.itemPrice {
+  flex-shrink: 0;
+  font-size: 14.5px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+
+/* 월별 통계 */
+.statsTable {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.statsHeadRow, .statsRow {
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.statsHeadRow {
+  padding: 0 12px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.statsRow {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--bg);
+}
+.statsMonth {
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+}
+.statsCell {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  font-weight: 700;
+}
+.statsCell small {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}

@@ -89,7 +89,7 @@ public class ChatService {
 
         return rooms.stream()
                 .sorted(byRecentActivityDesc(lastByRoom))
-                .map(room -> ChatRoomListResponse.of(room, opponentOf(room, memberId),
+                .map(room -> ChatRoomListResponse.of(room, opponentOf(room, memberId), viewerRoleOf(room, memberId),
                         lastByRoom.get(room.getId()), unreadByRoom.getOrDefault(room.getId(), 0L)))
                 .toList();
     }
@@ -173,6 +173,11 @@ public class ChatService {
 
     private Member opponentOf(ChatRoom room, Long memberId) {
         return room.getBuyerId().equals(memberId) ? room.getSeller() : room.getBuyer();
+    }
+
+    /** 요청자 본인이 이 방에서 구매자인지 판매자인지. 매너온도 후기 등록 등 구매자 전용 UI 노출 여부 판단용. */
+    private String viewerRoleOf(ChatRoom room, Long memberId) {
+        return room.getBuyerId().equals(memberId) ? "BUYER" : "SELLER";
     }
 
     private int clampSize(int size) {

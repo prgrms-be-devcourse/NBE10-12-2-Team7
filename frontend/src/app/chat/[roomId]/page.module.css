@@ -51,7 +51,7 @@
 .thumbPh { font-size: 9px; font-weight: 700; color: var(--text-muted); }
 
 .headInfo { flex: 1; min-width: 0; }
-.nick { font-weight: 800; font-size: 15.5px; letter-spacing: -.01em; }
+.nick { font-weight: 800; font-size: 15.5px; letter-spacing: -.01em; display: flex; align-items: center; gap: 7px; }
 .pname {
   font-size: 12.5px; color: var(--text-muted); margin-top: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -80,6 +80,35 @@
   display: grid; place-items: center;
 }
 .viewProductThumb img { width: 100%; height: 100%; object-fit: cover; }
+
+.completeBanner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  margin: 10px 6px 0;
+  background: var(--primary-soft);
+  color: var(--primary-d);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.completeBanner button {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .15s;
+}
+.completeBanner button:hover { background: var(--primary-d); }
 
 .messages {
   flex: 1;

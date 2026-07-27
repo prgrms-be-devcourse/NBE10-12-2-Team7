@@ -4,7 +4,7 @@ type: feature
 status: done
 author: jomin4
 date: 2026-07-09
-related: [BUG-206, BUG-207]
+related: [BUG-206, BUG-207, FEAT-228]
 tags: [관리자AI, 프론트엔드, 관리자, ui]
 pr: 208
 ---

@@ -93,6 +93,11 @@ public class Report extends BaseTimeEntity {
         this.status = status;
     }
 
+    /** 이 신고로 매너온도 등에 영향을 받는 대상 회원의 id. 상품 신고는 상품 소유자, 회원 신고는 대상 회원 본인이다. */
+    public Long resolveTargetMemberId() {
+        return reportType == ReportType.MEMBER ? targetMember.getId() : targetProduct.getMember().getId();
+    }
+
     public Long getId() { return id; }
     public Member getReporter() { return reporter; }
     public Member getTargetMember() { return targetMember; }
