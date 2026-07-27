@@ -131,7 +131,8 @@ class ChatControllerTest {
                     .andExpect(jsonPath("$.data.product.description").value("상태 좋음"))
                     .andExpect(jsonPath("$.data.product.region").value("서울 강남구"))
                     .andExpect(jsonPath("$.data.product.thumbnailUrl").value("https://img.example/macbook.jpg"))
-                    .andExpect(jsonPath("$.data.seller.nickname").value("seller"));
+                    .andExpect(jsonPath("$.data.seller.nickname").value("seller"))
+                    .andExpect(jsonPath("$.data.seller.withdrawn").value(false));
         }
 
         @Test
@@ -244,7 +245,7 @@ class ChatControllerTest {
         }
 
         @Test
-        @DisplayName("탈퇴한 상대는 닉네임이 '탈퇴한 사용자'로 마스킹된다")
+        @DisplayName("탈퇴한 상대는 닉네임이 '탈퇴한 사용자'로 마스킹되고 withdrawn=true로 표시된다")
         void withdrawnOpponent_maskedNickname() throws Exception {
             saveRoom(buyer, seller);
             seller.softDelete();            // 상대(판매자) 탈퇴
@@ -253,7 +254,9 @@ class ChatControllerTest {
             mockMvc.perform(get("/api/chat-rooms").header("Authorization", buyerToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.length()").value(1))
-                    .andExpect(jsonPath("$.data[0].opponent.nickname").value("탈퇴한 사용자"));
+                    .andExpect(jsonPath("$.data[0].opponent.nickname").value("탈퇴한 사용자"))
+                    // 프론트가 입력창 비활성화·안내 배너를 띄우는 신뢰 신호
+                    .andExpect(jsonPath("$.data[0].opponent.withdrawn").value(true));
         }
 
         @Test
