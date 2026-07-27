@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/apiClient'
 import { getAccessToken, getCurrentMemberId } from '@/lib/auth'
 import { TRADE_STATUS_LABEL, type TradeStatus } from '@/lib/tradeStatus'
+import MannerScoreBadge from '@/components/MannerScoreBadge'
 import styles from './page.module.css'
 
 interface Category { id: number; name: string }
@@ -335,7 +336,10 @@ export default function ProductDetailPage() {
           <div className={styles.seller}>
             <div className={styles.sellerAvatar}>{product.sellerNickname.charAt(0)}</div>
             <div className={styles.sellerWho}>
-              <div className={styles.sellerNm}>{product.sellerNickname}</div>
+              <div className={styles.sellerNm}>
+                {product.sellerNickname}
+                <MannerScoreBadge memberId={product.memberId} />
+              </div>
             </div>
             {!isOwner && (
               <button

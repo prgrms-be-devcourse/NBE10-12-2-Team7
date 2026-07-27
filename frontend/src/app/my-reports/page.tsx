@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/apiClient'
 import { REPORT_REASON_LABEL, type ReportReason } from '@/lib/reportReasons'
+import MannerScoreCard from '@/components/MannerScoreCard'
+import ReportDetailModal from '@/components/ReportDetailModal'
 import styles from './page.module.css'
 
 type ReportType = 'PRODUCT' | 'MEMBER'
@@ -43,6 +45,12 @@ function statusTag(status: ReportStatus) {
 
 function formatDate(iso: string) {
   return iso.slice(0, 10)
+}
+
+function targetLabelOf(report: MyReport, productTitles: Record<number, string>) {
+  return report.reportType === 'MEMBER'
+    ? `회원 #${report.targetId}`
+    : (productTitles[report.targetId] ?? `상품 #${report.targetId}`)
 }
 
 function formatRelative(iso: string) {
@@ -124,6 +132,7 @@ export default function MyReportsPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [cancellingId, setCancellingId] = useState<number | null>(null)
   const [productTitles, setProductTitles] = useState<Record<number, string>>({})
+  const [detailReportId, setDetailReportId] = useState<number | null>(null)
 
   const [toastText, setToastText] = useState('')
   const [toastOn, setToastOn] = useState(false)
@@ -226,9 +235,12 @@ export default function MyReportsPage() {
     <main className={styles.wrap}>
       {/* 헤더 */}
       <div className={styles.headRow}>
-        <h1>내 신고 내역</h1>
+        <h1>신고내역</h1>
         <p>내가 접수한 신고의 처리 상태를 확인할 수 있어요.</p>
       </div>
+
+      {/* 매너온도 */}
+      <MannerScoreCard />
 
       {status === 'loading' && (
         <div className={styles.empty}><p>불러오는 중...</p></div>
@@ -243,6 +255,80 @@ export default function MyReportsPage() {
 
       {status === 'ready' && (
         <>
+          {/* 탭 필터 */}
+          <div className={styles.tabs}>
+            {TABS.map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                className={`${styles.tab}${filter === tab.key ? ' ' + styles.on : ''}`}
+                onClick={() => setFilter(tab.key)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 신고 목록 */}
+          {filtered.length > 0 ? (
+            <div className={styles.list}>
+              {filtered.map(report => {
+                const tt = typeTag(report.reportType)
+                const st = statusTag(report.status)
+                const targetLabel = targetLabelOf(report, productTitles)
+                return (
+                  <div key={report.reportId} className={styles.rcard}>
+                    <div className={styles.top}>
+                      <span className={tt.cls}>{tt.icon} {tt.label}</span>
+                      <span className={st.cls}>{st.label}</span>
+                      <span className={styles.rid}>#{report.reportId}</span>
+                    </div>
+                    <div className={styles.target}>{targetLabel}</div>
+                    <div className={styles.reason}>
+                      <b>사유</b>&nbsp; {REPORT_REASON_LABEL[report.reason] ?? report.reason}
+                    </div>
+                    {report.evidenceImageUrl && (
+                      <a
+                        href={report.evidenceImageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={styles.evidenceThumb}
+                      >
+                        <img src={report.evidenceImageUrl} alt="증빙 이미지" />
+                      </a>
+                    )}
+                    <StatusStepper status={report.status} />
+                    <div className={styles.foot}>
+                      <button
+                        type="button"
+                        className={styles.detailBtn}
+                        onClick={() => setDetailReportId(report.reportId)}
+                      >
+                        상세보기
+                      </button>
+                      <span className={styles.date}>{formatRelative(report.createdAt)}</span>
+                      {report.status === 'RECEIVED' && (
+                        <button
+                          type="button"
+                          className={styles.cancelBtn}
+                          onClick={() => cancelReport(report.reportId)}
+                          disabled={cancellingId === report.reportId}
+                        >
+                          {cancellingId === report.reportId ? '취소 중...' : '신고 취소'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className={styles.empty}>
+              <div className={styles.emptyIcon}>🗂️</div>
+              <p>해당 상태의 신고 내역이 없어요.</p>
+            </div>
+          )}
+
           {/* 통계 카드 */}
           {total > 0 && (
             <div className={styles.statsCard}>
@@ -293,77 +379,19 @@ export default function MyReportsPage() {
               </div>
             </div>
           )}
-
-          {/* 탭 필터 */}
-          <div className={styles.tabs}>
-            {TABS.map(tab => (
-              <button
-                key={tab.key}
-                type="button"
-                className={`${styles.tab}${filter === tab.key ? ' ' + styles.on : ''}`}
-                onClick={() => setFilter(tab.key)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* 신고 목록 */}
-          {filtered.length > 0 ? (
-            <div className={styles.list}>
-              {filtered.map(report => {
-                const tt = typeTag(report.reportType)
-                const st = statusTag(report.status)
-                const targetLabel = report.reportType === 'MEMBER'
-                  ? `회원 #${report.targetId}`
-                  : (productTitles[report.targetId] ?? `상품 #${report.targetId}`)
-                return (
-                  <div key={report.reportId} className={styles.rcard}>
-                    <div className={styles.top}>
-                      <span className={tt.cls}>{tt.icon} {tt.label}</span>
-                      <span className={st.cls}>{st.label}</span>
-                      <span className={styles.rid}>#{report.reportId}</span>
-                    </div>
-                    <div className={styles.target}>{targetLabel}</div>
-                    <div className={styles.reason}>
-                      <b>사유</b>&nbsp; {REPORT_REASON_LABEL[report.reason] ?? report.reason}
-                    </div>
-                    {report.evidenceImageUrl && (
-                      <a
-                        href={report.evidenceImageUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={styles.evidenceThumb}
-                      >
-                        <img src={report.evidenceImageUrl} alt="증빙 이미지" />
-                      </a>
-                    )}
-                    <StatusStepper status={report.status} />
-                    <div className={styles.foot}>
-                      <span className={styles.date}>{formatRelative(report.createdAt)}</span>
-                      {report.status === 'RECEIVED' && (
-                        <button
-                          type="button"
-                          className={styles.cancelBtn}
-                          onClick={() => cancelReport(report.reportId)}
-                          disabled={cancellingId === report.reportId}
-                        >
-                          {cancellingId === report.reportId ? '취소 중...' : '신고 취소'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className={styles.empty}>
-              <div className={styles.emptyIcon}>🗂️</div>
-              <p>해당 상태의 신고 내역이 없어요.</p>
-            </div>
-          )}
         </>
       )}
+
+      {detailReportId != null && (() => {
+        const detailReport = reports.find(r => r.reportId === detailReportId)
+        return (
+          <ReportDetailModal
+            reportId={detailReportId}
+            targetLabel={detailReport ? targetLabelOf(detailReport, productTitles) : ''}
+            onClose={() => setDetailReportId(null)}
+          />
+        )
+      })()}
 
       <div className={`toast${toastOn ? ' show' : ''}`}>{toastText}</div>
     </main>

@@ -106,7 +106,24 @@ header {
   display: flex; align-items: center; gap: 14px;
 }
 .logo { font-size: 23px; font-weight: 800; letter-spacing: -.03em; flex-shrink: 0; }
-.logo span { color: var(--primary); }
+.logo span {
+  color: var(--primary);
+  /* --warm 대신 선명한 잉크 톤 사용. 라이트/다크 모드 무관하게 다크 모드 색(#efd96b)으로 고정.
+     골드는 가운데 좁은 구간에서만 스치듯 지나가고 핑크가 더 넓게 우세하도록 색상 정지점 조정 */
+  background: linear-gradient(120deg,
+    var(--primary) 0%, var(--primary) 32%, #efd96b 50%, var(--primary) 68%, var(--primary) 100%);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: mo-logo-on-gradient 9s ease-in-out infinite, mo-wave 2.4s ease-in-out infinite;
+}
+/* 9초 주기: 서서히 나타나 물결처럼 흐르다가(약 4초) 서서히 원래 색으로 사라짐(약 5초 유지) */
+@keyframes mo-logo-on-gradient {
+  0%              { color: var(--primary); }
+  6.67%           { color: transparent; }
+  37.78%          { color: transparent; }
+  44.44%, 100%    { color: var(--primary); }
+}
 .main-nav { display: flex; align-items: center; gap: 2px; flex: 0 1 auto; flex-wrap: wrap; }
 .main-nav a {
   padding: 6px 11px; border-radius: 999px; font-size: 14px; font-weight: 600;

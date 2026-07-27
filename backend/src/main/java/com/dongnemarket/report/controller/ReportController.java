@@ -63,6 +63,15 @@ public class ReportController {
         return ResponseEntity.ok(ApiResponse.success("목록 조회에 성공했습니다.", response));
     }
 
+    @Operation(summary = "내 신고 상세 조회", description = "내가 작성한 신고 한 건의 상세 내용(사유 상세 포함)을 조회한다.")
+    @GetMapping("/api/members/me/reports/{reportId}")
+    public ResponseEntity<ApiResponse<MyReportResponse>> getMyReport(
+            @PathVariable Long reportId,
+            @AuthenticationPrincipal Long reporterId) {
+        MyReportResponse response = reportService.getMyReport(reporterId, reportId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @Operation(summary = "신고 취소", description = "아직 처리되지 않은(RECEIVED) 내 신고를 취소한다.")
     @DeleteMapping("/api/members/me/reports/{reportId}")
     public ResponseEntity<ApiResponse<Void>> cancelReport(
