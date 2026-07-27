@@ -132,7 +132,7 @@ public class NotificationService {
         LocalDateTime occurredAt = room.getLastMessage() != null
                 ? room.getLastMessage().getCreatedAt()
                 : room.getCreatedAt();
-        String message = buildChatMessage(room.getProduct().getTitle(), room.getOpponent().getNickname());
+        String message = buildChatMessage(room.getProduct().getTitle());
         return NotificationResponse.chat(message, room.getProduct().getProductId(), room.getRoomId(), occurredAt);
     }
 
@@ -145,7 +145,9 @@ public class NotificationService {
         return "🏷️ \"" + productTitle + "\"의 가격이 변경되었습니다.";
     }
 
-    private String buildChatMessage(String productTitle, String opponentNickname) {
-        return "🔔 \"" + productTitle + "\"에 대해 \"" + opponentNickname + "\"님의 새로운 채팅이 도착했습니다!";
+    private String buildChatMessage(String productTitle) {
+        // 상대 닉네임을 넣지 않는다: 채팅 알림은 조회 시점 파생이라, 상대가 나중에 탈퇴하면
+        // 과거 문구가 "탈퇴한 사용자"로 소급 표시되는 드리프트가 생기기 때문(상품명만으로 안내).
+        return "🔔 \"" + productTitle + "\"에 새로운 채팅이 도착했습니다!";
     }
 }
