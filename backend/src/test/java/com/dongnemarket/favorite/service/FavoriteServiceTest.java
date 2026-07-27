@@ -59,6 +59,7 @@ class FavoriteServiceTest {
 
     private static final Long MEMBER_ID = 1L;
     private static final Long PRODUCT_ID = 100L;
+    private static final Long SELLER_ID = 2L; // 상품 소유자(등록 시도자와 다른 사람)
 
     @Nested
     @DisplayName("관심 등록")
@@ -68,7 +69,10 @@ class FavoriteServiceTest {
         @DisplayName("성공하면 관심 정보를 반환하고 FavoriteAddedEvent를 발행한다")
         void success_returnsResponseAndPublishesEvent() {
             Product product = mock(Product.class);
+            Member seller = mock(Member.class);
             given(product.getId()).willReturn(PRODUCT_ID);
+            given(product.getMember()).willReturn(seller);
+            given(seller.getId()).willReturn(SELLER_ID);
             given(favoriteRepository.existsByMember_IdAndProduct_Id(MEMBER_ID, PRODUCT_ID)).willReturn(false);
             given(entityManager.find(Member.class, MEMBER_ID)).willReturn(mock(Member.class));
             given(entityManager.find(Product.class, PRODUCT_ID)).willReturn(product);
@@ -95,8 +99,30 @@ class FavoriteServiceTest {
         }
 
         @Test
+        @DisplayName("본인이 등록한 상품이면 CANNOT_FAVORITE_OWN_PRODUCT, 저장·발행하지 않는다")
+        void ownProduct_throwsAndDoesNothing() {
+            Product product = mock(Product.class);
+            Member seller = mock(Member.class);
+            given(entityManager.find(Product.class, PRODUCT_ID)).willReturn(product);
+            given(product.getMember()).willReturn(seller);
+            given(seller.getId()).willReturn(MEMBER_ID); // 상품 소유자 == 등록 시도자
+
+            assertThatThrownBy(() -> favoriteService.add(MEMBER_ID, PRODUCT_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_FAVORITE_OWN_PRODUCT);
+
+            verify(favoriteRepository, never()).save(any());
+            verify(eventPublisher, never()).publishEvent(any());
+        }
+
+        @Test
         @DisplayName("이미 등록한 상품이면 FAVORITE_ALREADY_EXISTS, 저장·발행하지 않는다")
         void duplicate_throwsAndDoesNothing() {
+            Product product = mock(Product.class);
+            Member seller = mock(Member.class);
+            given(entityManager.find(Product.class, PRODUCT_ID)).willReturn(product);
+            given(product.getMember()).willReturn(seller);
+            given(seller.getId()).willReturn(SELLER_ID);
             given(favoriteRepository.existsByMember_IdAndProduct_Id(MEMBER_ID, PRODUCT_ID)).willReturn(true);
 
             assertThatThrownBy(() -> favoriteService.add(MEMBER_ID, PRODUCT_ID))
@@ -110,9 +136,13 @@ class FavoriteServiceTest {
         @Test
         @DisplayName("중복 체크 통과 후 save() 시점에 UNIQUE 제약을 위반하면(race condition) FAVORITE_ALREADY_EXISTS로 변환한다")
         void raceCondition_convertsToFavoriteAlreadyExists() {
+            Product product = mock(Product.class);
+            Member seller = mock(Member.class);
+            given(product.getMember()).willReturn(seller);
+            given(seller.getId()).willReturn(SELLER_ID);
             given(favoriteRepository.existsByMember_IdAndProduct_Id(MEMBER_ID, PRODUCT_ID)).willReturn(false);
             given(entityManager.find(Member.class, MEMBER_ID)).willReturn(mock(Member.class));
-            given(entityManager.find(Product.class, PRODUCT_ID)).willReturn(mock(Product.class));
+            given(entityManager.find(Product.class, PRODUCT_ID)).willReturn(product);
             given(favoriteRepository.save(any(Favorite.class)))
                     .willThrow(new DataIntegrityViolationException("duplicate entry"));
 

@@ -62,6 +62,7 @@ class FavoriteControllerTest {
     private Long otherProductId;
     private Long categoryId;
     private String token;
+    private String sellerToken;
 
     @BeforeEach
     void setUp() {
@@ -79,6 +80,7 @@ class FavoriteControllerTest {
         productId = product.getId();
         otherProductId = otherProduct.getId();
         token = "Bearer " + jwtTokenProvider.createAccessToken(buyer.getId(), "ROLE_USER");
+        sellerToken = "Bearer " + jwtTokenProvider.createAccessToken(seller.getId(), "ROLE_USER");
     }
 
     @AfterEach
@@ -155,6 +157,15 @@ class FavoriteControllerTest {
                             .header("Authorization", token))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.error").value("PRODUCT_NOT_FOUND"));
+        }
+
+        @Test
+        @DisplayName("판매자가 자기 상품을 관심 등록하면 400과 CANNOT_FAVORITE_OWN_PRODUCT를 반환한다")
+        void ownProduct_returns400() throws Exception {
+            mockMvc.perform(post("/api/products/{productId}/favorites", productId)
+                            .header("Authorization", sellerToken))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("CANNOT_FAVORITE_OWN_PRODUCT"));
         }
 
         @Test

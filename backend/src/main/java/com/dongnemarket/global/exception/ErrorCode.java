@@ -61,6 +61,7 @@ public enum ErrorCode {
 	// ===== FAVORITE ERROR (권건우) =====
 	FAVORITE_ALREADY_EXISTS(409, "FAVORITE_001", "이미 관심 등록한 상품입니다."),
 	FAVORITE_NOT_FOUND(404, "FAVORITE_002", "관심 상품을 찾을 수 없습니다."),
+	CANNOT_FAVORITE_OWN_PRODUCT(400, "FAVORITE_003", "본인이 등록한 상품은 관심 등록할 수 없습니다."),
 
 	// ===== COMMENT ERROR (권건우) =====
 	COMMENT_NOT_FOUND(404, "COMMENT_001", "댓글을 찾을 수 없습니다."),
