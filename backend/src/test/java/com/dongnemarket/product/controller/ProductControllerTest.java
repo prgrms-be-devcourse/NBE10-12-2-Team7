@@ -75,7 +75,7 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구"
+				  "regionCode": "1168010100"
 				}
 				""";
 
@@ -98,7 +98,7 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구",
+				  "regionCode": "1168010100",
 				  "imageUrls": ["https://example.com/product-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -117,7 +117,10 @@ class ProductControllerTest {
 				.andExpect(jsonPath("$.data.description").value("상태 좋은 아이폰입니다."))
 				.andExpect(jsonPath("$.data.price").value(800000))
 				.andExpect(jsonPath("$.data.tradeStatus").value("ON_SALE"))
-				.andExpect(jsonPath("$.data.region").value("서울 강남구"))
+				.andExpect(jsonPath("$.data.region").value("서울특별시 강남구 역삼동"))
+				.andExpect(jsonPath("$.data.regionCode").value("1168010100"))
+				.andExpect(jsonPath("$.data.regionName").value("역삼동"))
+				.andExpect(jsonPath("$.data.regionFullName").value("서울특별시 강남구 역삼동"))
 				.andExpect(jsonPath("$.data.viewCount").value(0))
 				.andExpect(jsonPath("$.data.hidden").value(false));
 	}
@@ -133,7 +136,7 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구",
+				  "regionCode": "1168010100",
 				  "imageUrls": ["https://example.com/product-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -159,7 +162,7 @@ class ProductControllerTest {
 				  "title": " ",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구",
+				  "regionCode": "1168010100",
 				  "imageUrls": ["https://example.com/product-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -185,7 +188,7 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": -1,
-				  "region": "서울 강남구",
+				  "regionCode": "1168010100",
 				  "imageUrls": ["https://example.com/product-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -211,7 +214,7 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구",
+				  "regionCode": "1168010100",
 				  "imageUrls": ["https://example.com/1.jpg", " "],
 				  "thumbnailIndex": 0
 				}
@@ -237,7 +240,33 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울시 강남구",
+				  "regionCode": "9999999999",
+				  "imageUrls": ["https://example.com/product-1.jpg"],
+				  "thumbnailIndex": 0
+				}
+				""".formatted(category.getId());
+
+		mockMvc.perform(post("/api/products")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
+	}
+
+	@Test
+	@DisplayName("level 3이 아닌 지역 코드로 상품 등록 시 INVALID_INPUT_VALUE를 반환한다")
+	void returnsInvalidInputValueWhenCreatingWithNonDongRegionCode() throws Exception {
+		Member member = memberRepository.save(Member.createUser("level2-region-seller@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리시군구지역"));
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "categoryId": %d,
+				  "title": "아이폰 15",
+				  "description": "상태 좋은 아이폰입니다.",
+				  "price": 800000,
+				  "regionCode": "1168000000",
 				  "imageUrls": ["https://example.com/product-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -941,7 +970,7 @@ class ProductControllerTest {
 				  "title": "맥북 프로",
 				  "description": "수정된 상품 설명입니다.",
 				  "price": 1500000,
-				  "region": "서울 서초구",
+				  "regionCode": "1165010800",
 				  "imageUrls": ["https://example.com/update-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -958,7 +987,10 @@ class ProductControllerTest {
 				.andExpect(jsonPath("$.data.title").value("맥북 프로"))
 				.andExpect(jsonPath("$.data.description").value("수정된 상품 설명입니다."))
 				.andExpect(jsonPath("$.data.price").value(1500000))
-				.andExpect(jsonPath("$.data.region").value("서울 서초구"));
+				.andExpect(jsonPath("$.data.region").value("서울특별시 서초구 서초동"))
+				.andExpect(jsonPath("$.data.regionCode").value("1165010800"))
+				.andExpect(jsonPath("$.data.regionName").value("서초동"))
+				.andExpect(jsonPath("$.data.regionFullName").value("서울특별시 서초구 서초동"));
 	}
 
 	@Test
@@ -985,7 +1017,7 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구",
+				  "regionCode": "1168010100",
 				  "imageUrls": ["https://example.com/old-1.jpg", "https://example.com/old-2.jpg"],
 				  "thumbnailIndex": 1
 				}
@@ -1013,7 +1045,7 @@ class ProductControllerTest {
 				  "title": "맥북 프로",
 				  "description": "수정된 상품 설명입니다.",
 				  "price": 1500000,
-				  "region": "서울 서초구",
+				  "regionCode": "1165010800",
 				  "imageUrls": ["https://example.com/update-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -1047,7 +1079,7 @@ class ProductControllerTest {
 				  "title": "맥북 프로",
 				  "description": "수정된 상품 설명입니다.",
 				  "price": 1500000,
-				  "region": "서울 서초구",
+				  "regionCode": "1165010800",
 				  "imageUrls": ["https://example.com/update-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -1076,7 +1108,7 @@ class ProductControllerTest {
 				  "title": "맥북 프로",
 				  "description": "수정된 상품 설명입니다.",
 				  "price": 1500000,
-				  "region": "서울 서초구",
+				  "regionCode": "1165010800",
 				  "imageUrls": ["https://example.com/update-1.jpg"],
 				  "thumbnailIndex": 0
 				}
