@@ -411,17 +411,19 @@ export default function ProductDetailPage() {
 
           {/* 액션 */}
           <div className={styles.actions}>
-            <button
-              type="button"
-              className={`${styles.btnFav}${favorited ? ' ' + styles.on : ''}`}
-              onClick={toggleFav}
-              aria-pressed={favorited}
-              aria-label="관심 상품 토글"
-            >
-              <svg className={styles.heart} width="19" height="19" viewBox="0 0 24 24" strokeWidth="2">
-                <path d="M12 20.5l-1.4-1.3C5.4 14.5 2 11.4 2 7.6 2 4.9 4.1 3 6.7 3c1.5 0 3 .7 3.9 1.9L12 6.3l1.4-1.4C14.3 3.7 15.8 3 17.3 3 19.9 3 22 4.9 22 7.6c0 3.8-3.4 6.9-8.6 11.6L12 20.5z" />
-              </svg>
-            </button>
+            {!isOwner && (
+              <button
+                type="button"
+                className={`${styles.btnFav}${favorited ? ' ' + styles.on : ''}`}
+                onClick={toggleFav}
+                aria-pressed={favorited}
+                aria-label="관심 상품 토글"
+              >
+                <svg className={styles.heart} width="19" height="19" viewBox="0 0 24 24" strokeWidth="2">
+                  <path d="M12 20.5l-1.4-1.3C5.4 14.5 2 11.4 2 7.6 2 4.9 4.1 3 6.7 3c1.5 0 3 .7 3.9 1.9L12 6.3l1.4-1.4C14.3 3.7 15.8 3 17.3 3 19.9 3 22 4.9 22 7.6c0 3.8-3.4 6.9-8.6 11.6L12 20.5z" />
+                </svg>
+              </button>
+            )}
             {!isOwner && (
               <button type="button" className={styles.btnPrimary} onClick={startChat}>
                 채팅으로 거래하기

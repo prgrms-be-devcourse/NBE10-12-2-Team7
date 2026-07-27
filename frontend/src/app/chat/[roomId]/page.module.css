@@ -110,6 +110,18 @@
 }
 .completeBanner button:hover { background: var(--primary-d); }
 
+.withdrawnBanner {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  margin: 10px 6px 0;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
 .messages {
   flex: 1;
   overflow-y: auto;
