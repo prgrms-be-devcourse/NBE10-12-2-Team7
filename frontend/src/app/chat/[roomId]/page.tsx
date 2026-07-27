@@ -21,6 +21,7 @@ interface ChatProductSummary {
 interface ChatMemberSummary {
   memberId: number
   nickname: string
+  withdrawn: boolean
 }
 
 interface ChatMessage {
@@ -261,6 +262,12 @@ export default function ChatRoomPage() {
         })}
       </div>
 
+      {room && room.opponent.withdrawn && (
+        <div className={styles.withdrawnBanner}>
+          탈퇴한 사용자와는 더 이상 대화할 수 없습니다.
+        </div>
+      )}
+
       <form className={styles.inputRow} onSubmit={handleSend}>
         <input
           className={styles.input}
@@ -268,8 +275,14 @@ export default function ChatRoomPage() {
           value={input}
           onChange={e => setInput(e.target.value)}
           maxLength={1000}
+          disabled={!!room?.opponent.withdrawn}
         />
-        <button type="submit" className={styles.sendBtn} disabled={sending || !input.trim()} aria-label="전송">
+        <button
+          type="submit"
+          className={styles.sendBtn}
+          disabled={sending || !input.trim() || !!room?.opponent.withdrawn}
+          aria-label="전송"
+        >
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 2 11 13" />
             <path d="M22 2 15 22l-4-9-9-4 20-7z" />
