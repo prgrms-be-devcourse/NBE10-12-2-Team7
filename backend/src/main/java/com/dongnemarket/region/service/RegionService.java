@@ -6,6 +6,7 @@ import com.dongnemarket.region.dto.RegionResponse;
 import com.dongnemarket.region.repository.RegionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @Transactional(readOnly = true)
@@ -18,7 +19,18 @@ public class RegionService {
 	}
 
 	public List<RegionResponse> getRegions() {
-		return regionRepository.findAllByOrderByNameAsc()
+		return getRegions(null);
+	}
+
+	public List<RegionResponse> getRegions(String parentCode) {
+		if (!StringUtils.hasText(parentCode)) {
+			return regionRepository.findAllByParentIsNullOrderByDisplayNameAsc()
+					.stream()
+					.map(RegionResponse::from)
+					.toList();
+		}
+
+		return regionRepository.findAllByParentCodeOrderByDisplayNameAsc(parentCode)
 				.stream()
 				.map(RegionResponse::from)
 				.toList();
