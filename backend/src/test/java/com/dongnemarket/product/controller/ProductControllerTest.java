@@ -461,7 +461,7 @@ class ProductControllerTest {
 
 		@Test
 		@DisplayName("상품 목록은 지역 필터와 커서를 함께 적용한다")
-		void getsProductsWithRegionsAndCursor() throws Exception {
+		void getsProductsWithRegionCodesAndCursor() throws Exception {
 			Member member = memberRepository.save(Member.createUser("cursor-region-list-controller@example.com", "encodedPassword", "판매자"));
 			Category category = categoryRepository.save(new Category("테스트카테고리커서지역목록"));
 			Region gangnam = findRegion("1168010100");
@@ -561,7 +561,7 @@ class ProductControllerTest {
 		}
 
 	@Test
-	@DisplayName("상품 목록 지역 필터가 3개이면 INVALID_INPUT_VALUE를 반환한다")
+	@DisplayName("상품 목록 regionCode 필터가 3개이면 INVALID_INPUT_VALUE를 반환한다")
 	void returnsInvalidInputValueWhenGettingProductsWithMoreThanTwoRegions() throws Exception {
 		mockMvc.perform(get("/api/products")
 						.param("regionCodes", "1168000000", "1144000000", "1171000000"))
@@ -719,7 +719,7 @@ class ProductControllerTest {
 	}
 
 	@Test
-	@DisplayName("상품 검색 지역 필터가 3개이면 INVALID_INPUT_VALUE를 반환한다")
+	@DisplayName("상품 검색 regionCode 필터가 3개이면 INVALID_INPUT_VALUE를 반환한다")
 	void returnsInvalidInputValueWhenSearchingWithMoreThanTwoRegions() throws Exception {
 		mockMvc.perform(get("/api/products/search")
 						.param("regionCodes", "1168000000", "1144000000", "1171000000"))

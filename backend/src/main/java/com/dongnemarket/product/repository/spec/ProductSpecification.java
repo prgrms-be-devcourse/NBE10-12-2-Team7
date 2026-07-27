@@ -16,25 +16,25 @@ public class ProductSpecification {
 	private ProductSpecification() {
 	}
 
-	public static Specification<Product> list(List<String> regions) {
-		return list(regions, null);
+	public static Specification<Product> list(List<String> regionCodes) {
+		return list(regionCodes, null);
 	}
 
-	public static Specification<Product> list(List<String> regions, Long cursor) {
+	public static Specification<Product> list(List<String> regionCodes, Long cursor) {
 		return visibleProducts()
-				.and(regionCodeStartsWithAny(regions))
+				.and(regionCodeStartsWithAny(regionCodes))
 				.and(idLessThan(cursor));
 	}
 
 	public static Specification<Product> search(String keyword, Long categoryId, BigDecimal minPrice,
-												BigDecimal maxPrice, TradeStatus tradeStatus, List<String> regions) {
+												BigDecimal maxPrice, TradeStatus tradeStatus, List<String> regionCodes) {
 		return visibleProducts()
 				.and(keywordContains(keyword))
 				.and(categoryEquals(categoryId))
 				.and(priceGreaterThanOrEqualTo(minPrice))
 				.and(priceLessThanOrEqualTo(maxPrice))
 				.and(tradeStatusEquals(tradeStatus))
-				.and(regionCodeStartsWithAny(regions));
+				.and(regionCodeStartsWithAny(regionCodes));
 	}
 
 	public static Specification<Product> categoryList(Long categoryId) {
@@ -111,15 +111,6 @@ public class ProductSpecification {
 				return null;
 			}
 			return criteriaBuilder.equal(root.get("tradeStatus"), tradeStatus);
-		};
-	}
-
-	private static Specification<Product> regionIn(List<String> regions) {
-		return (root, query, criteriaBuilder) -> {
-			if (regions == null || regions.isEmpty()) {
-				return null;
-			}
-			return root.get("region").in(regions);
 		};
 	}
 

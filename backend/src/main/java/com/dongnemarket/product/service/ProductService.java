@@ -97,13 +97,13 @@ public class ProductService {
 		return getProducts(null, null, DEFAULT_PAGE_SIZE);
 	}
 
-	public ProductPageResponse getProducts(List<String> regions) {
-		return getProducts(regions, null, DEFAULT_PAGE_SIZE);
+	public ProductPageResponse getProducts(List<String> regionCodes) {
+		return getProducts(regionCodes, null, DEFAULT_PAGE_SIZE);
 	}
 
-	public ProductPageResponse getProducts(List<String> regions, Long cursor, int size) {
-		List<String> normalizedRegionCodes = normalizeRegions(regions);
-		validateRegionFilterSize(normalizedRegionCodes);
+	public ProductPageResponse getProducts(List<String> regionCodes, Long cursor, int size) {
+		List<String> normalizedRegionCodes = normalizeRegionCodes(regionCodes);
+		validateRegionCodeFilterSize(normalizedRegionCodes);
 		int limit = clampPageSize(size);
 
 		List<Product> rows = productRepository.findBy(
@@ -150,8 +150,8 @@ public class ProductService {
 
 	public List<ProductSummaryResponse> searchProducts(ProductSearchRequest request) {
 		ProductSearchRequest searchRequest = normalizeSearchRequest(request);
-			List<String> regionCodes = normalizeRegions(searchRequest.getRegionCodes());
-			validateRegionFilterSize(regionCodes);
+			List<String> regionCodes = normalizeRegionCodes(searchRequest.getRegionCodes());
+			validateRegionCodeFilterSize(regionCodes);
 		validateSearchPrice(searchRequest.getMinPrice(), searchRequest.getMaxPrice());
 		TradeStatus tradeStatus = parseSearchTradeStatus(searchRequest.getTradeStatus());
 
@@ -390,17 +390,17 @@ public class ProductService {
 		return request;
 	}
 
-	private List<String> normalizeRegions(List<String> regions) {
-		if (regions == null) {
+	private List<String> normalizeRegionCodes(List<String> regionCodes) {
+		if (regionCodes == null) {
 			return List.of();
 		}
-		return regions.stream()
+		return regionCodes.stream()
 				.filter(StringUtils::hasText)
 				.toList();
 	}
 
-	private void validateRegionFilterSize(List<String> regions) {
-		if (regions.size() > MAX_REGION_FILTER_SIZE) {
+	private void validateRegionCodeFilterSize(List<String> regionCodes) {
+		if (regionCodes.size() > MAX_REGION_FILTER_SIZE) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
 		}
 	}

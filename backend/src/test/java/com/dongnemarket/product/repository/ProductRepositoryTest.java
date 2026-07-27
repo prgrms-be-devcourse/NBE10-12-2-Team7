@@ -699,7 +699,7 @@ class ProductRepositoryTest {
 
 			@Test
 			@DisplayName("상품 목록 조건은 지역 필터와 커서 조건을 함께 적용한다")
-			void findsProductsByRegionsAndCursor() {
+			void findsProductsByRegionCodesAndCursor() {
 				Member member = memberRepository.save(Member.createUser("cursor-region-repository@example.com", "encodedPassword", "판매자"));
 				Category category = categoryRepository.save(new Category("커서지역필터"));
 				Region gangnam = saveGangnam();
