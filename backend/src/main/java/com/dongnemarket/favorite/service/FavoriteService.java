@@ -76,6 +76,11 @@ public class FavoriteService {
                 .toList();
     }
 
+    /** 특정 상품을 관심 등록한 회원 id들(판매자 본인 제외). 가격 변경 알림 수신자 조회용. */
+    public List<Long> findFavoriteMemberIdsForProduct(Long productId) {
+        return favoriteRepository.findFavoriteMemberIdsForProduct(productId);
+    }
+
     /** 관심 상품 취소. 로그인 사용자가 자신이 등록한 관심 상품을 제거한다. */
     @Transactional
     public void remove(Long memberId, Long productId) {
