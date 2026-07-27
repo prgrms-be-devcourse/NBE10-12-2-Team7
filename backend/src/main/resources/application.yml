@@ -96,6 +96,12 @@ file:
       bucket: ${AWS_S3_BUCKET:}
       region: ${AWS_REGION:ap-northeast-2}
 
+# 일반 API 요청 속도 제한(슬라이딩 윈도우, Redis 기반). 로그인 시도 제한(auth.LoginAttemptService, 고정 윈도우)과는
+# 별개로 모든 /api/** 요청에 적용되는 범용 남용 방지 장치다. window-seconds 동안 capacity회 초과 시 429.
+rate-limit:
+  capacity: ${RATE_LIMIT_CAPACITY:60}
+  window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:10}
+
 # Swagger / Springdoc
 springdoc:
   swagger-ui:

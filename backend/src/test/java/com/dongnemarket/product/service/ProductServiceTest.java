@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
@@ -30,6 +31,8 @@ import com.dongnemarket.category.repository.CategoryRepository;
 import com.dongnemarket.global.common.event.ProductPriceChangedEvent;
 import com.dongnemarket.global.exception.BusinessException;
 import com.dongnemarket.global.exception.ErrorCode;
+import com.dongnemarket.manner.entity.MannerScore;
+import com.dongnemarket.manner.service.MannerScoreService;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.member.repository.MemberRepository;
@@ -52,6 +55,7 @@ class ProductServiceTest {
 
 	private static final Long SELLER_ID = 1L;
 	private static final Long OTHER_MEMBER_ID = 2L;
+	private static final Long LOW_TRUST_SELLER_ID = 3L;
 	private static final Long PRODUCT_ID = 1L;
 	private static final Long CATEGORY_ID = 1L;
 	private static final Long UPDATE_CATEGORY_ID = 2L;
@@ -73,6 +77,9 @@ class ProductServiceTest {
 
 	@Mock
 	ApplicationEventPublisher eventPublisher;
+
+	@Mock
+	MannerScoreService mannerScoreService;
 
 	@InjectMocks
 	ProductService productService;
@@ -297,6 +304,41 @@ class ProductServiceTest {
 
 				verify(productRepository, never()).findAll(anyProductSpecification(), any(Sort.class));
 			}
+
+		@Test
+		@DisplayName("저신뢰 판매자 상품은 상품 목록에서 노출 순서 뒤로 밀려난다")
+		void demotesLowTrustSellerProductsInProductList() {
+			Product lowTrustProduct = product(3L, "저신뢰 판매자 상품", BigDecimal.valueOf(30000), lowTrustSeller());
+			Product normalProduct = product(2L, "일반 판매자 상품", BigDecimal.valueOf(20000), seller());
+			given(productRepository.findBy(anyProductSpecification(), any()))
+					.willReturn(List.of(lowTrustProduct, normalProduct));
+			given(mannerScoreService.getScoresByMemberIds(any())).willReturn(Map.of(
+					LOW_TRUST_SELLER_ID, BigDecimal.valueOf(10.0),
+					SELLER_ID, MannerScore.DEFAULT_SCORE
+			));
+
+			ProductPageResponse response = productService.getProducts(null, null, 30);
+
+			assertThat(response.getItems()).extracting(ProductSummaryResponse::getProductId)
+					.containsExactly(2L, 3L);
+		}
+
+		@Test
+		@DisplayName("저신뢰 판매자 상품은 카테고리별 상품 목록에서도 노출 순서 뒤로 밀려난다")
+		void demotesLowTrustSellerProductsInCategoryList() {
+			Product lowTrustProduct = product(3L, "저신뢰 판매자 상품", BigDecimal.valueOf(30000), lowTrustSeller());
+			Product normalProduct = product(2L, "일반 판매자 상품", BigDecimal.valueOf(20000), seller());
+			given(categoryRepository.existsById(CATEGORY_ID)).willReturn(true);
+			given(productRepository.findAll(anyProductSpecification(), any(Sort.class)))
+					.willReturn(List.of(lowTrustProduct, normalProduct));
+			given(mannerScoreService.getScoresByMemberIds(any()))
+					.willReturn(Map.of(LOW_TRUST_SELLER_ID, BigDecimal.valueOf(10.0)));
+
+			List<ProductSummaryResponse> responses = productService.getProductsByCategory(CATEGORY_ID);
+
+			assertThat(responses).extracting(ProductSummaryResponse::getProductId)
+					.containsExactly(2L, 3L);
+		}
 		}
 
 	@Nested
@@ -371,6 +413,23 @@ class ProductServiceTest {
 			Sort.Order idOrder = sortCaptor.getValue().getOrderFor("id");
 			assertThat(idOrder).isNotNull();
 			assertThat(idOrder.getDirection()).isEqualTo(Sort.Direction.DESC);
+		}
+
+		@Test
+		@DisplayName("저신뢰 판매자 상품은 검색 결과에서도 노출 순서 뒤로 밀려난다")
+		void demotesLowTrustSellerProductsInSearchResults() {
+			Product lowTrustProduct = product(2L, "저신뢰 판매자 상품", BigDecimal.valueOf(1200000), lowTrustSeller());
+			Product normalProduct = product(1L, "일반 판매자 상품", BigDecimal.valueOf(1200000), seller());
+			ProductSearchRequest request = new ProductSearchRequest(null, null, null, null, null);
+			given(productRepository.findAll(anyProductSpecification(), any(Sort.class)))
+					.willReturn(List.of(lowTrustProduct, normalProduct));
+			given(mannerScoreService.getScoresByMemberIds(any()))
+					.willReturn(Map.of(LOW_TRUST_SELLER_ID, BigDecimal.valueOf(15.0)));
+
+			List<ProductSummaryResponse> responses = productService.searchProducts(request);
+
+			assertThat(responses).extracting(ProductSummaryResponse::getProductId)
+					.containsExactly(1L, 2L);
 		}
 
 		@Test
@@ -1254,6 +1313,10 @@ class ProductServiceTest {
 		return member(SELLER_ID, "seller@example.com", "판매자");
 	}
 
+	private Member lowTrustSeller() {
+		return member(LOW_TRUST_SELLER_ID, "low-trust-seller@example.com", "저신뢰판매자");
+	}
+
 	private Member member(Long id, String email, String nickname) {
 		Member member = Member.createUser(email, "encodedPassword", nickname);
 		ReflectionTestUtils.setField(member, "id", id);
@@ -1269,8 +1332,12 @@ class ProductServiceTest {
 	}
 
 	private Product product(Long id, String title, BigDecimal price) {
+		return product(id, title, price, seller());
+	}
+
+	private Product product(Long id, String title, BigDecimal price, Member seller) {
 		Product product = Product.create(
-				seller(),
+				seller,
 				category("디지털기기"),
 				title,
 				"상품 설명입니다.",

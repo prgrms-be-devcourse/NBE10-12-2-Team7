@@ -116,6 +116,19 @@ public class ReportService {
                 .collect(Collectors.toList());
     }
 
+    /** 본인이 접수한 신고 단건 상세 조회 — 신고 사유 상세 내용(content)까지 포함해서 반환한다. */
+    @Transactional(readOnly = true)
+    public MyReportResponse getMyReport(Long reporterId, Long reportId) {
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.REPORT_NOT_FOUND));
+
+        if (!report.getReporter().getId().equals(reporterId)) {
+            throw new BusinessException(ErrorCode.REPORT_OWNER_ONLY);
+        }
+
+        return MyReportResponse.from(report);
+    }
+
     /** 아직 처리되지 않은(RECEIVED) 본인 신고만 취소(삭제)할 수 있다. */
     @Transactional
     public void cancelReport(Long reporterId, Long reportId) {

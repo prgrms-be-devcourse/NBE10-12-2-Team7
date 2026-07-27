@@ -79,10 +79,25 @@ public enum ErrorCode {
 	INVALID_REPORT_TARGET(400, "REPORT_004", "잘못된 신고 대상입니다."),
 	DUPLICATE_REPORT(409, "REPORT_005", "이미 신고한 대상입니다."),
 	CANNOT_CANCEL_REPORT(400, "REPORT_006", "이미 처리 중이거나 완료된 신고는 취소할 수 없습니다."),
-	REPORT_OWNER_ONLY(403, "REPORT_007", "본인이 신고한 내역만 취소할 수 있습니다."),
+	REPORT_OWNER_ONLY(403, "REPORT_007", "본인이 신고한 내역만 조회·취소할 수 있습니다."),
 	INVALID_EVIDENCE_IMAGE(400, "REPORT_008", "이미지 파일(jpg/png/gif/webp)만 5MB 이하로 업로드할 수 있습니다."),
 	EVIDENCE_IMAGE_NOT_FOUND(404, "REPORT_009", "증빙 이미지를 찾을 수 없습니다."),
 	EVIDENCE_IMAGE_UPLOAD_FAILED(500, "REPORT_010", "이미지 업로드 중 오류가 발생했습니다."),
+	TOO_MANY_REQUESTS(429, "REPORT_011", "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
+
+	// ===== MANNER ERROR (서유진) =====
+	MANNER_RATING_TRADE_NOT_COMPLETED(400, "MANNER_001", "거래가 완료된 상품만 후기를 등록할 수 있습니다."),
+	MANNER_RATING_NOT_A_PARTICIPANT(403, "MANNER_002", "해당 거래의 구매자만 후기를 등록할 수 있습니다."),
+	MANNER_RATING_ALREADY_EXISTS(409, "MANNER_003", "이미 해당 거래에 대한 후기를 등록했습니다."),
+
+	// ===== ESCROW ERROR (조민석) =====
+	ESCROW_NOT_FOUND(404, "ESCROW_001", "거래를 찾을 수 없습니다."),
+	CANNOT_ESCROW_OWN_PRODUCT(400, "ESCROW_002", "본인 상품은 거래할 수 없습니다."),
+	PRODUCT_NOT_ON_SALE(400, "ESCROW_003", "판매 중인 상품이 아닙니다."),
+	ESCROW_NOT_IN_ESCROW(409, "ESCROW_004", "예치 상태가 아니어서 구매확정할 수 없습니다."),
+	ESCROW_NOT_CANCELABLE(409, "ESCROW_005", "예치 상태가 아니어서 취소할 수 없습니다."),
+	ESCROW_ACCESS_DENIED(403, "ESCROW_006", "본인 거래만 확정·취소할 수 있습니다."),
+	ESCROW_ALREADY_EXISTS(409, "ESCROW_007", "이미 진행 중인 거래가 있는 상품입니다."),
 
 	// ===== ADMIN ERROR (팀장) =====
 	ADMIN_ONLY(403, "ADMIN_001", "관리자만 접근할 수 있습니다."),

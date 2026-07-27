@@ -66,6 +66,9 @@ public class Product extends BaseTimeEntity {
 	@Column
 	private LocalDateTime deletedAt;
 
+	@Column
+	private LocalDateTime completedAt;
+
 	protected Product() {
 	}
 
@@ -110,6 +113,9 @@ public class Product extends BaseTimeEntity {
 
 	public void changeTradeStatus(TradeStatus tradeStatus) {
 		this.tradeStatus = tradeStatus;
+		if (tradeStatus == TradeStatus.COMPLETED && this.completedAt == null) {
+			this.completedAt = LocalDateTime.now();
+		}
 	}
 
 	public void changeThumbnailUrl(String thumbnailUrl) {
@@ -117,7 +123,7 @@ public class Product extends BaseTimeEntity {
 	}
 
 	public void complete() {
-		this.tradeStatus = TradeStatus.COMPLETED;
+		changeTradeStatus(TradeStatus.COMPLETED);
 	}
 
 	public boolean isDeleted() {
@@ -178,6 +184,10 @@ public class Product extends BaseTimeEntity {
 
 	public LocalDateTime getDeletedAt() {
 		return deletedAt;
+	}
+
+	public LocalDateTime getCompletedAt() {
+		return completedAt;
 	}
 
 }
