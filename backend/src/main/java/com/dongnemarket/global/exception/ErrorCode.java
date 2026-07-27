@@ -90,6 +90,15 @@ public enum ErrorCode {
 	MANNER_RATING_NOT_A_PARTICIPANT(403, "MANNER_002", "해당 거래의 구매자만 후기를 등록할 수 있습니다."),
 	MANNER_RATING_ALREADY_EXISTS(409, "MANNER_003", "이미 해당 거래에 대한 후기를 등록했습니다."),
 
+	// ===== ESCROW ERROR (조민석) =====
+	ESCROW_NOT_FOUND(404, "ESCROW_001", "거래를 찾을 수 없습니다."),
+	CANNOT_ESCROW_OWN_PRODUCT(400, "ESCROW_002", "본인 상품은 거래할 수 없습니다."),
+	PRODUCT_NOT_ON_SALE(400, "ESCROW_003", "판매 중인 상품이 아닙니다."),
+	ESCROW_NOT_IN_ESCROW(409, "ESCROW_004", "예치 상태가 아니어서 구매확정할 수 없습니다."),
+	ESCROW_NOT_CANCELABLE(409, "ESCROW_005", "예치 상태가 아니어서 취소할 수 없습니다."),
+	ESCROW_ACCESS_DENIED(403, "ESCROW_006", "본인 거래만 확정·취소할 수 있습니다."),
+	ESCROW_ALREADY_EXISTS(409, "ESCROW_007", "이미 진행 중인 거래가 있는 상품입니다."),
+
 	// ===== ADMIN ERROR (팀장) =====
 	ADMIN_ONLY(403, "ADMIN_001", "관리자만 접근할 수 있습니다."),
 	INVALID_MEMBER_STATUS(400, "ADMIN_002", "잘못된 회원 상태 값입니다."),
