@@ -1,0 +1,13 @@
+*.iml
+.gradle/
+/local.properties
+.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+/app/build/
+
+# 개인 학습 문서 (push 제외 — 나만 보는 질문/메모 기록)
+/docs/
