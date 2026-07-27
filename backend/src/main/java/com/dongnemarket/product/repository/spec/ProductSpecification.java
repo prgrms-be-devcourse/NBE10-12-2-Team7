@@ -34,7 +34,7 @@ public class ProductSpecification {
 				.and(priceGreaterThanOrEqualTo(minPrice))
 				.and(priceLessThanOrEqualTo(maxPrice))
 				.and(tradeStatusEquals(tradeStatus))
-					.and(regionIn(regions));
+				.and(regionCodeStartsWithAny(regions));
 	}
 
 	public static Specification<Product> categoryList(Long categoryId) {

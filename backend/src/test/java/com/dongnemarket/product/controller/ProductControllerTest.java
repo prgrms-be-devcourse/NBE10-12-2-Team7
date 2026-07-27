@@ -671,23 +671,24 @@ class ProductControllerTest {
 		suspendedMember.changeStatus(MemberStatus.SUSPENDED);
 		suspendedMember = memberRepository.save(suspendedMember);
 		Category category = categoryRepository.save(new Category("검색공개정책"));
+		Region gangnam = findRegion("1168010100");
 		Product visibleProduct = productRepository.save(Product.create(
 				activeMember,
 				category,
 				"정책 맥북",
 				"정책 검색 상품입니다.",
 				BigDecimal.valueOf(1000000),
-				"서울 강남구"
+				gangnam
 		));
-		Product completedProduct = Product.create(activeMember, category, "정책 완료 맥북", "거래완료 검색 상품입니다.", BigDecimal.valueOf(900000), "서울 강남구");
+		Product completedProduct = Product.create(activeMember, category, "정책 완료 맥북", "거래완료 검색 상품입니다.", BigDecimal.valueOf(900000), gangnam);
 		completedProduct.complete();
 		productRepository.save(completedProduct);
-		productRepository.save(Product.create(deletedMember, category, "정책 탈퇴 맥북", "탈퇴 판매자 검색 상품입니다.", BigDecimal.valueOf(800000), "서울 강남구"));
-		productRepository.saveAndFlush(Product.create(suspendedMember, category, "정책 정지 맥북", "정지 판매자 검색 상품입니다.", BigDecimal.valueOf(700000), "서울 강남구"));
+		productRepository.save(Product.create(deletedMember, category, "정책 탈퇴 맥북", "탈퇴 판매자 검색 상품입니다.", BigDecimal.valueOf(800000), gangnam));
+		productRepository.saveAndFlush(Product.create(suspendedMember, category, "정책 정지 맥북", "정지 판매자 검색 상품입니다.", BigDecimal.valueOf(700000), gangnam));
 
 		mockMvc.perform(get("/api/products/search")
 						.param("keyword", "정책")
-						.param("regions", "서울 강남구"))
+						.param("regionCodes", "1168000000"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.length()").value(1))
 				.andExpect(jsonPath("$.data[0].productId").value(visibleProduct.getId()))

@@ -270,12 +270,12 @@ class ProductServiceTest {
 			}
 
 			@Test
-			@DisplayName("상품 목록 지역 필터가 3개이면 조회할 수 없다")
-			void throwsInvalidInputWhenGettingProductsWithMoreThanTwoRegions() {
-				assertBusinessException(
-						() -> productService.getProducts(List.of("서울 강남구", "서울 마포구", "서울 송파구"), null, 30),
-						ErrorCode.INVALID_INPUT_VALUE
-				);
+				@DisplayName("상품 목록 regionCode 필터가 3개이면 조회할 수 없다")
+				void throwsInvalidInputWhenGettingProductsWithMoreThanTwoRegions() {
+					assertBusinessException(
+							() -> productService.getProducts(List.of("1168000000", "1144000000", "1171000000"), null, 30),
+							ErrorCode.INVALID_INPUT_VALUE
+					);
 
 				verify(productRepository, never()).findBy(anyProductSpecification(), any());
 			}
@@ -403,7 +403,7 @@ class ProductServiceTest {
 					BigDecimal.valueOf(1000000),
 					BigDecimal.valueOf(1500000),
 					"ON_SALE",
-					List.of("서울 강남구", "서울 마포구")
+						List.of("1168000000", "1144000000")
 			);
 			given(productRepository.findAll(anyProductSpecification(), any(Sort.class))).willReturn(List.of(product));
 
@@ -483,16 +483,16 @@ class ProductServiceTest {
 		}
 
 		@Test
-		@DisplayName("검색 지역 필터가 3개이면 검색할 수 없다")
-		void throwsInvalidInputWhenSearchingWithMoreThanTwoRegions() {
-			ProductSearchRequest request = new ProductSearchRequest(
-					null,
-					null,
-					null,
-					null,
-					null,
-					List.of("서울 강남구", "서울 마포구", "서울 송파구")
-			);
+			@DisplayName("검색 regionCode 필터가 3개이면 검색할 수 없다")
+			void throwsInvalidInputWhenSearchingWithMoreThanTwoRegions() {
+				ProductSearchRequest request = new ProductSearchRequest(
+						null,
+						null,
+						null,
+						null,
+						null,
+						List.of("1168000000", "1144000000", "1171000000")
+				);
 
 			assertBusinessException(
 					() -> productService.searchProducts(request),

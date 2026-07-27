@@ -150,8 +150,8 @@ public class ProductService {
 
 	public List<ProductSummaryResponse> searchProducts(ProductSearchRequest request) {
 		ProductSearchRequest searchRequest = normalizeSearchRequest(request);
-		List<String> regions = normalizeRegions(searchRequest.getRegions());
-		validateRegionFilterSize(regions);
+			List<String> regionCodes = normalizeRegions(searchRequest.getRegionCodes());
+			validateRegionFilterSize(regionCodes);
 		validateSearchPrice(searchRequest.getMinPrice(), searchRequest.getMaxPrice());
 		TradeStatus tradeStatus = parseSearchTradeStatus(searchRequest.getTradeStatus());
 
@@ -162,7 +162,7 @@ public class ProductService {
 						searchRequest.getMinPrice(),
 						searchRequest.getMaxPrice(),
 						tradeStatus,
-						regions
+						regionCodes
 				),
 				Sort.by(Sort.Direction.DESC, "id")
 		);

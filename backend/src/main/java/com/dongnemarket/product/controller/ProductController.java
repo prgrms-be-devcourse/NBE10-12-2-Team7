@@ -66,8 +66,8 @@ public class ProductController {
 			@RequestParam(required = false) BigDecimal minPrice,
 			@RequestParam(required = false) BigDecimal maxPrice,
 			@RequestParam(required = false) String tradeStatus,
-			@RequestParam(required = false) List<String> regions) {
-		ProductSearchRequest request = new ProductSearchRequest(keyword, categoryId, minPrice, maxPrice, tradeStatus, regions);
+			@RequestParam(required = false) List<String> regionCodes) {
+		ProductSearchRequest request = new ProductSearchRequest(keyword, categoryId, minPrice, maxPrice, tradeStatus, regionCodes);
 		return ApiResponse.success(productService.searchProducts(request));
 	}
 

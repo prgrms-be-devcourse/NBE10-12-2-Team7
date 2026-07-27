@@ -798,15 +798,17 @@ class ProductRepositoryTest {
 		Member suspendedMember = memberRepository.save(Member.createUser("search-visible-suspended@example.com", "encodedPassword", "정지검색판매자"));
 		suspendedMember.changeStatus(MemberStatus.SUSPENDED);
 		Category category = categoryRepository.save(new Category("공개검색정책"));
+		Region gangnam = saveGangnam();
+		Region yeoksam = saveDong(gangnam, "1168010100", "서울특별시 강남구 역삼동", "역삼동");
 		Product visibleProduct = productRepository.save(Product.create(
 				activeMember,
 				category,
 				"정책 맥북",
 				"공개 검색 상품입니다.",
 				BigDecimal.valueOf(1000000),
-				"서울 강남구"
+				yeoksam
 		));
-		Product completedProduct = Product.create(activeMember, category, "정책 완료 맥북", "거래완료 검색 상품입니다.", BigDecimal.valueOf(900000), "서울 강남구");
+		Product completedProduct = Product.create(activeMember, category, "정책 완료 맥북", "거래완료 검색 상품입니다.", BigDecimal.valueOf(900000), yeoksam);
 		completedProduct.complete();
 		productRepository.save(completedProduct);
 		Product deletedSellerProduct = productRepository.save(Product.create(
@@ -815,7 +817,7 @@ class ProductRepositoryTest {
 				"정책 탈퇴 맥북",
 				"탈퇴 판매자 검색 상품입니다.",
 				BigDecimal.valueOf(800000),
-				"서울 강남구"
+				yeoksam
 		));
 		Product suspendedSellerProduct = productRepository.saveAndFlush(Product.create(
 				suspendedMember,
@@ -823,11 +825,11 @@ class ProductRepositoryTest {
 				"정책 정지 맥북",
 				"정지 판매자 검색 상품입니다.",
 				BigDecimal.valueOf(700000),
-				"서울 강남구"
+				yeoksam
 		));
 
 		List<Product> products = productRepository.findAll(
-				ProductSpecification.search("정책", null, null, null, null, List.of("서울 강남구")),
+				ProductSpecification.search("정책", null, null, null, null, List.of("1168000000")),
 				Sort.by(Sort.Direction.DESC, "id")
 		);
 
