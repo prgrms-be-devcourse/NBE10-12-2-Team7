@@ -132,6 +132,7 @@ export default function ProductDetailPage() {
     if (!product) return
     try {
       const saved = localStorage.getItem(escrowStorageKey(product.productId))
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage는 클라이언트에서만 읽을 수 있어 이 시점에만 계산 가능
       setExistingEscrowId(saved ? Number(saved) : null)
     } catch { /* localStorage 접근 불가 환경은 그냥 무시 */ }
   }, [product])

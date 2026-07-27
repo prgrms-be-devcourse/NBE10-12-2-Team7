@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/apiClient'
 import styles from './page.module.css'
@@ -48,7 +48,6 @@ function formatDate(iso: string) {
 
 export default function EscrowStatusPage() {
   const { escrowId } = useParams<{ escrowId: string }>()
-  const router = useRouter()
 
   const [status, setStatus] = useState<PageStatus>('loading')
   const [errorMsg, setErrorMsg] = useState('')

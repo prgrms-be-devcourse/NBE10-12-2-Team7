@@ -24,12 +24,8 @@ export default function LegalChatWidget() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [status, setStatus] = useState<SendStatus>('idle')
-  const conversationId = useRef<string>('')
+  const [conversationId] = useState(() => (typeof crypto !== 'undefined' ? crypto.randomUUID() : ''))
   const listRef = useRef<HTMLDivElement>(null)
-
-  if (!conversationId.current && typeof crypto !== 'undefined') {
-    conversationId.current = crypto.randomUUID()
-  }
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
@@ -49,7 +45,7 @@ export default function LegalChatWidget() {
       const res = await fetch('/agent/legal/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, conversationId: conversationId.current }),
+        body: JSON.stringify({ question, conversationId }),
       })
       const body = await res.json().catch(() => null)
       if (!res.ok || !body?.success) {

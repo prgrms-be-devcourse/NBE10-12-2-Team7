@@ -27,7 +27,6 @@ export default function AdminMannerScoresPage() {
     const token = getAccessToken()
     if (!token) return
     let cancelled = false
-    setStatus('loading')
     fetch(`/api/admin/manner-scores?threshold=${encodeURIComponent(appliedThreshold)}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -39,6 +38,7 @@ export default function AdminMannerScoresPage() {
 
   function applyThreshold() {
     const trimmed = thresholdInput.trim()
+    setStatus('loading')
     setAppliedThreshold(trimmed || DEFAULT_THRESHOLD)
   }
 

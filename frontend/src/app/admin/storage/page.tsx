@@ -54,7 +54,6 @@ export default function AdminStoragePage() {
   function loadOrphans() {
     const token = getAccessToken()
     if (!token) return
-    setStatus('loading')
     fetch(`/api/admin/storage/orphans?graceHours=${encodeURIComponent(appliedGraceHours)}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -74,6 +73,7 @@ export default function AdminStoragePage() {
 
   function applyGraceHours() {
     const trimmed = graceHoursInput.trim()
+    setStatus('loading')
     setAppliedGraceHours(trimmed || DEFAULT_GRACE_HOURS)
   }
 
