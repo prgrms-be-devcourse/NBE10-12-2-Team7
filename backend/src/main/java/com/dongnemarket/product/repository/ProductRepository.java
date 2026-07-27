@@ -27,4 +27,6 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
 	// 특정 회원의 삭제되지 않은 상품을 최신 등록순으로 조회한다.
 	List<Product> findAllByMemberIdAndDeletedAtIsNullOrderByIdDesc(Long memberId);
+
+	List<Product> findAllByRegionRefIsNull();
 }

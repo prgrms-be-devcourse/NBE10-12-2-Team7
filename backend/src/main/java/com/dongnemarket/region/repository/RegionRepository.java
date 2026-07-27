@@ -16,6 +16,8 @@ public interface RegionRepository extends JpaRepository<Region, Long> {
 
 	Optional<Region> findByCode(String code);
 
+	Optional<Region> findByName(String name);
+
 	List<Region> findAllByOrderByNameAsc();
 
 	List<Region> findAllByParentIsNullOrderByDisplayNameAsc();
