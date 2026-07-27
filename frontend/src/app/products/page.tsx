@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { apiFetch, bootstrapAutoLogin } from '@/lib/apiClient'
 import { getAccessToken } from '@/lib/auth'
 import type { TradeStatus } from '@/lib/tradeStatus'
+import RegionCascadeSelect from '@/components/RegionCascadeSelect'
 import styles from './page.module.css'
 
 interface Category {
@@ -12,13 +13,9 @@ interface Category {
   name: string
 }
 
-interface RegionOption {
-  regionId: number
-  name: string
-}
-
 interface MemberLocation {
-  region: string
+  regionCode: string
+  regionFullName: string
   sortOrder: number
   active: boolean
 }
@@ -30,7 +27,7 @@ interface Product {
   title: string
   price: number
   tradeStatus: TradeStatus
-  region: string
+  regionFullName: string
   viewCount: number
   favoriteCount: number
   thumbnailUrl: string | null
@@ -85,12 +82,10 @@ export default function ProductsPage() {
   const [sort,       setSort]       = useState('latest')
 
   /* ── 내 동네 설정 ── */
-  const [regionOptions, setRegionOptions] = useState<RegionOption[]>([])
-  const [myRegions,     setMyRegions]     = useState<string[]>([])
-  const [activeRegion,  setActiveRegion]  = useState('')
+  const [myLocations,     setMyLocations]     = useState<MemberLocation[]>([])
+  const [activeRegionCode, setActiveRegionCode] = useState('')
   const [regionOpen,    setRegionOpen]    = useState(false)
   const [addMode,       setAddMode]       = useState(false)
-  const [regionQuery,   setRegionQuery]   = useState('')
 
   /* ── 관심 상품 ── */
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set())
@@ -137,21 +132,19 @@ export default function ProductsPage() {
       if (cancelled) return null
       return Promise.all([
         fetch('/api/categories').then(r => r.json()).catch(() => null),
-        fetch('/api/regions').then(r => r.json()).catch(() => null),
         loggedIn ? apiFetch('/api/members/me/locations').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
         loggedIn ? apiFetch('/api/members/me/favorites').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
       ])
     }).then(results => {
       if (cancelled || !results) return
-      const [catRes, regionRes, locRes, favRes] = results
+      const [catRes, locRes, favRes] = results
       setCategories(catRes?.data ?? [])
-      setRegionOptions(regionRes?.data ?? [])
 
       const locs: MemberLocation[] = locRes?.data ?? []
       const ordered = locs.slice().sort((a, b) => a.sortOrder - b.sortOrder)
-      setMyRegions(ordered.map(l => l.region))
+      setMyLocations(ordered)
       const active = ordered.find(l => l.active)
-      if (active) setActiveRegion(active.region)
+      if (active) setActiveRegionCode(active.regionCode)
 
       const favs: MyFavorite[] = favRes?.data ?? []
       setFavoriteIds(new Set(favs.map(f => f.product.productId)))
@@ -162,7 +155,7 @@ export default function ProductsPage() {
   const fetchProductPage = useCallback(async (cursor?: number | null): Promise<ProductPage> => {
     const params = new URLSearchParams()
     params.set('size', String(PRODUCT_PAGE_SIZE))
-    if (activeRegion) params.append('regions', activeRegion)
+    if (activeRegionCode) params.append('regionCodes', activeRegionCode)
     if (cursor != null) params.set('cursor', String(cursor))
 
     const query = params.toString()
@@ -171,12 +164,12 @@ export default function ProductsPage() {
     if (!res.ok) throw new Error(data?.message ?? '상품 목록 조회 실패')
 
     return data?.data ?? { items: [], nextCursor: null, hasNext: false }
-  }, [activeRegion])
+  }, [activeRegionCode])
 
   /* 상품 목록 — 활성 동네가 있으면 해당 지역으로 필터링해 조회 */
   useEffect(() => {
     let cancelled = false
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- activeRegion 변경 시 첫 페이지를 다시 조회하며 로딩 상태를 표시한다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- activeRegionCode 변경 시 첫 페이지를 다시 조회하며 로딩 상태를 표시한다.
     setStatus('loading')
     hasExtraPagesRef.current = false
 
@@ -243,15 +236,15 @@ export default function ProductsPage() {
   }
 
   /* ── 동네 설정 모달 ── */
-  function openRegion() { setRegionOpen(true); setAddMode(false); setRegionQuery('') }
-  function closeRegion() { setRegionOpen(false); setAddMode(false); setRegionQuery('') }
+  function openRegion() { setRegionOpen(true); setAddMode(false) }
+  function closeRegion() { setRegionOpen(false); setAddMode(false) }
 
-  async function persistRegions(next: string[]) {
+  async function persistRegions(next: MemberLocation[]) {
     try {
       const res = await apiFetch('/api/members/me/locations', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ regions: next }),
+        body: JSON.stringify({ regionCodes: next.map(l => l.regionCode) }),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) {
@@ -259,41 +252,36 @@ export default function ProductsPage() {
         return
       }
       const locs: MemberLocation[] = data?.data ?? []
-      const ordered = locs.slice().sort((a, b) => a.sortOrder - b.sortOrder)
-      setMyRegions(ordered.map(l => l.region))
+      setMyLocations(locs.slice().sort((a, b) => a.sortOrder - b.sortOrder))
     } catch {
       showToast('서버에 연결할 수 없습니다.')
     }
   }
 
-  function addRegion(region: string) {
+  function addRegion(regionCode: string, regionFullName: string) {
     if (!getAccessToken()) { showToast('로그인 후 이용할 수 있어요'); return }
-    setAddMode(false); setRegionQuery('')
-    if (myRegions.length >= 2 || myRegions.includes(region)) return
-    const next = [...myRegions, region]
+    setAddMode(false)
+    if (myLocations.length >= 2 || myLocations.some(l => l.regionCode === regionCode)) return
+    const next = [...myLocations, { regionCode, regionFullName, sortOrder: myLocations.length, active: false }]
     persistRegions(next)
-    if (!activeRegion) setActiveRegion(region)
+    if (!activeRegionCode) setActiveRegionCode(regionCode)
   }
 
-  function removeRegion(region: string) {
+  function removeRegion(regionCode: string) {
     if (!getAccessToken()) { showToast('로그인 후 이용할 수 있어요'); return }
-    const next = myRegions.filter(r => r !== region)
+    const next = myLocations.filter(l => l.regionCode !== regionCode)
     persistRegions(next)
-    if (activeRegion === region) setActiveRegion(next[0] ?? '')
+    if (activeRegionCode === regionCode) setActiveRegionCode(next[0]?.regionCode ?? '')
   }
 
-  function selectActive(region: string) {
-    setActiveRegion(region)
+  function selectActive(regionCode: string) {
+    setActiveRegionCode(regionCode)
     setRegionOpen(false)
   }
 
-  const searchResults = useMemo(() => {
-    const pool = regionOptions.filter(r => !myRegions.includes(r.name))
-    const q = regionQuery.trim()
-    return q ? pool.filter(r => r.name.includes(q)) : pool
-  }, [regionOptions, myRegions, regionQuery])
-
-  const regionLabel = myRegions.length === 0 ? '내 동네 설정' : (activeRegion || myRegions[0])
+  const regionLabel = myLocations.length === 0
+    ? '내 동네 설정'
+    : (myLocations.find(l => l.regionCode === activeRegionCode)?.regionFullName ?? myLocations[0].regionFullName)
 
   /* ── 관심 토글 ── */
   async function toggleFavorite(e: React.MouseEvent, product: Product) {
@@ -334,7 +322,7 @@ export default function ProductsPage() {
     if (categoryId !== 'all') list = list.filter(p => p.categoryId === categoryId)
     if (search.trim()) {
       const q = search.trim().toLowerCase()
-      list = list.filter(p => p.title.toLowerCase().includes(q) || p.region.includes(search.trim()))
+      list = list.filter(p => p.title.toLowerCase().includes(q) || p.regionFullName.includes(search.trim()))
     }
     switch (sort) {
       case 'likes':      list = [...list].sort((a, b) => b.favoriteCount - a.favoriteCount); break
@@ -404,26 +392,26 @@ export default function ProductsPage() {
             </div>
 
             <div className={styles.modalList}>
-              {myRegions.map(region => (
-                <div key={region} className={styles.regRow}>
-                  <button type="button" className={styles.regSelect} onClick={() => selectActive(region)}>
+              {myLocations.map(loc => (
+                <div key={loc.regionCode} className={styles.regRow}>
+                  <button type="button" className={styles.regSelect} onClick={() => selectActive(loc.regionCode)}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.2"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z" /><circle cx="12" cy="10" r="2.4" fill="var(--primary)" stroke="none" /></svg>
-                    {region}
-                    {region === activeRegion && <span className={styles.regActiveTag}>보는 중</span>}
+                    {loc.regionFullName}
+                    {loc.regionCode === activeRegionCode && <span className={styles.regActiveTag}>보는 중</span>}
                   </button>
-                  <button type="button" className={styles.regRemove} aria-label="동네 삭제" onClick={() => removeRegion(region)}>
+                  <button type="button" className={styles.regRemove} aria-label="동네 삭제" onClick={() => removeRegion(loc.regionCode)}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M18 6L6 18M6 6l12 12" /></svg>
                   </button>
                 </div>
               ))}
 
-              {myRegions.length === 0 && (
+              {myLocations.length === 0 && (
                 <div className={styles.noRegions}>
                   아직 설정된 동네가 없어요.<br />아래 <b>동네 추가</b>로 내 동네를 등록해보세요.
                 </div>
               )}
 
-              {myRegions.length < 2 && !addMode && (
+              {myLocations.length < 2 && !addMode && (
                 <button type="button" className={styles.addRegionBtn} onClick={() => setAddMode(true)}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"><path d="M12 5v14M5 12h14" /></svg>
                   동네 추가
@@ -433,26 +421,7 @@ export default function ProductsPage() {
 
             {addMode && (
               <div className={styles.searchWrap}>
-                <div className={styles.searchInputRow}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
-                  <input
-                    placeholder="동네 이름을 검색하세요 (예: 강남구)"
-                    autoFocus
-                    value={regionQuery}
-                    onChange={e => setRegionQuery(e.target.value)}
-                  />
-                </div>
-                <div className={styles.resultsList}>
-                  {searchResults.map(r => (
-                    <button key={r.regionId} type="button" className={styles.resultItem} onClick={() => addRegion(r.name)}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.2"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z" /><circle cx="12" cy="10" r="2.4" fill="var(--primary)" stroke="none" /></svg>
-                      {r.name}
-                    </button>
-                  ))}
-                  {searchResults.length === 0 && (
-                    <div className={styles.noResults}>검색 결과가 없어요.</div>
-                  )}
-                </div>
+                <RegionCascadeSelect value="" onChange={(code, fullName) => { if (code) addRegion(code, fullName) }} />
               </div>
             )}
           </div>
@@ -544,7 +513,7 @@ export default function ProductsPage() {
                         {priceText(product.price)}
                       </div>
                       <div className={styles.meta}>
-                        <span>{product.region}</span>
+                        <span>{product.regionFullName}</span>
                       </div>
                       <div className={styles.foot}>
                         <span>♡ {product.favoriteCount}</span>
