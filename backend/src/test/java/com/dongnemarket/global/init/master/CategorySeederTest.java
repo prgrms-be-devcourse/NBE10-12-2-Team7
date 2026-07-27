@@ -36,6 +36,8 @@ class CategorySeederTest {
 	@Test
 	@DisplayName("애플리케이션 시작 시 기본 카테고리 8개가 저장된다")
 	void savesEightDefaultCategories() {
+		categorySeeder.seed();
+
 		List<String> categoryNames = categoryRepository.findAll()
 				.stream()
 				.map(Category::getName)
