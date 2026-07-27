@@ -16,7 +16,7 @@ interface Product {
   description: string
   price: number
   tradeStatus: TradeStatus
-  region: string
+  regionFullName: string
   viewCount: number
   hidden: boolean
   deletedAt: string | null
@@ -152,7 +152,7 @@ export default function AdminProductDetailPage() {
             <dt>상품명</dt><dd>{product.title}</dd>
             <dt>가격</dt><dd>{product.price === 0 ? '나눔' : `${product.price.toLocaleString('ko-KR')}원`}</dd>
             <dt>카테고리</dt><dd>{categoryName}</dd>
-            <dt>지역</dt><dd>{product.region}</dd>
+            <dt>지역</dt><dd>{product.regionFullName}</dd>
             <dt>거래상태</dt><dd><span className={`${styles.tag} ${tradeTagCls(product.tradeStatus)}`}>{TRADE_STATUS_LABEL[product.tradeStatus]}</span></dd>
             <dt>숨김여부</dt><dd><span className={`${styles.tag} ${product.hidden ? styles.tagRose : styles.tagNeut}`}>{product.hidden ? '숨김' : '노출'}</span></dd>
             <dt>신고 수</dt><dd>{reportCount > 0 ? <span className={`${styles.tag} ${styles.tagRose}`}>{reportCount}건</span> : '0건'}</dd>

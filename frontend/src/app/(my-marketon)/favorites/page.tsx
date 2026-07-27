@@ -18,7 +18,7 @@ interface FavoriteProduct {
     categoryId: number
     title: string
     price: number
-    region: string
+    regionFullName: string
     tradeStatus: TradeStatus
     thumbnailUrl: string | null
   }
@@ -217,7 +217,7 @@ export default function FavoritesPage() {
                       {priceText(product.price)}
                     </div>
                     <div className={styles.meta}>
-                      <span>{product.region}</span>
+                      <span>{product.regionFullName}</span>
                     </div>
                   </div>
                 </Link>

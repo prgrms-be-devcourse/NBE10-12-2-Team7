@@ -12,7 +12,7 @@ interface TradeSale {
   title: string
   thumbnailUrl: string | null
   price: number
-  region: string
+  regionFullName: string
   completedAt: string
 }
 
@@ -112,7 +112,7 @@ export default function TradeHistorySection() {
                 </div>
                 <div className={styles.itemBody}>
                   <div className={styles.itemTitle}>{item.title}</div>
-                  <div className={styles.itemMeta}>{item.region} · {formatDate(item.completedAt)}</div>
+                  <div className={styles.itemMeta}>{item.regionFullName} · {formatDate(item.completedAt)}</div>
                 </div>
                 <div className={styles.itemPrice}>{formatPrice(item.price)}</div>
               </div>

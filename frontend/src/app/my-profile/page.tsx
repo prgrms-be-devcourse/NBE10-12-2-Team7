@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/apiClient'
 import { clearAccessToken } from '@/lib/auth'
 import TradeHistorySection from '@/components/TradeHistorySection'
+import RegionCascadeSelect from '@/components/RegionCascadeSelect'
 import styles from './page.module.css'
 
 const NEW_PW_RE = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{10,64}$/
@@ -21,14 +22,10 @@ interface Member {
 }
 
 interface MemberLocation {
-  region: string
+  regionCode: string
+  regionFullName: string
   sortOrder: number
   active: boolean
-}
-
-interface RegionOption {
-  regionId: number
-  name: string
 }
 
 export default function MyProfilePage() {
@@ -52,10 +49,8 @@ export default function MyProfilePage() {
   const [pwMsg, setPwMsg] = useState<{ text: string; type: MsgType } | null>(null)
   const [pwSaving, setPwSaving] = useState(false)
 
-  const [regionOptions, setRegionOptions] = useState<RegionOption[]>([])
-  const [selectedRegions, setSelectedRegions] = useState<string[]>([])
+  const [selectedLocations, setSelectedLocations] = useState<MemberLocation[]>([])
   const [regionModalOpen, setRegionModalOpen] = useState(false)
-  const [regionQuery, setRegionQuery] = useState('')
   const [locMsg, setLocMsg] = useState<{ text: string; type: MsgType } | null>(null)
   const [locSaving, setLocSaving] = useState(false)
 
@@ -92,41 +87,41 @@ export default function MyProfilePage() {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([
-      apiFetch('/api/members/me/locations').then(async r => ({ ok: r.ok, data: await r.json().catch(() => null) })),
-      fetch('/api/regions').then(r => r.json()).catch(() => null),
-    ]).then(([locRes, regionsRes]) => {
+    apiFetch('/api/members/me/locations').then(async r => ({ ok: r.ok, data: await r.json().catch(() => null) })).then(locRes => {
       if (cancelled) return
       if (locRes.ok) {
         const list: MemberLocation[] = locRes.data?.data ?? []
-        setSelectedRegions(list.slice().sort((a, b) => a.sortOrder - b.sortOrder).map(l => l.region))
+        setSelectedLocations(list.slice().sort((a, b) => a.sortOrder - b.sortOrder))
       }
-      setRegionOptions(regionsRes?.data ?? [])
     }).catch(() => {})
     return () => { cancelled = true }
   }, [])
 
-  function openRegionModal() { setRegionModalOpen(true); setRegionQuery('') }
-  function closeRegionModal() { setRegionModalOpen(false); setRegionQuery('') }
+  function openRegionModal() { setRegionModalOpen(true) }
+  function closeRegionModal() { setRegionModalOpen(false) }
 
-  function addSelectedRegion(region: string) {
-    if (selectedRegions.length >= 2) { showToast('동네는 최대 2개까지 설정할 수 있어요'); return }
-    if (selectedRegions.includes(region)) { showToast('이미 추가된 동네예요'); return }
-    setSelectedRegions(prev => [...prev, region])
+  function addSelectedRegion(regionCode: string, regionFullName: string) {
+    if (selectedLocations.length >= 2) { showToast('동네는 최대 2개까지 설정할 수 있어요'); return }
+    if (selectedLocations.some(l => l.regionCode === regionCode)) { showToast('이미 추가된 동네예요'); return }
+    setSelectedLocations(prev => [...prev, { regionCode, regionFullName, sortOrder: prev.length, active: false }])
     closeRegionModal()
   }
 
-  function removeSelectedRegion(region: string) {
-    setSelectedRegions(prev => prev.filter(r => r !== region))
+  function removeSelectedRegion(regionCode: string) {
+    setSelectedLocations(prev => prev.filter(l => l.regionCode !== regionCode))
   }
 
-  function makePrimary(region: string) {
-    setSelectedRegions(prev => [region, ...prev.filter(r => r !== region)])
+  function makePrimary(regionCode: string) {
+    setSelectedLocations(prev => {
+      const target = prev.find(l => l.regionCode === regionCode)
+      if (!target) return prev
+      return [target, ...prev.filter(l => l.regionCode !== regionCode)]
+    })
   }
 
   async function saveLocations() {
     setLocMsg(null)
-    if (selectedRegions.length === 0) {
+    if (selectedLocations.length === 0) {
       setLocMsg({ text: '동네를 1개 이상 설정해주세요.', type: 'error' })
       return
     }
@@ -135,7 +130,7 @@ export default function MyProfilePage() {
       const res = await apiFetch('/api/members/me/locations', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ regions: selectedRegions }),
+        body: JSON.stringify({ regionCodes: selectedLocations.map(l => l.regionCode) }),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) {
@@ -143,7 +138,7 @@ export default function MyProfilePage() {
         return
       }
       const list: MemberLocation[] = data?.data ?? []
-      setSelectedRegions(list.slice().sort((a, b) => a.sortOrder - b.sortOrder).map(l => l.region))
+      setSelectedLocations(list.slice().sort((a, b) => a.sortOrder - b.sortOrder))
       showToast('동네를 설정했어요')
     } catch {
       setLocMsg({ text: '서버에 연결할 수 없습니다.', type: 'error' })
@@ -275,12 +270,6 @@ export default function MyProfilePage() {
     }
   }
 
-  const regionSearchResults = useMemo(() => {
-    const pool = regionOptions.filter(r => !selectedRegions.includes(r.name))
-    const q = regionQuery.trim()
-    return q ? pool.filter(r => r.name.includes(q)) : pool
-  }, [regionOptions, selectedRegions, regionQuery])
-
   const hintClass = (kind?: string) =>
     [styles.hint, kind ? styles[kind] : ''].filter(Boolean).join(' ')
 
@@ -405,22 +394,22 @@ export default function MyProfilePage() {
           </div>
         )}
 
-        {selectedRegions.length > 0 ? (
+        {selectedLocations.length > 0 ? (
           <div className={styles.locList}>
-            {selectedRegions.map((region, i) => (
-              <div key={region} className={styles.locChip}>
+            {selectedLocations.map((loc, i) => (
+              <div key={loc.regionCode} className={styles.locChip}>
                 {i === 0 && <span className={styles.locPrimary}>대표</span>}
-                <span className={styles.locName}>{region}</span>
+                <span className={styles.locName}>{loc.regionFullName}</span>
                 {i !== 0 && (
-                  <button type="button" className={styles.locAction} onClick={() => makePrimary(region)}>
+                  <button type="button" className={styles.locAction} onClick={() => makePrimary(loc.regionCode)}>
                     대표로
                   </button>
                 )}
                 <button
                   type="button"
                   className={styles.locRemove}
-                  onClick={() => removeSelectedRegion(region)}
-                  aria-label={`${region} 삭제`}
+                  onClick={() => removeSelectedRegion(loc.regionCode)}
+                  aria-label={`${loc.regionFullName} 삭제`}
                 >
                   ✕
                 </button>
@@ -431,7 +420,7 @@ export default function MyProfilePage() {
           <p className={styles.locEmpty}>설정된 동네가 없어요.</p>
         )}
 
-        {selectedRegions.length < 2 && (
+        {selectedLocations.length < 2 && (
           <button type="button" className={styles.addRegionBtn} onClick={openRegionModal}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"><path d="M12 5v14M5 12h14" /></svg>
             동네 추가
@@ -464,26 +453,7 @@ export default function MyProfilePage() {
             </div>
 
             <div className={styles.searchWrap}>
-              <div className={styles.searchInputRow}>
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
-                <input
-                  placeholder="동네 이름을 검색하세요 (예: 강남구)"
-                  autoFocus
-                  value={regionQuery}
-                  onChange={e => setRegionQuery(e.target.value)}
-                />
-              </div>
-              <div className={styles.resultsList}>
-                {regionSearchResults.map(r => (
-                  <button key={r.regionId} type="button" className={styles.resultItem} onClick={() => addSelectedRegion(r.name)}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.2"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z" /><circle cx="12" cy="10" r="2.4" fill="var(--primary)" stroke="none" /></svg>
-                    {r.name}
-                  </button>
-                ))}
-                {regionSearchResults.length === 0 && (
-                  <div className={styles.noResults}>검색 결과가 없어요.</div>
-                )}
-              </div>
+              <RegionCascadeSelect value="" onChange={(code, fullName) => { if (code) addSelectedRegion(code, fullName) }} />
             </div>
           </div>
         </div>

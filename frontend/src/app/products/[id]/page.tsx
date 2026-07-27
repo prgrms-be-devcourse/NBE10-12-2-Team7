@@ -20,7 +20,7 @@ interface Product {
   description: string
   price: number
   tradeStatus: TradeStatus
-  region: string
+  regionFullName: string
   viewCount: number
   favoriteCount: number
   thumbnailUrl: string | null
@@ -370,7 +370,7 @@ export default function ProductDetailPage() {
           <div className={styles.meta}>
             <span>{categoryName}</span>
             <span className={styles.metaDot} />
-            <span>{product.region}</span>
+            <span>{product.regionFullName}</span>
           </div>
 
           {/* 판매자 */}
