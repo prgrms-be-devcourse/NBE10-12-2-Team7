@@ -134,6 +134,17 @@
 }
 .btnPrimary:hover  { background: var(--primary-d); }
 .btnPrimary:active { transform: translateY(1px); }
+.btnEscrow {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 14px 18px; border: 1px solid var(--blue); background: var(--blue);
+  color: #fff; border-radius: 13px; font-size: 15px; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--blue) 30%, transparent);
+  transition: background .15s, transform .1s, opacity .15s;
+}
+.btnEscrow:hover:not(:disabled)  { filter: brightness(0.92); }
+.btnEscrow:active:not(:disabled) { transform: translateY(1px); }
+.btnEscrow:disabled { opacity: .6; cursor: not-allowed; }
 .btnFav {
   display: inline-flex; align-items: center; justify-content: center;
   padding: 14px 16px; border: 1px solid var(--border);
