@@ -29,7 +29,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -227,8 +227,9 @@ class NotificationControllerTest {
                     .andExpect(jsonPath("$.data[0].type").value("CHAT"))
                     .andExpect(jsonPath("$.data[0].roomId").value(room.getId().intValue()))
                     .andExpect(jsonPath("$.data[0].productId").value(productId.intValue()))
+                    // 문구는 상품명만 포함하고 상대 닉네임은 포함하지 않는다(탈퇴 소급 마스킹 드리프트 방지).
                     .andExpect(jsonPath("$.data[0].message").value(containsString("맥북 프로")))
-                    .andExpect(jsonPath("$.data[0].message").value(containsString("buyer")))
+                    .andExpect(jsonPath("$.data[0].message").value(not(containsString("buyer"))))
                     .andExpect(jsonPath("$.data[0].isRead").value(false));
         }
 
@@ -246,8 +247,7 @@ class NotificationControllerTest {
                     .andExpect(jsonPath("$.data[0].type").value("CHAT"))
                     .andExpect(jsonPath("$.data[1].type").value("CHAT"))
                     .andExpect(jsonPath("$.data[*].roomId",
-                            containsInAnyOrder(room1.getId().intValue(), room2.getId().intValue())))
-                    .andExpect(jsonPath("$.data[*].message", hasItem(containsString("buyer2"))));
+                            containsInAnyOrder(room1.getId().intValue(), room2.getId().intValue())));
         }
 
         @Test
