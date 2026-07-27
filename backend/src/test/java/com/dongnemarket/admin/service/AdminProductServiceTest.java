@@ -13,6 +13,7 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
+import com.dongnemarket.region.entity.Region;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -93,10 +94,14 @@ class AdminProductServiceTest {
             Product completedProduct = product(1L, "거래완료 상품", MemberStatus.DELETED, TradeStatus.COMPLETED);
             given(adminProductRepository.findById(1L)).willReturn(Optional.of(completedProduct));
 
-            AdminProductResponse response = adminProductService.getProduct(1L);
-
-            assertThat(response.getTitle()).isEqualTo("거래완료 상품");
-            assertThat(response.getTradeStatus()).isEqualTo(TradeStatus.COMPLETED);
+	        AdminProductResponse response = adminProductService.getProduct(1L);
+	
+	        assertThat(response.getTitle()).isEqualTo("거래완료 상품");
+	        assertThat(response.getTradeStatus()).isEqualTo(TradeStatus.COMPLETED);
+	        assertThat(response.getRegion()).isEqualTo("서울특별시 강남구 역삼동");
+	        assertThat(response.getRegionCode()).isEqualTo("1168010100");
+	        assertThat(response.getRegionName()).isEqualTo("역삼동");
+	        assertThat(response.getRegionFullName()).isEqualTo("서울특별시 강남구 역삼동");
         }
     }
 
@@ -121,9 +126,15 @@ class AdminProductServiceTest {
         ReflectionTestUtils.setField(member, "id", id);
         Category category = new Category("관리자상품카테고리" + id);
         ReflectionTestUtils.setField(category, "id", id);
-        Product product = Product.create(member, category, title, "설명", new BigDecimal("10000"), "서울 강남구");
-        ReflectionTestUtils.setField(product, "id", id);
-        product.changeTradeStatus(tradeStatus);
-        return product;
-    }
-}
+	        Product product = Product.create(member, category, title, "설명", new BigDecimal("10000"), yeoksam());
+	        ReflectionTestUtils.setField(product, "id", id);
+	        product.changeTradeStatus(tradeStatus);
+	        return product;
+	    }
+
+	    private Region yeoksam() {
+	        Region seoul = Region.root("1100000000", "서울특별시", "서울특별시");
+	        Region gangnam = Region.child("1168000000", 2, seoul, "서울특별시 강남구", "강남구");
+	        return Region.child("1168010100", 3, gangnam, "서울특별시 강남구 역삼동", "역삼동");
+	    }
+	}

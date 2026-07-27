@@ -6,6 +6,7 @@ import com.dongnemarket.chat.repository.ChatRoomRepository;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.entity.Region;
 import com.dongnemarket.trade.dto.MonthlyTradeStatsResponse;
 import com.dongnemarket.trade.dto.TradePurchaseResponse;
 import com.dongnemarket.trade.dto.TradeSaleResponse;
@@ -53,9 +54,13 @@ class TradeServiceTest {
             given(productRepository.findAllByMemberIdAndDeletedAtIsNullOrderByIdDesc(ME_ID))
                     .willReturn(List.of(onSale, completed));
 
-            List<TradeSaleResponse> sales = tradeService.getSales(ME_ID);
-
-            assertThat(sales).extracting(TradeSaleResponse::getProductId).containsExactly(2L);
+	            List<TradeSaleResponse> sales = tradeService.getSales(ME_ID);
+	
+	            assertThat(sales).extracting(TradeSaleResponse::getProductId).containsExactly(2L);
+	            assertThat(sales.get(0).getRegion()).isEqualTo("서울특별시 강남구 역삼동");
+	            assertThat(sales.get(0).getRegionCode()).isEqualTo("1168010100");
+	            assertThat(sales.get(0).getRegionName()).isEqualTo("역삼동");
+	            assertThat(sales.get(0).getRegionFullName()).isEqualTo("서울특별시 강남구 역삼동");
         }
 
         @Test
@@ -172,8 +177,8 @@ class TradeServiceTest {
     }
 
     private Product product(Long id, String title, BigDecimal price, LocalDateTime completedAt) {
-        Product product = Product.create(member(ME_ID), new Category("디지털기기"), title, "설명", price, "서울 강남구");
-        ReflectionTestUtils.setField(product, "id", id);
+	        Product product = Product.create(member(ME_ID), new Category("디지털기기"), title, "설명", price, yeoksam());
+	        ReflectionTestUtils.setField(product, "id", id);
         if (completedAt != null) {
             ReflectionTestUtils.setField(product, "completedAt", completedAt);
         }
@@ -187,9 +192,15 @@ class TradeServiceTest {
         return product;
     }
 
-    private ChatRoom chatRoom(Long id, Product product, Long buyerId, Long sellerId) {
-        ChatRoom room = ChatRoom.of(product, member(buyerId), member(sellerId));
-        ReflectionTestUtils.setField(room, "id", id);
-        return room;
-    }
-}
+	    private ChatRoom chatRoom(Long id, Product product, Long buyerId, Long sellerId) {
+	        ChatRoom room = ChatRoom.of(product, member(buyerId), member(sellerId));
+	        ReflectionTestUtils.setField(room, "id", id);
+	        return room;
+	    }
+
+	    private Region yeoksam() {
+	        Region seoul = Region.root("1100000000", "서울특별시", "서울특별시");
+	        Region gangnam = Region.child("1168000000", 2, seoul, "서울특별시 강남구", "강남구");
+	        return Region.child("1168010100", 3, gangnam, "서울특별시 강남구 역삼동", "역삼동");
+	    }
+	}
