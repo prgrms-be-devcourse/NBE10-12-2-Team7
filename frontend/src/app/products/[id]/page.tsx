@@ -46,6 +46,11 @@ interface MyFavorite {
 
 type PageStatus = 'loading' | 'ready' | 'error'
 
+/* 에스크로 목록/상품별 조회 API가 없어(백엔드 제약), escrowId를 상품별로 로컬에 임시 기억해둔다. */
+function escrowStorageKey(productId: number) {
+  return `mo_escrow_product_${productId}`
+}
+
 function statusCls(s: TradeStatus) {
   if (s === 'ON_SALE')   return styles.statusSale
   if (s === 'RESERVED')  return styles.statusReserved
@@ -69,6 +74,8 @@ export default function ProductDetailPage() {
   const [selThumb, setSelThumb] = useState(0)
   const [favorited, setFavorited] = useState(false)
   const [selectVal, setSelectVal] = useState<TradeStatus>('ON_SALE')
+  const [existingEscrowId, setExistingEscrowId] = useState<number | null>(null)
+  const [startingEscrow, setStartingEscrow] = useState(false)
   const [cInput, setCInput] = useState('')
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editContent, setEditContent] = useState('')
@@ -121,6 +128,15 @@ export default function ProductDetailPage() {
       .catch(() => {})
   }, [product])
 
+  useEffect(() => {
+    if (!product) return
+    try {
+      const saved = localStorage.getItem(escrowStorageKey(product.productId))
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage는 클라이언트에서만 읽을 수 있어 이 시점에만 계산 가능
+      setExistingEscrowId(saved ? Number(saved) : null)
+    } catch { /* localStorage 접근 불가 환경은 그냥 무시 */ }
+  }, [product])
+
   /* ── 관심 토글 ── */
   async function toggleFav() {
     if (!product) return
@@ -159,6 +175,31 @@ export default function ProductDetailPage() {
       router.push(`/chat/${data.data.roomId}`)
     } catch {
       showToast('서버에 연결할 수 없습니다.')
+    }
+  }
+
+  /* ── 안심결제(에스크로) 시작 ── */
+  async function startEscrow() {
+    if (!product) return
+    if (!getAccessToken()) { showToast('로그인 후 이용할 수 있어요'); return }
+    if (existingEscrowId) { router.push(`/escrow/${existingEscrowId}`); return }
+
+    setStartingEscrow(true)
+    try {
+      const res = await apiFetch('/api/escrows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: product.productId }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) { showToast(data?.message ?? '안심결제 시작 중 오류가 발생했습니다.'); return }
+      const escrowId = data.data.escrowId
+      try { localStorage.setItem(escrowStorageKey(product.productId), String(escrowId)) } catch {}
+      router.push(`/escrow/${escrowId}`)
+    } catch {
+      showToast('서버에 연결할 수 없습니다.')
+    } finally {
+      setStartingEscrow(false)
     }
   }
 
@@ -384,6 +425,16 @@ export default function ProductDetailPage() {
             {!isOwner && (
               <button type="button" className={styles.btnPrimary} onClick={startChat}>
                 채팅으로 거래하기
+              </button>
+            )}
+            {!isOwner && (existingEscrowId || product.tradeStatus === 'ON_SALE') && (
+              <button
+                type="button"
+                className={styles.btnEscrow}
+                onClick={startEscrow}
+                disabled={startingEscrow}
+              >
+                {startingEscrow ? '시작하는 중...' : existingEscrowId ? '진행중인 안심결제 보기' : '안심결제로 구매하기'}
               </button>
             )}
             <button
