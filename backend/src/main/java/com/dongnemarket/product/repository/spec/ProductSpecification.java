@@ -3,6 +3,8 @@ package com.dongnemarket.product.repository.spec;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.member.entity.MemberStatus;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
@@ -20,7 +22,7 @@ public class ProductSpecification {
 
 	public static Specification<Product> list(List<String> regions, Long cursor) {
 		return visibleProducts()
-				.and(regionIn(regions))
+				.and(regionCodeStartsWithAny(regions))
 				.and(idLessThan(cursor));
 	}
 
@@ -119,6 +121,34 @@ public class ProductSpecification {
 			}
 			return root.get("region").in(regions);
 		};
+	}
+
+	private static Specification<Product> regionCodeStartsWithAny(List<String> regionCodes) {
+		return (root, query, criteriaBuilder) -> {
+			if (regionCodes == null || regionCodes.isEmpty()) {
+				return null;
+			}
+			Join<Object, Object> region = root.join("regionRef");
+			List<Predicate> predicates = regionCodes.stream()
+					.filter(StringUtils::hasText)
+					.map(ProductSpecification::toRegionCodePrefix)
+					.map(prefix -> criteriaBuilder.like(region.get("code"), prefix + "%"))
+					.toList();
+			if (predicates.isEmpty()) {
+				return null;
+			}
+			return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
+		};
+	}
+
+	private static String toRegionCodePrefix(String regionCode) {
+		if (regionCode.length() >= 10 && regionCode.endsWith("00000000")) {
+			return regionCode.substring(0, 2);
+		}
+		if (regionCode.length() >= 10 && regionCode.endsWith("00000")) {
+			return regionCode.substring(0, 5);
+		}
+		return regionCode;
 	}
 
 	private static Specification<Product> idLessThan(Long cursor) {

@@ -102,12 +102,12 @@ public class ProductService {
 	}
 
 	public ProductPageResponse getProducts(List<String> regions, Long cursor, int size) {
-		List<String> normalizedRegions = normalizeRegions(regions);
-		validateRegionFilterSize(normalizedRegions);
+		List<String> normalizedRegionCodes = normalizeRegions(regions);
+		validateRegionFilterSize(normalizedRegionCodes);
 		int limit = clampPageSize(size);
 
 		List<Product> rows = productRepository.findBy(
-				ProductSpecification.list(normalizedRegions, cursor),
+				ProductSpecification.list(normalizedRegionCodes, cursor),
 				query -> query
 						.sortBy(Sort.by(Sort.Direction.DESC, "id"))
 						.limit(limit + 1)
