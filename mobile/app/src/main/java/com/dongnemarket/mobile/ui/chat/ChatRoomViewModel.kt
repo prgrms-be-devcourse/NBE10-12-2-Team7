@@ -250,7 +250,14 @@ class ChatRoomViewModel @Inject constructor(
                 appendNewMessages(page.messages)
             }
             .onFailure { error ->
-                _uiState.update { it.copy(errorMessage = error.toUserMessage()) }
+                // 폴링은 3초마다 돈다. 이미 대화를 보고 있는데 실패마다 스낵바를 띄우면
+                // 지하철·엘리베이터처럼 연속 실패하는 구간에서 같은 문구가 3초마다 무한히 다시 뜬다
+                // (화면이 onErrorShown() 으로 지워도 다음 주기가 또 채운다).
+                // 그래서 ChatListViewModel.fetchRooms() 와 같은 정책을 쓴다 —
+                // 보여 줄 메시지가 이미 있으면 조용히 삼키고 다음 주기에 맡긴다.
+                if (_uiState.value.messages.isEmpty()) {
+                    _uiState.update { it.copy(errorMessage = error.toUserMessage()) }
+                }
             }
         firstPageSettled = true
         settleLoadingIfReady()
@@ -282,8 +289,11 @@ class ChatRoomViewModel @Inject constructor(
         _uiState.update { it.copy(messages = it.messages + fresh) }
 
         // 상대가 보낸 새 메시지를 화면에 올렸으면 읽음 지점을 전진시킨다(내 메시지만 늘었으면 불필요).
+        // myId 가 아직 null 이면(내 정보 조회가 메시지 조회보다 늦거나 401 로 실패) 좌/우 판정 자체가
+        // 불가능하다. 그대로 두면 `senderId != null` 이 항상 참이라 내 메시지만 늘어도 매번
+        // 읽음 처리를 보낸다 → 확정될 때까지 보내지 않고 다음 주기로 미룬다.
         val myId = _uiState.value.myMemberId
-        if (fresh.any { it.senderId != myId }) {
+        if (myId != null && fresh.any { it.senderId != myId }) {
             viewModelScope.launch { chatRepository.markAsRead(roomId) }
         }
     }

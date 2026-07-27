@@ -98,7 +98,24 @@ class ProductDetailViewModel @Inject constructor(
                 if (favoriteInFlight) return@collect
                 _uiState.update { state ->
                     if (state is ProductDetailUiState.Success) {
-                        state.copy(isFavorite = productId in ids)
+                        val nowFavorite = productId in ids
+                        if (nowFavorite == state.isFavorite) {
+                            // 값이 그대로면 개수도 건드리지 않는다.
+                            state
+                        } else {
+                            // 하트가 실제로 뒤집힐 때는 개수도 같은 방향으로 ±1 한다.
+                            // 이걸 빼면 '하트는 켜졌는데 찜 개수는 12 그대로' 처럼
+                            // 한 화면 안에서 두 값이 서로 모순된 상태가 된다
+                            // (홈 카드에서 토글 후 back, 백그라운드 복귀 후 refreshFavorites 도착 등).
+                            // 찜 목록 응답에 개수가 없어 서버 값으로 다시 맞출 수단이 없으므로
+                            // onFavoriteClick 과 동일한 로컬 ±1 규칙을 쓴다.
+                            state.copy(
+                                isFavorite = nowFavorite,
+                                favoriteCount = (
+                                    state.favoriteCount + if (nowFavorite) 1 else -1
+                                    ).coerceAtLeast(0),
+                            )
+                        }
                     } else {
                         state
                     }

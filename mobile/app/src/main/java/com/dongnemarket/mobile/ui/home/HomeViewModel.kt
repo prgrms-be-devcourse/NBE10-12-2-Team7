@@ -73,6 +73,18 @@ class HomeViewModel @Inject constructor(
     /** 목록 조회 작업(필터 변경·다음 페이지). 새 요청이 들어오면 이전 요청을 취소한다. */
     private var listJob: Job? = null
 
+    /**
+     * '목록을 채우는 요청'의 세대 번호. 새 조회가 시작될 때마다 올라간다.
+     *
+     * [bootstrapJob] 은 카테고리·동네도 함께 받아 오므로 [loadFirstPage] 에서 통째로 취소할 수 없다.
+     * 그런데 취소하지 않고 두면, 첫 진입 로드가 끝나기 전에 검색·카테고리가 들어왔을 때
+     * 나중에 도착한 bootstrap 의 상품 결과가 **필터 결과를 전국 기본 목록으로 덮어쓴다**
+     * (게다가 hasNext 가 true 로 되살아나 무한스크롤 가드까지 깨진다).
+     * 그래서 상품 결과를 반영하기 직전에 "내가 아직 최신 요청인가"를 이 값으로 확인한다.
+     * 사용자가 마지막으로 요청한 조회의 결과만 화면에 남아야 한다.
+     */
+    private var listGeneration = 0
+
     init {
         load()
     }
@@ -172,6 +184,7 @@ class HomeViewModel @Inject constructor(
         bootstrapJob?.cancel()
         _uiState.value = HomeUiState.Loading
 
+        val generation = ++listGeneration
         bootstrapJob = viewModelScope.launch {
             // 1) 동네 (선행)
             val locations = memberRepository.getMyLocations().getOrNull().orEmpty()
@@ -192,6 +205,13 @@ class HomeViewModel @Inject constructor(
                 filterRegions = filterRegions,
                 bootstrapped = true,
             )
+
+            // 카테고리·동네는 필터와 무관하므로 항상 반영한다(위 copy). 하지만 **상품 목록은**
+            // 그 사이 사용자가 검색·카테고리를 눌렀다면 이미 낡은 결과다 → 덮어쓰지 않고 버린다.
+            if (generation != listGeneration) {
+                render() // 카테고리·동네만 화면에 반영하고 목록은 최신 요청에 맡긴다.
+                return@launch
+            }
 
             productsResult
                 .onSuccess { page ->
@@ -216,6 +236,10 @@ class HomeViewModel @Inject constructor(
      */
     private fun loadFirstPage() {
         listJob?.cancel()
+        // 아직 살아 있는 bootstrapJob 의 상품 결과가 나중에 도착해 이 조회를 덮어쓰지 않도록
+        // 세대를 올린다(bootstrapJob 자체는 카테고리·동네도 받아 오므로 취소하지 않는다).
+        // 이 조회 자신의 결과는 listJob 취소로 보호되므로 세대를 붙들고 있을 필요는 없다.
+        listGeneration++
 
         val current = snapshot.copy(
             products = emptyList(),

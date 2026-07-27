@@ -35,6 +35,11 @@ object NetworkModule {
      *  - ignoreUnknownKeys: 백엔드가 필드를 추가해도 앱이 죽지 않게 한다(가장 흔한 크래시 원인).
      *  - explicitNulls=false: 값이 null 인 필드를 요청 본문에서 아예 빼서 보낸다.
      *  - coerceInputValues: null 이 온 자리에 기본값을 쓴다.
+     *  - encodeDefaults=true: **기본값과 같은 값도 반드시 요청 본문에 싣는다.**
+     *    kotlinx.serialization 의 기본값(false)이면 `LoginRequestDto.autoLogin = true` 처럼
+     *    선언 기본값과 동일한 값이 통째로 생략된다. 서버의 `boolean autoLogin` 은 키가 없으면
+     *    false 로 읽으므로, refreshToken 이 Max-Age 없는 세션 쿠키로 내려와 자동 로그인이 끊긴다.
+     *    (explicitNulls=false 가 우선하므로 null 필드는 계속 생략된다.)
      */
     @Provides
     @Singleton
@@ -42,6 +47,7 @@ object NetworkModule {
         ignoreUnknownKeys = true
         explicitNulls = false
         coerceInputValues = true
+        encodeDefaults = true
     }
 
     /**

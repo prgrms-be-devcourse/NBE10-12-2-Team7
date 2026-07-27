@@ -31,7 +31,7 @@ class ProductRepositoryImpl @Inject constructor(
             api.getProducts(
                 regions = regions.normalizeRegions(),
                 cursor = cursor,
-                size = size.coerceIn(MIN_PAGE_SIZE, MAX_PAGE_SIZE),
+                size = size.normalizePageSize(),
             )
         }.map { it.toDomain() }
 
@@ -59,9 +59,22 @@ class ProductRepositoryImpl @Inject constructor(
     private companion object {
         /** 서버 지역 필터 상한. 3개 이상 보내면 400 이 떨어진다. */
         const val MAX_REGION_FILTER = 2
-        const val MIN_PAGE_SIZE = 1
+
+        /** 서버 기본 페이지 크기. size 가 0 이하일 때 서버가 쓰는 값과 같아야 한다(계약 §0.9/§7-19). */
+        const val DEFAULT_PAGE_SIZE = 30
         const val MAX_PAGE_SIZE = 100
     }
+
+    /**
+     * 페이지 크기 방어 처리. 상한은 서버와 같이 100 으로 깎는다.
+     *
+     * 하한을 1 이 아니라 [DEFAULT_PAGE_SIZE] 로 되돌리는 이유:
+     * 서버는 `size <= 0` 을 기본값 30 으로 해석한다(계약 §0.9/§7-19).
+     * 여기서 1 로 클램프하면 서버라면 30건을 줬을 상황에 페이지당 1건짜리 무한스크롤이 되어
+     * 에러도 로그도 없이 성능만 무너진다.
+     */
+    private fun Int.normalizePageSize(): Int =
+        if (this <= 0) DEFAULT_PAGE_SIZE else coerceAtMost(MAX_PAGE_SIZE)
 
     /**
      * 지역 필터 방어 처리. 서버가 400/500 을 내기 전에 클라이언트에서 정리한다:
@@ -70,6 +83,16 @@ class ProductRepositoryImpl @Inject constructor(
      * 조용히 잘라내는 편을 택한 이유: 지역명은 사용자가 직접 타이핑하는 값이 아니라
      * '내 동네'(서버가 최대 2개만 저장) 에서 온 값이므로 3개가 들어오는 건 앱 버그이고,
      * 그때 화면 전체를 에러로 덮는 것보다 1·2번 동네 결과를 보여 주는 편이 낫다.
+     *
+     * ⚠️ **미해결 계약 충돌 — 손대기 전에 팀 합의가 필요하다.**
+     * 여기서는 원소를 `trim()` 하지만, `CatalogMapper.toRegionDomain()` 은
+     * "서버가 이름 문자열을 완전 비교하므로 한 글자도 손대지 않는다(계약 §7-18)" 고 명시하고 그렇게 구현돼 있다.
+     * 즉 매퍼가 일부러 보존한 원문을 이 함수가 다시 다듬는다.
+     * 지역 마스터 데이터에 앞뒤 공백이 포함된 이름이 하나라도 있으면
+     * 400 도 예외도 없이 조용히 '결과 0건'(빈 홈 화면)이 된다.
+     * 현재 두 테스트가 이 모순을 각각 반대 방향으로 고정하고 있다
+     * (ProductApiContractTest `공백과 중복이 섞인 지역 목록은 정리되어 하나만 나간다` ↔
+     *  CatalogRepositoryImplTest `지역 이름은 공백까지 서버 원문 그대로 보존된다`).
      */
     private fun List<String>?.normalizeRegions(): List<String>? =
         this?.map { it.trim() }

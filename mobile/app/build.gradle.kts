@@ -97,6 +97,11 @@ dependencies {
 
     // 계기 테스트(Compose UI)
     androidTestImplementation(libs.androidx.junit)
+    // Compose BOM 이 전이로 끌고 오는 espresso 3.5.0 / runner 1.5.0 은 Android 15+ 에서
+    // Espresso.onIdle 이 NoSuchMethodException(InputManager.getInstance) 으로 죽는다.
+    // 테스트 기기가 API 37 이므로 최신 계기 러너를 명시적으로 고정한다.
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     androidTestImplementation(libs.okhttp.mockwebserver)

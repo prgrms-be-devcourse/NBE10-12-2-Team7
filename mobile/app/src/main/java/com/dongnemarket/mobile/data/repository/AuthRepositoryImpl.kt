@@ -7,6 +7,7 @@ import com.dongnemarket.mobile.data.remote.apiCallForUnit
 import com.dongnemarket.mobile.data.remote.dto.LoginRequestDto
 import com.dongnemarket.mobile.domain.model.AppError
 import com.dongnemarket.mobile.domain.repository.AuthRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -43,7 +44,17 @@ class AuthRepositoryImpl @Inject constructor(
         // 모든 인증 요청이 401" 이라는 가장 디버깅하기 어려운 상태가 된다 → 여기서 막는다.
         if (tokenDto.accessToken.isBlank()) return Result.failure(AppError.EmptyBody())
 
-        tokenDataStore.saveAccessToken(tokenDto.accessToken)
+        // DataStore.edit{} 은 디스크 쓰기 실패·prefs 파일 손상 시 IOException(CorruptionException 포함)을
+        // 던진다. apiCall{} 의 보호 밖이라 이 예외는 그대로 ViewModel 까지 튀어 올라
+        // "예외를 던지지 않는다"는 AuthRepository 계약을 깨고 앱을 죽인다.
+        // 저장 실패는 곧 로그인 실패(다음 요청에 토큰이 안 붙는다)이므로 실패로 번역한다.
+        try {
+            tokenDataStore.saveAccessToken(tokenDto.accessToken)
+        } catch (e: CancellationException) {
+            throw e // 코루틴 취소는 에러가 아니다 — 삼키면 취소가 전파되지 않는다.
+        } catch (e: Throwable) {
+            return Result.failure(AppError.Unknown(e))
+        }
         return Result.success(Unit)
     }
 
@@ -56,7 +67,15 @@ class AuthRepositoryImpl @Inject constructor(
         apiCallForUnit { api.logout() }
 
         // 성공/실패와 무관하게 반드시 지운다.
-        tokenDataStore.clear()
+        // clear() 도 DataStore.edit{} 이라 예외를 던질 수 있는데, logout 은 "항상 성공한다"가 계약이다.
+        // 예외가 밖으로 나가면 사용자는 로그아웃 버튼을 눌러 놓고 크래시를 본다 → 삼키고 성공으로 끝낸다.
+        try {
+            tokenDataStore.clear()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            // 지우지 못했어도 화면은 로그아웃으로 보내는 편이 낫다(토큰은 15분 뒤 만료된다).
+        }
         return Result.success(Unit)
     }
 }

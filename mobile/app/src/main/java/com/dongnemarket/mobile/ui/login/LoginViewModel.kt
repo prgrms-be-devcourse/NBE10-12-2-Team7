@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.dongnemarket.mobile.domain.model.AppError
 import com.dongnemarket.mobile.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -65,10 +66,20 @@ class LoginViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
-            val result = authRepository.login(
-                email = current.email.trim(),
-                password = current.password,
-            )
+            // Repository 계약상 login() 은 예외를 던지지 않지만, 계약이 깨지는 순간
+            // (1) 미처리 코루틴 예외로 앱이 죽고 (2) 죽지 않아도 isLoading 이 true 로 굳어
+            // canSubmit 이 영영 false 가 되어 로그인 버튼이 잠긴다.
+            // 로그인은 앱의 첫 화면이라 여기서 막히면 사용자가 들어올 방법이 없다 → 최후 방어선을 둔다.
+            val result = try {
+                authRepository.login(
+                    email = current.email.trim(),
+                    password = current.password,
+                )
+            } catch (e: CancellationException) {
+                throw e // 화면이 사라져 스코프가 취소된 경우 — 상태를 건드리지 않고 그대로 전파한다.
+            } catch (e: Throwable) {
+                Result.failure(e)
+            }
 
             result
                 .onSuccess {
