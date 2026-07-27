@@ -3,6 +3,8 @@ package com.dongnemarket.product.repository.spec;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.member.entity.MemberStatus;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
@@ -14,25 +16,25 @@ public class ProductSpecification {
 	private ProductSpecification() {
 	}
 
-	public static Specification<Product> list(List<String> regions) {
-		return list(regions, null);
+	public static Specification<Product> list(List<String> regionCodes) {
+		return list(regionCodes, null);
 	}
 
-	public static Specification<Product> list(List<String> regions, Long cursor) {
+	public static Specification<Product> list(List<String> regionCodes, Long cursor) {
 		return visibleProducts()
-				.and(regionIn(regions))
+				.and(regionCodeStartsWithAny(regionCodes))
 				.and(idLessThan(cursor));
 	}
 
 	public static Specification<Product> search(String keyword, Long categoryId, BigDecimal minPrice,
-												BigDecimal maxPrice, TradeStatus tradeStatus, List<String> regions) {
+												BigDecimal maxPrice, TradeStatus tradeStatus, List<String> regionCodes) {
 		return visibleProducts()
 				.and(keywordContains(keyword))
 				.and(categoryEquals(categoryId))
 				.and(priceGreaterThanOrEqualTo(minPrice))
 				.and(priceLessThanOrEqualTo(maxPrice))
 				.and(tradeStatusEquals(tradeStatus))
-					.and(regionIn(regions));
+				.and(regionCodeStartsWithAny(regionCodes));
 	}
 
 	public static Specification<Product> categoryList(Long categoryId) {
@@ -112,13 +114,32 @@ public class ProductSpecification {
 		};
 	}
 
-	private static Specification<Product> regionIn(List<String> regions) {
+	private static Specification<Product> regionCodeStartsWithAny(List<String> regionCodes) {
 		return (root, query, criteriaBuilder) -> {
-			if (regions == null || regions.isEmpty()) {
+			if (regionCodes == null || regionCodes.isEmpty()) {
 				return null;
 			}
-			return root.get("region").in(regions);
+			Join<Object, Object> region = root.join("regionRef");
+			List<Predicate> predicates = regionCodes.stream()
+					.filter(StringUtils::hasText)
+					.map(ProductSpecification::toRegionCodePrefix)
+					.map(prefix -> criteriaBuilder.like(region.get("code"), prefix + "%"))
+					.toList();
+			if (predicates.isEmpty()) {
+				return null;
+			}
+			return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
 		};
+	}
+
+	private static String toRegionCodePrefix(String regionCode) {
+		if (regionCode.length() >= 10 && regionCode.endsWith("00000000")) {
+			return regionCode.substring(0, 2);
+		}
+		if (regionCode.length() >= 10 && regionCode.endsWith("00000")) {
+			return regionCode.substring(0, 5);
+		}
+		return regionCode;
 	}
 
 	private static Specification<Product> idLessThan(Long cursor) {

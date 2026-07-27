@@ -24,6 +24,7 @@ import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.ProductImageRepository;
 import com.dongnemarket.product.repository.ProductRepository;
 import com.dongnemarket.product.repository.spec.ProductSpecification;
+import com.dongnemarket.region.entity.Region;
 import com.dongnemarket.region.repository.RegionRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
@@ -77,7 +78,7 @@ public class ProductService {
 				.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 		Category category = categoryRepository.findById(request.getCategoryId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND));
-		validateRegionExists(request.getRegion());
+		Region region = getRequiredDongRegion(request.getRegionCode());
 
 		Product product = Product.create(
 				member,
@@ -85,7 +86,7 @@ public class ProductService {
 				request.getTitle(),
 				request.getDescription(),
 				request.getPrice(),
-				request.getRegion()
+				region
 		);
 		Product savedProduct = productRepository.save(product);
 		saveProductImages(savedProduct, request.getImageUrls(), request.getThumbnailIndex());
@@ -96,17 +97,17 @@ public class ProductService {
 		return getProducts(null, null, DEFAULT_PAGE_SIZE);
 	}
 
-	public ProductPageResponse getProducts(List<String> regions) {
-		return getProducts(regions, null, DEFAULT_PAGE_SIZE);
+	public ProductPageResponse getProducts(List<String> regionCodes) {
+		return getProducts(regionCodes, null, DEFAULT_PAGE_SIZE);
 	}
 
-	public ProductPageResponse getProducts(List<String> regions, Long cursor, int size) {
-		List<String> normalizedRegions = normalizeRegions(regions);
-		validateRegionFilterSize(normalizedRegions);
+	public ProductPageResponse getProducts(List<String> regionCodes, Long cursor, int size) {
+		List<String> normalizedRegionCodes = normalizeRegionCodes(regionCodes);
+		validateRegionCodeFilterSize(normalizedRegionCodes);
 		int limit = clampPageSize(size);
 
 		List<Product> rows = productRepository.findBy(
-				ProductSpecification.list(normalizedRegions, cursor),
+				ProductSpecification.list(normalizedRegionCodes, cursor),
 				query -> query
 						.sortBy(Sort.by(Sort.Direction.DESC, "id"))
 						.limit(limit + 1)
@@ -149,8 +150,8 @@ public class ProductService {
 
 	public List<ProductSummaryResponse> searchProducts(ProductSearchRequest request) {
 		ProductSearchRequest searchRequest = normalizeSearchRequest(request);
-		List<String> regions = normalizeRegions(searchRequest.getRegions());
-		validateRegionFilterSize(regions);
+			List<String> regionCodes = normalizeRegionCodes(searchRequest.getRegionCodes());
+			validateRegionCodeFilterSize(regionCodes);
 		validateSearchPrice(searchRequest.getMinPrice(), searchRequest.getMaxPrice());
 		TradeStatus tradeStatus = parseSearchTradeStatus(searchRequest.getTradeStatus());
 
@@ -161,7 +162,7 @@ public class ProductService {
 						searchRequest.getMinPrice(),
 						searchRequest.getMaxPrice(),
 						tradeStatus,
-						regions
+						regionCodes
 				),
 				Sort.by(Sort.Direction.DESC, "id")
 		);
@@ -233,14 +234,14 @@ public class ProductService {
 
 		Category category = categoryRepository.findById(request.getCategoryId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND));
-		validateRegionExists(request.getRegion());
+		Region region = getRequiredDongRegion(request.getRegionCode());
 		BigDecimal oldPrice = product.getPrice(); // update() 로 덮이기 전에 캡처
 		product.update(
 				category,
 				request.getTitle(),
 				request.getDescription(),
 				request.getPrice(),
-				request.getRegion()
+				region
 		);
 		productImageRepository.deleteAllByProductId(productId);
 		Product managedProduct = productRepository.findById(productId)
@@ -327,10 +328,16 @@ public class ProductService {
 		}
 	}
 
-	private void validateRegionExists(String region) {
-		if (!StringUtils.hasText(region) || !regionRepository.existsByName(region)) {
+	private Region getRequiredDongRegion(String regionCode) {
+		if (!StringUtils.hasText(regionCode)) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
 		}
+		Region region = regionRepository.findByCode(regionCode)
+				.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT_VALUE));
+		if (region.getLevel() != 3) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+		}
+		return region;
 	}
 
 	private void validateProductImages(List<String> imageUrls, int thumbnailIndex) {
@@ -383,17 +390,17 @@ public class ProductService {
 		return request;
 	}
 
-	private List<String> normalizeRegions(List<String> regions) {
-		if (regions == null) {
+	private List<String> normalizeRegionCodes(List<String> regionCodes) {
+		if (regionCodes == null) {
 			return List.of();
 		}
-		return regions.stream()
+		return regionCodes.stream()
 				.filter(StringUtils::hasText)
 				.toList();
 	}
 
-	private void validateRegionFilterSize(List<String> regions) {
-		if (regions.size() > MAX_REGION_FILTER_SIZE) {
+	private void validateRegionCodeFilterSize(List<String> regionCodes) {
+		if (regionCodes.size() > MAX_REGION_FILTER_SIZE) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
 		}
 	}

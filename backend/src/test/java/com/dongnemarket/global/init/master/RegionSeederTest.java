@@ -11,29 +11,20 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @ActiveProfiles("test")
 class RegionSeederTest {
 
 	private static final List<String> REPRESENTATIVE_REGION_NAMES = List.of(
-			"서울 강남구",
-			"부산 해운대구",
-			"대구 군위군",
-			"인천 강화군",
-			"광주 광산구",
-			"대전 유성구",
-			"울산 울주군",
-			"세종",
-			"경기 성남시",
-			"강원 춘천시",
-			"충북 청주시",
-			"충남 천안시",
-			"전북 전주시",
-			"전남 여수시",
-			"경북 포항시",
-			"경남 창원시",
-			"제주 제주시"
+			"서울특별시",
+			"부산광역시",
+			"세종특별자치시",
+			"서울특별시 강남구",
+			"부산광역시 해운대구",
+			"제주특별자치도 제주시",
+			"서울특별시 강남구 역삼동"
 	);
 
 	@Autowired
@@ -43,15 +34,18 @@ class RegionSeederTest {
 	RegionSeeder regionSeeder;
 
 	@Test
-	@DisplayName("애플리케이션 시작 시 전국 지역 마스터가 저장된다")
+	@DisplayName("애플리케이션 시작 시 계층형 전국 지역 마스터가 저장된다")
 	void savesDefaultRegions() {
-		List<String> regionNames = regionRepository.findAllByOrderByNameAsc()
+		List<String> regionNames = regionRepository.findAll()
 				.stream()
-				.map(Region::getName)
+				.map(Region::getFullName)
 				.toList();
 
 		assertThat(regionNames).isNotEmpty();
 		assertThat(regionNames).containsAll(REPRESENTATIVE_REGION_NAMES);
+		assertThat(regionRepository.countByLevel(1)).isEqualTo(16);
+		assertThat(regionRepository.countByLevel(2)).isEqualTo(255);
+		assertThat(regionRepository.countByLevel(3)).isEqualTo(5067);
 	}
 
 	@Test
@@ -65,24 +59,35 @@ class RegionSeederTest {
 	}
 
 	@Test
+	@Transactional
 	@DisplayName("일부 지역만 저장되어 있으면 누락된 지역만 보충한다")
 	void fillsOnlyMissingRegions() throws Exception {
-		regionRepository.deleteAll();
-		regionRepository.save(new Region("서울 강남구"));
-		regionRepository.save(new Region("서울 마포구"));
+		regionRepository.deleteByLevel(3);
+		regionRepository.deleteByLevel(2);
+		regionRepository.deleteByLevel(1);
+		regionRepository.save(Region.root("1100000000", "서울특별시", "서울특별시"));
 
 		regionSeeder.seed();
 
-		List<String> regionNames = regionRepository.findAllByOrderByNameAsc()
+		List<String> regionNames = regionRepository.findAll()
 				.stream()
-				.map(Region::getName)
+				.map(Region::getFullName)
 				.toList();
 		assertThat(regionNames).containsAll(REPRESENTATIVE_REGION_NAMES);
 		assertThat(regionNames)
-				.filteredOn(regionName -> regionName.equals("서울 강남구"))
+				.filteredOn(regionName -> regionName.equals("서울특별시"))
 				.hasSize(1);
 		assertThat(regionNames)
-				.filteredOn(regionName -> regionName.equals("서울 마포구"))
+				.filteredOn(regionName -> regionName.equals("서울특별시 강남구"))
 				.hasSize(1);
+	}
+
+	@Test
+	@DisplayName("세종은 시도 바로 아래에 읍면동이 연결된다")
+	void savesSejongDongChildrenUnderRoot() {
+		List<Region> children = regionRepository.findAllByParentCodeOrderByDisplayNameAsc("3611000000");
+
+		assertThat(children).isNotEmpty();
+		assertThat(children).allMatch(region -> region.getLevel() == 3);
 	}
 }
