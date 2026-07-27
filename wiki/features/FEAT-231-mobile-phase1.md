@@ -1,14 +1,15 @@
 ---
-id: FEAT-mobile-phase1
+id: FEAT-231
 type: feature
 status: in-progress
 author: jomin4
 date: 2026-07-27
 related: []
 tags: [모바일, Android, Compose, 인증, 채팅, 상품]
+pr: 231
 ---
 
-# FEAT-mobile-phase1 — 마켓온 Android 앱 Phase 1 (로그인·홈목록·상세·채팅)
+# FEAT-231 — 마켓온 Android 앱 Phase 1 (로그인·홈목록·상세·채팅)
 
 > 기존 Spring 백엔드(`/api/**` + JWT)를 소비하는 **네이티브 Android 클라이언트**의 첫 동작 버전. 백엔드는 수정하지 않았다.
 > 설계 정본: Notion [아키텍처](https://app.notion.com/p/3a9cd6a1d0238160aa95c4499792ac66) · [화면설계](https://app.notion.com/p/3a9cd6a1d02381dca5b7d5b952fa341d) · 기능 페이지 4개(03 개발)
@@ -204,5 +205,6 @@ tags: [모바일, Android, Compose, 인증, 채팅, 상품]
 - 채팅 테스트는 **남의 상품**에서 시작할 것(자기 상품은 `CANNOT_CHAT_WITH_SELF`)
 
 **참고**
-- 커밋: `8f63c23`(Phase 0 스캐폴딩) → `ce2f42f`(Unit 0 기반) → `fb40029`(화면 4개) → `e024859`(테스트 + 버그 9건 수정)
+- PR: [#231](https://github.com/prgrms-be-devcourse/NBE10-12-2-Team7/pull/231) (base=develop)
+- 커밋: `8f63c23`(Phase 0 스캐폴딩) → `ce2f42f`(Unit 0 기반) → `fb40029`(화면 4개) → `e024859`(테스트 + 버그 9건 수정) → `badb38b`(develop 흡수)
 - 워크플로 정본: `.claude/skills/mobile-workflow/`
