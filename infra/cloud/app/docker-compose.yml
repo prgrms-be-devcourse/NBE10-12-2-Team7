@@ -1,5 +1,5 @@
 # EC2 #1 (app) 전용. mysql 없음 → 외부 DB(RDB EC2). 이미지는 ECR pull.
-# Redis는 이 EC2에 co-locate(인증 TTL 데이터 전용 — docs/adr/0006-redis-for-auth-ttl-data.md).
+# Redis는 이 EC2에 co-locate(인증 TTL 데이터 전용 — ../../infra.md).
 # 사용(EC2 #1, 이 폴더에서):
 #   docker compose --env-file .env pull
 #   docker compose --env-file .env up -d

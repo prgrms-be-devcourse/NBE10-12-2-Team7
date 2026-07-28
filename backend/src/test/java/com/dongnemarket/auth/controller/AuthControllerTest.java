@@ -27,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * 실제 HTTP 요청으로 회원가입 성공/실패를 검증하는 통합 테스트 (H2, MySQL/Docker 불필요).
- * Postman 시나리오(docs/postman/auth-signup.md)의 응답 예시는 이 테스트로 직접 확인한 값이다.
+ * 응답 예시는 이 테스트로 직접 확인한 값이다.
  */
 @SpringBootTest
 @AutoConfigureMockMvc

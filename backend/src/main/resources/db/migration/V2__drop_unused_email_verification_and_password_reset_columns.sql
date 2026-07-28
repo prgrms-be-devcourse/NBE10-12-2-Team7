@@ -1,4 +1,4 @@
--- 인증 관련 TTL 데이터를 Redis로 이전(docs/adr/0006-redis-for-auth-ttl-data.md)하며 미사용이 된
+-- 인증 관련 TTL 데이터를 Redis로 이전하며 미사용이 된
 -- 컬럼/테이블을 정리한다.
 --   - email_verifications: 인증 코드(code/sent_at/expires_at)는 Redis(TTL 5분)로 이전.
 --     "인증 완료" 여부(verified/verified_at)만 이 테이블에 남는다.

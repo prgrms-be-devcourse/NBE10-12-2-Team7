@@ -6,8 +6,8 @@ MarketON(dongnemarket) 레포 안의 **LLM 위키**입니다.
 > 핵심 철학: **"기억보다 기록을 (Memory fades. Write it down.)"**
 > 문서는 사람이 아니라 **LLM이 읽는다**고 전제하고 일관된 형식으로 씁니다.
 
-`docs/`(정본 설계 문서)와 역할이 다릅니다. 경계는 [CLAUDE.md §0](CLAUDE.md) 참고 —
-한 줄 요약: **`docs/` = "어떻게 설계돼 있나", `wiki/` = "왜·어떻게 했고 뭐가 안 됐나"**.
+각 모듈 폴더의 문서(`backend/backend.md` 등)와 역할이 다릅니다. 경계는 [CLAUDE.md §0](CLAUDE.md) 참고 —
+한 줄 요약: **모듈 문서 = "지금 어떻게 생겼나"(현재형), `wiki/` = "왜·어떻게 했고 뭐가 안 됐나"(과거형)**.
 
 ---
 
@@ -20,7 +20,7 @@ wiki/
 ├── features/      # 기능: FEAT-###-설명.md
 ├── bugs/          # 버그: BUG-###-증상.md
 ├── issues/        # 논의/이슈: ISSUE-###-주제.md
-├── decisions/     # 아키텍처 결정: 정본은 docs/adr/ — 여기선 링크만
+├── decisions/     # 기술 결정 기록 — "왜 이걸 골랐나" (ADR 성격)
 └── weekly/        # 주간 로그: YYYY-Www.md
 ```
 
