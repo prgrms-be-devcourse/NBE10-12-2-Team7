@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { setAccessToken } from '@/lib/auth'
+import { startOAuthLogin, type OAuthProviderKey } from '@/lib/oauth'
 import styles from './page.module.css'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -20,6 +21,7 @@ export default function LoginPage() {
 
   const [formMsg, setFormMsg] = useState<{ text: string; type: MsgType } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [oauthLoading, setOauthLoading] = useState<OAuthProviderKey | null>(null)
 
   function validateEmail(v: string) {
     if (!v) { setEmailHint({ text: '이메일을 입력하세요.', kind: 'err' }); return false }
@@ -65,6 +67,18 @@ export default function LoginPage() {
     } catch {
       setFormMsg({ text: '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.', type: 'error' })
       setSubmitting(false)
+    }
+  }
+
+  async function handleOAuthLogin(provider: OAuthProviderKey) {
+    if (oauthLoading) return
+    setFormMsg(null)
+    setOauthLoading(provider)
+    const errorMessage = await startOAuthLogin(provider)
+    // 성공하면 브라우저가 이미 이동하므로, 여기 도달하는 건 실패했을 때뿐이다.
+    if (errorMessage) {
+      setFormMsg({ text: errorMessage, type: 'error' })
+      setOauthLoading(null)
     }
   }
 
@@ -130,6 +144,27 @@ export default function LoginPage() {
             {submitting ? '로그인 중...' : '로그인'}
           </button>
         </form>
+
+        <div className={styles.divider}><span>또는</span></div>
+
+        <div className={styles.oauthCol}>
+          <button
+            type="button"
+            className="btn block ghost"
+            onClick={() => handleOAuthLogin('kakao')}
+            disabled={oauthLoading !== null}
+          >
+            {oauthLoading === 'kakao' ? '이동 중...' : '카카오로 로그인'}
+          </button>
+          <button
+            type="button"
+            className="btn block ghost"
+            onClick={() => handleOAuthLogin('google')}
+            disabled={oauthLoading !== null}
+          >
+            {oauthLoading === 'google' ? '이동 중...' : '구글로 로그인'}
+          </button>
+        </div>
 
         <div className={styles.foot}>아직 계정이 없으신가요? <Link href="/signup">회원가입</Link></div>
       </div>

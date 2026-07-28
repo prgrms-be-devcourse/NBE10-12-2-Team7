@@ -92,3 +92,9 @@
 
 .foot { text-align: center; margin-top: 22px; font-size: 13.5px; color: var(--text-muted); }
 .foot a { color: var(--primary); font-weight: 700; }
+
+/* 소셜 로그인 구분선 */
+.divider { display: flex; align-items: center; gap: 12px; margin: 22px 0 18px; color: var(--text-muted); font-size: 12.5px; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.oauthCol { display: flex; flex-direction: column; gap: 10px; }
