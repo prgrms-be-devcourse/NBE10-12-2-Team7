@@ -57,7 +57,6 @@ class TradeServiceTest {
 	            List<TradeSaleResponse> sales = tradeService.getSales(ME_ID);
 	
 	            assertThat(sales).extracting(TradeSaleResponse::getProductId).containsExactly(2L);
-	            assertThat(sales.get(0).getRegion()).isEqualTo("서울특별시 강남구 역삼동");
 	            assertThat(sales.get(0).getRegionCode()).isEqualTo("1168010100");
 	            assertThat(sales.get(0).getRegionName()).isEqualTo("역삼동");
 	            assertThat(sales.get(0).getRegionFullName()).isEqualTo("서울특별시 강남구 역삼동");

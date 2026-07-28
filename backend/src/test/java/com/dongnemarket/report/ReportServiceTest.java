@@ -8,6 +8,7 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.entity.Region;
 import com.dongnemarket.report.dto.MemberReportCreateRequest;
 import com.dongnemarket.report.dto.ProductReportCreateRequest;
 import com.dongnemarket.report.dto.ReportResponse;
@@ -277,10 +278,16 @@ class ReportServiceTest {
             idField.setAccessible(true);
             idField.set(owner, ownerId);
 
-            return Product.create(owner, null, "테스트 상품", "설명", BigDecimal.valueOf(10000), "서울");
+            return Product.create(owner, null, "테스트 상품", "설명", BigDecimal.valueOf(10000), yeoksam());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private Region yeoksam() {
+        Region seoul = Region.root("1100000000", "서울특별시", "서울특별시");
+        Region gangnam = Region.child("1168000000", 2, seoul, "서울특별시 강남구", "강남구");
+        return Region.child("1168010100", 3, gangnam, "서울특별시 강남구 역삼동", "역삼동");
     }
 
     private ProductReportCreateRequest createProductReportRequest() {

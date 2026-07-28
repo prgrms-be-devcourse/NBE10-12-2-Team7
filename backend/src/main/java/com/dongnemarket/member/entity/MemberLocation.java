@@ -31,11 +31,8 @@ public class MemberLocation extends BaseTimeEntity {
 	@JoinColumn(name = "member_id", nullable = false)
 	private Member member;
 
-	@Column(nullable = false, length = 50)
-	private String region;
-
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "region_id")
+	@JoinColumn(name = "region_id", nullable = false)
 	private Region regionRef;
 
 	@Column(nullable = false)
@@ -47,32 +44,15 @@ public class MemberLocation extends BaseTimeEntity {
 	protected MemberLocation() {
 	}
 
-	private MemberLocation(Member member, String region, int sortOrder, boolean active) {
-		this.member = member;
-		this.region = region;
-		this.sortOrder = sortOrder;
-		this.active = active;
-	}
-
 	private MemberLocation(Member member, Region regionRef, int sortOrder, boolean active) {
 		this.member = member;
-		this.region = regionRef.getFullName();
 		this.regionRef = regionRef;
 		this.sortOrder = sortOrder;
 		this.active = active;
-	}
-
-	public static MemberLocation create(Member member, String region, int sortOrder, boolean active) {
-		return new MemberLocation(member, region, sortOrder, active);
 	}
 
 	public static MemberLocation create(Member member, Region regionRef, int sortOrder, boolean active) {
 		return new MemberLocation(member, regionRef, sortOrder, active);
-	}
-
-	public void backfillRegion(Region regionRef) {
-		this.regionRef = regionRef;
-		this.region = regionRef.getFullName();
 	}
 
 	public Long getId() {
@@ -81,10 +61,6 @@ public class MemberLocation extends BaseTimeEntity {
 
 	public Member getMember() {
 		return member;
-	}
-
-	public String getRegion() {
-		return region;
 	}
 
 	public Region getRegionRef() {

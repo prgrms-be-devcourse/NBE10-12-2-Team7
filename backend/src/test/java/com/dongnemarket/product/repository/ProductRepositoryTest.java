@@ -22,6 +22,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 import java.util.List;
 
@@ -34,6 +35,9 @@ import jakarta.persistence.EntityManager;
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(JpaAuditingConfig.class)
+@TestPropertySource(properties = {
+		"spring.datasource.url=jdbc:h2:mem:product_repository_test;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+})
 class ProductRepositoryTest {
 
 	@Autowired
@@ -63,7 +67,7 @@ class ProductRepositoryTest {
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
 				BigDecimal.valueOf(800000),
-				"서울 강남구"
+				saveGangnamWithDong()
 		);
 
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -75,7 +79,8 @@ class ProductRepositoryTest {
 		assertThat(savedProduct.getDescription()).isEqualTo("상태 좋은 아이폰입니다.");
 		assertThat(savedProduct.getPrice()).isEqualByComparingTo("800000");
 		assertThat(savedProduct.getTradeStatus()).isEqualTo(TradeStatus.ON_SALE);
-		assertThat(savedProduct.getRegion()).isEqualTo("서울 강남구");
+		assertThat(savedProduct.getRegionCode()).isEqualTo("1168010100");
+		assertThat(savedProduct.getRegionFullName()).isEqualTo("서울특별시 강남구 역삼동");
 		assertThat(savedProduct.getViewCount()).isZero();
 		assertThat(savedProduct.isHidden()).isFalse();
 		assertThat(savedProduct.getDeletedAt()).isNull();
@@ -94,7 +99,7 @@ class ProductRepositoryTest {
 				"공기청정기",
 				"상태 좋은 공기청정기입니다.",
 				BigDecimal.valueOf(120000),
-				"서울 강남구"
+				saveGangnamWithDong()
 		));
 
 		boolean exists = productRepository.existsByIdAndDeletedAtIsNullAndHiddenFalse(product.getId());
@@ -113,7 +118,7 @@ class ProductRepositoryTest {
 				"아이패드",
 				"깨끗한 아이패드입니다.",
 				BigDecimal.valueOf(500000),
-				"서울 강남구"
+				saveGangnamWithDong()
 		));
 
 		assertThat(product.getFavoriteCount()).isZero();
@@ -130,7 +135,7 @@ class ProductRepositoryTest {
 				"청소기",
 				"상태 좋은 청소기입니다.",
 				BigDecimal.valueOf(150000),
-				"서울 서초구"
+				saveSeochoWithDong()
 		));
 
 		productRepository.incrementFavoriteCount(product.getId());
@@ -152,7 +157,7 @@ class ProductRepositoryTest {
 				"책상",
 				"튼튼한 책상입니다.",
 				BigDecimal.valueOf(70000),
-				"서울 송파구"
+				saveSongpaWithDong()
 		));
 		productRepository.incrementFavoriteCount(product.getId());
 		productRepository.flush();
@@ -177,7 +182,7 @@ class ProductRepositoryTest {
 				"자바 책",
 				"깨끗한 자바 책입니다.",
 				BigDecimal.valueOf(20000),
-				"서울 마포구"
+				saveMapoWithDong()
 		));
 
 		productRepository.decrementFavoriteCount(product.getId());
@@ -253,7 +258,7 @@ class ProductRepositoryTest {
 					title,
 					"관심 수 원자 업데이트 테스트 상품입니다.",
 					BigDecimal.valueOf(10000),
-					"서울 강남구"
+					saveGangnamWithDong()
 			));
 		}
 	}
@@ -269,7 +274,7 @@ class ProductRepositoryTest {
 				"의자",
 				"사용감 있는 의자입니다.",
 				BigDecimal.valueOf(30000),
-				"서울 서초구"
+				saveSeochoWithDong()
 		);
 		product.softDelete();
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -290,7 +295,7 @@ class ProductRepositoryTest {
 				"자바 책",
 				"깨끗한 자바 책입니다.",
 				BigDecimal.valueOf(15000),
-				"서울 송파구"
+				saveSongpaWithDong()
 		);
 		product.hide();
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -312,7 +317,7 @@ class ProductRepositoryTest {
 				"오래된 생활가전",
 				"오래된 생활가전 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				saveGangnamWithDong()
 		));
 		Product newProduct = productRepository.save(Product.create(
 				member,
@@ -320,7 +325,7 @@ class ProductRepositoryTest {
 				"최신 생활가전",
 				"최신 생활가전 설명",
 				BigDecimal.valueOf(20000),
-				"서울 서초구"
+				saveSeochoWithDong()
 		));
 		productRepository.save(Product.create(
 				member,
@@ -328,12 +333,12 @@ class ProductRepositoryTest {
 				"다른 카테고리 상품",
 				"다른 카테고리 상품 설명",
 				BigDecimal.valueOf(30000),
-				"서울 송파구"
+				saveSongpaWithDong()
 		));
-		Product hiddenProduct = Product.create(member, targetCategory, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
+		Product hiddenProduct = Product.create(member, targetCategory, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(40000), saveMapoWithDong());
 		hiddenProduct.hide();
 		productRepository.save(hiddenProduct);
-		Product deletedProduct = Product.create(member, targetCategory, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(50000), "서울 용산구");
+		Product deletedProduct = Product.create(member, targetCategory, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(50000), saveYongsanWithDong());
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
@@ -357,9 +362,9 @@ class ProductRepositoryTest {
 				"오래된 내 상품",
 				"오래된 내 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				saveGangnamWithDong()
 		));
-		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", BigDecimal.valueOf(20000), "서울 서초구");
+		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", BigDecimal.valueOf(20000), saveSeochoWithDong());
 		hiddenProduct.hide();
 		Product savedHiddenProduct = productRepository.save(hiddenProduct);
 		productRepository.save(Product.create(
@@ -368,9 +373,9 @@ class ProductRepositoryTest {
 				"다른 회원 상품",
 				"다른 회원 상품 설명",
 				BigDecimal.valueOf(30000),
-				"서울 송파구"
+				saveSongpaWithDong()
 		));
-		Product deletedProduct = Product.create(member, category, "삭제 내 상품", "삭제 내 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
+		Product deletedProduct = Product.create(member, category, "삭제 내 상품", "삭제 내 상품 설명", BigDecimal.valueOf(40000), saveMapoWithDong());
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
@@ -390,7 +395,7 @@ class ProductRepositoryTest {
 				"맥북 프로",
 				"상태 좋은 노트북입니다.",
 				BigDecimal.valueOf(1200000),
-				"서울 강남구"
+				saveGangnamWithDong()
 		));
 		Product descriptionMatchedProduct = productRepository.save(Product.create(
 				member,
@@ -398,12 +403,12 @@ class ProductRepositoryTest {
 				"노트북 거치대",
 				"맥북과 함께 쓰기 좋습니다.",
 				BigDecimal.valueOf(30000),
-				"서울 서초구"
+				saveSeochoWithDong()
 		));
-		Product hiddenProduct = Product.create(member, category, "숨김 맥북", "숨김 상품입니다.", BigDecimal.valueOf(900000), "서울 송파구");
+		Product hiddenProduct = Product.create(member, category, "숨김 맥북", "숨김 상품입니다.", BigDecimal.valueOf(900000), saveSongpaWithDong());
 		hiddenProduct.hide();
 		productRepository.save(hiddenProduct);
-		Product deletedProduct = Product.create(member, category, "삭제 맥북", "삭제 상품입니다.", BigDecimal.valueOf(800000), "서울 마포구");
+		Product deletedProduct = Product.create(member, category, "삭제 맥북", "삭제 상품입니다.", BigDecimal.valueOf(800000), saveMapoWithDong());
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
@@ -427,7 +432,7 @@ class ProductRepositoryTest {
 				"예약 중인 청소기",
 				"상태 좋은 청소기입니다.",
 				BigDecimal.valueOf(150000),
-				"서울 강남구"
+				saveGangnamWithDong()
 		);
 		targetProduct.changeTradeStatus(TradeStatus.RESERVED);
 		Product savedTargetProduct = productRepository.save(targetProduct);
@@ -437,12 +442,12 @@ class ProductRepositoryTest {
 				"판매 중인 청소기",
 				"상태 좋은 청소기입니다.",
 				BigDecimal.valueOf(160000),
-				"서울 서초구"
+				saveSeochoWithDong()
 		));
-		Product wrongCategoryProduct = Product.create(member, otherCategory, "예약 중인 책", "청소기 설명이 있는 책입니다.", BigDecimal.valueOf(150000), "서울 송파구");
+		Product wrongCategoryProduct = Product.create(member, otherCategory, "예약 중인 책", "청소기 설명이 있는 책입니다.", BigDecimal.valueOf(150000), saveSongpaWithDong());
 		wrongCategoryProduct.changeTradeStatus(TradeStatus.RESERVED);
 		productRepository.save(wrongCategoryProduct);
-		Product wrongPriceProduct = Product.create(member, targetCategory, "비싼 청소기", "비싼 청소기입니다.", BigDecimal.valueOf(500000), "서울 마포구");
+		Product wrongPriceProduct = Product.create(member, targetCategory, "비싼 청소기", "비싼 청소기입니다.", BigDecimal.valueOf(500000), saveMapoWithDong());
 		wrongPriceProduct.changeTradeStatus(TradeStatus.RESERVED);
 		productRepository.saveAndFlush(wrongPriceProduct);
 
@@ -473,7 +478,7 @@ class ProductRepositoryTest {
 				"오래된 상품",
 				"오래된 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				saveGangnamWithDong()
 		));
 		Product newProduct = productRepository.save(Product.create(
 				member,
@@ -481,12 +486,12 @@ class ProductRepositoryTest {
 				"최신 상품",
 				"최신 상품 설명",
 				BigDecimal.valueOf(20000),
-				"서울 마포구"
+				saveMapoWithDong()
 		));
-		Product hiddenProduct = Product.create(member, category, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(30000), "서울 서초구");
+		Product hiddenProduct = Product.create(member, category, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(30000), saveSeochoWithDong());
 		hiddenProduct.hide();
 		productRepository.save(hiddenProduct);
-		Product deletedProduct = Product.create(member, category, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(40000), "서울 송파구");
+		Product deletedProduct = Product.create(member, category, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(40000), saveSongpaWithDong());
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
@@ -514,12 +519,12 @@ class ProductRepositoryTest {
 				"판매중 공개 상품",
 				"판매중 공개 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				saveGangnamWithDong()
 		));
-		Product reservedProduct = Product.create(activeMember, category, "예약중 공개 상품", "예약중 공개 상품 설명", BigDecimal.valueOf(20000), "서울 마포구");
+		Product reservedProduct = Product.create(activeMember, category, "예약중 공개 상품", "예약중 공개 상품 설명", BigDecimal.valueOf(20000), saveMapoWithDong());
 		reservedProduct.changeTradeStatus(TradeStatus.RESERVED);
 		Product savedReservedProduct = productRepository.save(reservedProduct);
-		Product completedProduct = Product.create(activeMember, category, "거래완료 상품", "거래완료 상품 설명", BigDecimal.valueOf(30000), "서울 서초구");
+		Product completedProduct = Product.create(activeMember, category, "거래완료 상품", "거래완료 상품 설명", BigDecimal.valueOf(30000), saveSeochoWithDong());
 		completedProduct.complete();
 		productRepository.save(completedProduct);
 		Product deletedSellerProduct = productRepository.save(Product.create(
@@ -528,7 +533,7 @@ class ProductRepositoryTest {
 				"탈퇴 판매자 상품",
 				"탈퇴 판매자 상품 설명",
 				BigDecimal.valueOf(40000),
-				"서울 송파구"
+				saveSongpaWithDong()
 		));
 		Product suspendedSellerProduct = productRepository.saveAndFlush(Product.create(
 				suspendedMember,
@@ -536,7 +541,7 @@ class ProductRepositoryTest {
 				"정지 판매자 상품",
 				"정지 판매자 상품 설명",
 				BigDecimal.valueOf(50000),
-				"서울 용산구"
+				saveYongsanWithDong()
 		));
 
 		List<Product> products = productRepository.findAll(
@@ -669,7 +674,7 @@ class ProductRepositoryTest {
 					"오래된 상품",
 					"오래된 상품 설명",
 					BigDecimal.valueOf(10000),
-					"서울 강남구"
+					saveGangnamWithDong()
 			));
 			Product cursorProduct = productRepository.save(Product.create(
 					member,
@@ -677,7 +682,7 @@ class ProductRepositoryTest {
 					"커서 상품",
 					"커서 상품 설명",
 					BigDecimal.valueOf(20000),
-					"서울 강남구"
+					saveGangnamWithDong()
 			));
 			Product newProduct = productRepository.saveAndFlush(Product.create(
 					member,
@@ -685,7 +690,7 @@ class ProductRepositoryTest {
 					"최신 상품",
 					"최신 상품 설명",
 					BigDecimal.valueOf(30000),
-					"서울 강남구"
+					saveGangnamWithDong()
 			));
 
 			List<Product> products = productRepository.findAll(
@@ -848,7 +853,7 @@ class ProductRepositoryTest {
 				"거래완료 맥북",
 				"거래완료 검색 상품입니다.",
 				BigDecimal.valueOf(1000000),
-				"서울 강남구"
+				saveGangnamWithDong()
 		);
 		completedProduct.complete();
 		productRepository.saveAndFlush(completedProduct);
@@ -876,9 +881,9 @@ class ProductRepositoryTest {
 				"카테고리 공개 상품",
 				"카테고리 공개 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				saveGangnamWithDong()
 		));
-		Product completedProduct = Product.create(activeMember, category, "카테고리 거래완료 상품", "카테고리 거래완료 상품 설명", BigDecimal.valueOf(20000), "서울 강남구");
+		Product completedProduct = Product.create(activeMember, category, "카테고리 거래완료 상품", "카테고리 거래완료 상품 설명", BigDecimal.valueOf(20000), saveGangnamWithDong());
 		completedProduct.complete();
 		productRepository.save(completedProduct);
 		Product deletedSellerProduct = productRepository.save(Product.create(
@@ -887,7 +892,7 @@ class ProductRepositoryTest {
 				"카테고리 탈퇴 판매자 상품",
 				"카테고리 탈퇴 판매자 상품 설명",
 				BigDecimal.valueOf(30000),
-				"서울 강남구"
+				saveGangnamWithDong()
 		));
 		Product suspendedSellerProduct = productRepository.saveAndFlush(Product.create(
 				suspendedMember,
@@ -895,7 +900,7 @@ class ProductRepositoryTest {
 				"카테고리 정지 판매자 상품",
 				"카테고리 정지 판매자 상품 설명",
 				BigDecimal.valueOf(40000),
-				"서울 강남구"
+				saveGangnamWithDong()
 		));
 
 		List<Product> products = productRepository.findAll(
@@ -917,6 +922,16 @@ class ProductRepositoryTest {
 				.orElseGet(() -> regionRepository.save(Region.child("1168000000", 2, saveSeoul(), "서울특별시 강남구", "강남구")));
 	}
 
+	private Region saveGangnamWithDong() {
+		return saveDong(saveGangnam(), "1168010100", "서울특별시 강남구 역삼동", "역삼동");
+	}
+
+	private Region saveSeochoWithDong() {
+		Region seocho = regionRepository.findByCode("1165000000")
+				.orElseGet(() -> regionRepository.save(Region.child("1165000000", 2, saveSeoul(), "서울특별시 서초구", "서초구")));
+		return saveDong(seocho, "1165010800", "서울특별시 서초구 서초동", "서초동");
+	}
+
 	private Region saveMapoWithDong() {
 		Region mapo = regionRepository.findByCode("1144000000")
 				.orElseGet(() -> regionRepository.save(Region.child("1144000000", 2, saveSeoul(), "서울특별시 마포구", "마포구")));
@@ -927,6 +942,12 @@ class ProductRepositoryTest {
 		Region songpa = regionRepository.findByCode("1171000000")
 				.orElseGet(() -> regionRepository.save(Region.child("1171000000", 2, saveSeoul(), "서울특별시 송파구", "송파구")));
 		return saveDong(songpa, "1171010100", "서울특별시 송파구 잠실동", "잠실동");
+	}
+
+	private Region saveYongsanWithDong() {
+		Region yongsan = regionRepository.findByCode("1117000000")
+				.orElseGet(() -> regionRepository.save(Region.child("1117000000", 2, saveSeoul(), "서울특별시 용산구", "용산구")));
+		return saveDong(yongsan, "1117013000", "서울특별시 용산구 이태원동", "이태원동");
 	}
 
 	private Region saveDong(Region parent, String code, String fullName, String displayName) {

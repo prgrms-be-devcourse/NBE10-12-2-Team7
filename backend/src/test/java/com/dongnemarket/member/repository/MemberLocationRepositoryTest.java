@@ -67,8 +67,8 @@ class MemberLocationRepositoryTest {
 		assertThat(memberLocationRepository.findAllByMemberIdOrderBySortOrderAsc(targetMember.getId())).isEmpty();
 		List<MemberLocation> otherLocations = memberLocationRepository.findAllByMemberIdOrderBySortOrderAsc(otherMember.getId());
 		assertThat(otherLocations).hasSize(1);
-		assertThat(otherLocations.get(0).getRegion()).isEqualTo("서울특별시 송파구 잠실동");
 		assertThat(otherLocations.get(0).getRegionCode()).isEqualTo("1171010100");
+		assertThat(otherLocations.get(0).getRegionFullName()).isEqualTo("서울특별시 송파구 잠실동");
 		assertThat(otherLocations.get(0).isActive()).isTrue();
 	}
 

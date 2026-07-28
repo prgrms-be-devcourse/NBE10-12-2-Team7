@@ -13,7 +13,6 @@ public class ProductCreateRequest {
 	private String title;
 	private String description;
 	private BigDecimal price;
-	private String region;
 	private String regionCode;
 	@NotEmpty(message = "상품 이미지는 1장 이상 등록해야 합니다.")
 	@Size(max = 5, message = "상품 이미지는 최대 5장까지 등록할 수 있습니다.")
@@ -23,22 +22,12 @@ public class ProductCreateRequest {
 	protected ProductCreateRequest() {
 	}
 
-	public ProductCreateRequest(Long categoryId, String title, String description, BigDecimal price, String region) {
-		this(categoryId, title, description, price, region, null, 0);
-	}
-
-	public ProductCreateRequest(Long categoryId, String title, String description, BigDecimal price, String region,
-								List<String> imageUrls, int thumbnailIndex) {
-		this(categoryId, title, description, price, region, region, imageUrls, thumbnailIndex);
-	}
-
-	public ProductCreateRequest(Long categoryId, String title, String description, BigDecimal price, String region,
-								String regionCode, List<String> imageUrls, int thumbnailIndex) {
+	public ProductCreateRequest(Long categoryId, String title, String description, BigDecimal price, String regionCode,
+									List<String> imageUrls, int thumbnailIndex) {
 		this.categoryId = categoryId;
 		this.title = title;
 		this.description = description;
 		this.price = price;
-		this.region = region;
 		this.regionCode = regionCode;
 		this.imageUrls = imageUrls;
 		this.thumbnailIndex = thumbnailIndex;
@@ -58,10 +47,6 @@ public class ProductCreateRequest {
 
 	public BigDecimal getPrice() {
 		return price;
-	}
-
-	public String getRegion() {
-		return region;
 	}
 
 	public String getRegionCode() {

@@ -42,7 +42,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("가격 변경 알림 통합 테스트")
 class NotificationPriceChangeTest {
 
-    private static final String REGION = "알림가격테스트구";
     private static final String REGION_CODE = "9999900300";
 
     @Autowired
@@ -90,11 +89,11 @@ class NotificationPriceChangeTest {
         Category category = categoryRepository.save(new Category("가격알림테스트전용카테고리"));
         rootRegion = regionRepository.save(Region.root("9999900100", "알림가격테스트시", "알림가격테스트시"));
         parentRegion = regionRepository.save(
-                Region.child("9999900200", 2, rootRegion, "알림가격테스트시 알림가격테스트구", "알림가격테스트구", REGION));
+                Region.child("9999900200", 2, rootRegion, "알림가격테스트시 알림가격테스트구", "알림가격테스트구"));
         region = regionRepository.save(
                 Region.child(REGION_CODE, 3, parentRegion, "알림가격테스트시 알림가격테스트구 알림가격테스트동", "알림가격테스트동"));
         Product product = productRepository.save(
-                Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), REGION));
+                Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), region));
         categoryId = category.getId();
         productId = product.getId();
     }
@@ -127,7 +126,7 @@ class NotificationPriceChangeTest {
     /** 판매자가 상품 가격을 바꾼다(가격만 변경). */
     private void updatePriceTo(BigDecimal newPrice) {
         ProductUpdateRequest request = new ProductUpdateRequest(
-                categoryId, "맥북 프로", "상태 좋음", newPrice, REGION, REGION_CODE,
+                categoryId, "맥북 프로", "상태 좋음", newPrice, REGION_CODE,
                 List.of("https://img.example/mac.jpg"), 0);
         productService.updateProduct(seller.getId(), productId, request);
     }
