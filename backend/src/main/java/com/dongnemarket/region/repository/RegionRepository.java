@@ -10,15 +10,9 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface RegionRepository extends JpaRepository<Region, Long> {
 
-	boolean existsByName(String name);
-
 	boolean existsByCode(String code);
 
 	Optional<Region> findByCode(String code);
-
-	Optional<Region> findByName(String name);
-
-	List<Region> findAllByOrderByNameAsc();
 
 	List<Region> findAllByParentIsNullOrderByDisplayNameAsc();
 

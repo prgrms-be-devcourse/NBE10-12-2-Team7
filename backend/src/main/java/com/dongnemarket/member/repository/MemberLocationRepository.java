@@ -12,8 +12,6 @@ public interface MemberLocationRepository extends JpaRepository<MemberLocation, 
 
 	List<MemberLocation> findAllByMemberIdOrderBySortOrderAsc(Long memberId);
 
-	List<MemberLocation> findAllByRegionRefIsNull();
-
 	@Modifying(flushAutomatically = true, clearAutomatically = true)
 	@Query("delete from MemberLocation ml where ml.member.id = :memberId")
 	void deleteAllByMemberId(@Param("memberId") Long memberId);

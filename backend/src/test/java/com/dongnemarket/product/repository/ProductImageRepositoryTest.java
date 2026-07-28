@@ -20,6 +20,8 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.ProductImage;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
 
 @DataJpaTest
 @ActiveProfiles("test")
@@ -38,6 +40,9 @@ class ProductImageRepositoryTest {
 
 	@Autowired
 	CategoryRepository categoryRepository;
+
+	@Autowired
+	RegionRepository regionRepository;
 
 	@Test
 	@DisplayName("상품 이미지는 정렬 순서 오름차순으로 조회한다")
@@ -79,7 +84,16 @@ class ProductImageRepositoryTest {
 				"이미지 테스트 상품",
 				"이미지 테스트 상품 설명입니다.",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				findRegion("1168010100")
 		));
+	}
+
+	private Region findRegion(String code) {
+		Region seoul = regionRepository.findByCode("1100000000")
+				.orElseGet(() -> regionRepository.save(Region.root("1100000000", "서울특별시", "서울특별시")));
+		Region gangnam = regionRepository.findByCode("1168000000")
+				.orElseGet(() -> regionRepository.save(Region.child("1168000000", 2, seoul, "서울특별시 강남구", "강남구")));
+		return regionRepository.findByCode(code)
+				.orElseGet(() -> regionRepository.save(Region.child(code, 3, gangnam, "서울특별시 강남구 역삼동", "역삼동")));
 	}
 }

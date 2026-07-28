@@ -12,7 +12,6 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -21,7 +20,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "products", indexes = @Index(name = "idx_products_region", columnList = "region"))
+@Table(name = "products")
 public class Product extends BaseTimeEntity {
 
 	@Id
@@ -49,11 +48,8 @@ public class Product extends BaseTimeEntity {
 	@Column(nullable = false, length = 20)
 	private TradeStatus tradeStatus;
 
-	@Column(nullable = false, length = 100)
-	private String region;
-
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "region_id")
+	@JoinColumn(name = "region_id", nullable = false)
 	private Region regionRef;
 
 	@Column(nullable = false)
@@ -78,19 +74,13 @@ public class Product extends BaseTimeEntity {
 	}
 
 	private Product(Member member, Category category, String title, String description,
-						BigDecimal price, String region) {
-		this(member, category, title, description, price, region, null);
-	}
-
-	private Product(Member member, Category category, String title, String description,
-					BigDecimal price, String region, Region regionRef) {
+					BigDecimal price, Region regionRef) {
 		this.member = member;
 		this.category = category;
 		this.title = title;
 		this.description = description;
 		this.price = price;
 		this.tradeStatus = TradeStatus.ON_SALE;
-		this.region = region;
 		this.regionRef = regionRef;
 		this.viewCount = 0L;
 		this.favoriteCount = 0;
@@ -98,13 +88,8 @@ public class Product extends BaseTimeEntity {
 	}
 
 	public static Product create(Member member, Category category, String title, String description,
-									 BigDecimal price, String region) {
-		return new Product(member, category, title, description, price, region);
-	}
-
-	public static Product create(Member member, Category category, String title, String description,
 								 BigDecimal price, Region regionRef) {
-		return new Product(member, category, title, description, price, regionRef.getFullName(), regionRef);
+		return new Product(member, category, title, description, price, regionRef);
 	}
 
 	public void hide() {
@@ -119,26 +104,12 @@ public class Product extends BaseTimeEntity {
 		this.viewCount++;
 	}
 
-	public void update(Category category, String title, String description, BigDecimal price, String region) {
-		this.category = category;
-		this.title = title;
-		this.description = description;
-		this.price = price;
-		this.region = region;
-	}
-
 	public void update(Category category, String title, String description, BigDecimal price, Region regionRef) {
 		this.category = category;
 		this.title = title;
 		this.description = description;
 		this.price = price;
-		this.region = regionRef.getFullName();
 		this.regionRef = regionRef;
-	}
-
-	public void backfillRegion(Region regionRef) {
-		this.regionRef = regionRef;
-		this.region = regionRef.getFullName();
 	}
 
 	public void changeTradeStatus(TradeStatus tradeStatus) {
@@ -190,10 +161,6 @@ public class Product extends BaseTimeEntity {
 
 	public TradeStatus getTradeStatus() {
 		return tradeStatus;
-	}
-
-	public String getRegion() {
-		return region;
 	}
 
 	public Region getRegionRef() {

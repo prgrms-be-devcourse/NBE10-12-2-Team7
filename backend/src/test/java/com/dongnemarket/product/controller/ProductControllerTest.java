@@ -122,7 +122,7 @@ class ProductControllerTest {
 				.andExpect(jsonPath("$.data.description").value("상태 좋은 아이폰입니다."))
 				.andExpect(jsonPath("$.data.price").value(800000))
 				.andExpect(jsonPath("$.data.tradeStatus").value("ON_SALE"))
-				.andExpect(jsonPath("$.data.region").value("서울특별시 강남구 역삼동"))
+				.andExpect(jsonPath("$.data.region").doesNotExist())
 				.andExpect(jsonPath("$.data.regionCode").value("1168010100"))
 				.andExpect(jsonPath("$.data.regionName").value("역삼동"))
 				.andExpect(jsonPath("$.data.regionFullName").value("서울특별시 강남구 역삼동"))
@@ -296,7 +296,7 @@ class ProductControllerTest {
 				"오래된 상품",
 				"오래된 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				findRegion("1168010100")
 		));
 		Product newProduct = productRepository.save(Product.create(
 				member,
@@ -304,12 +304,12 @@ class ProductControllerTest {
 				"최신 상품",
 				"최신 상품 설명",
 				BigDecimal.valueOf(20000),
-				"서울 서초구"
+				findRegion("1165010800")
 		));
-		Product hiddenProduct = Product.create(member, category, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(30000), "서울 송파구");
+		Product hiddenProduct = Product.create(member, category, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(30000), findRegion("1171010100"));
 		hiddenProduct.hide();
 		productRepository.save(hiddenProduct);
-		Product deletedProduct = Product.create(member, category, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
+		Product deletedProduct = Product.create(member, category, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(40000), findRegion("1144012400"));
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
@@ -322,7 +322,7 @@ class ProductControllerTest {
 					.andExpect(jsonPath("$.data.items[0].description").doesNotExist())
 					.andExpect(jsonPath("$.data.items[0].price").value(20000))
 					.andExpect(jsonPath("$.data.items[0].tradeStatus").value("ON_SALE"))
-					.andExpect(jsonPath("$.data.items[0].region").value("서울 서초구"))
+					.andExpect(jsonPath("$.data.items[0].region").doesNotExist())
 					.andExpect(jsonPath("$.data.items[0].viewCount").value(0))
 					.andExpect(jsonPath("$.data.items[0].hidden").value(false))
 					.andExpect(jsonPath("$.data.items[1].productId").value(oldProduct.getId()))
@@ -348,16 +348,16 @@ class ProductControllerTest {
 				"판매중 공개 상품",
 				"판매중 공개 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				findRegion("1168010100")
 		));
-		Product reservedProduct = Product.create(activeMember, category, "예약중 공개 상품", "예약중 공개 상품 설명", BigDecimal.valueOf(20000), "서울 마포구");
+		Product reservedProduct = Product.create(activeMember, category, "예약중 공개 상품", "예약중 공개 상품 설명", BigDecimal.valueOf(20000), findRegion("1144012400"));
 		reservedProduct.changeTradeStatus(TradeStatus.RESERVED);
 		Product savedReservedProduct = productRepository.save(reservedProduct);
-		Product completedProduct = Product.create(activeMember, category, "거래완료 상품", "거래완료 상품 설명", BigDecimal.valueOf(30000), "서울 서초구");
+		Product completedProduct = Product.create(activeMember, category, "거래완료 상품", "거래완료 상품 설명", BigDecimal.valueOf(30000), findRegion("1165010800"));
 		completedProduct.complete();
 		productRepository.save(completedProduct);
-		productRepository.save(Product.create(deletedMember, category, "탈퇴 판매자 상품", "탈퇴 판매자 상품 설명", BigDecimal.valueOf(40000), "서울 송파구"));
-		productRepository.saveAndFlush(Product.create(suspendedMember, category, "정지 판매자 상품", "정지 판매자 상품 설명", BigDecimal.valueOf(50000), "서울 용산구"));
+		productRepository.save(Product.create(deletedMember, category, "탈퇴 판매자 상품", "탈퇴 판매자 상품 설명", BigDecimal.valueOf(40000), findRegion("1171010100")));
+		productRepository.saveAndFlush(Product.create(suspendedMember, category, "정지 판매자 상품", "정지 판매자 상품 설명", BigDecimal.valueOf(50000), findRegion("1117013000")));
 
 		mockMvc.perform(get("/api/products"))
 				.andExpect(status().isOk())
@@ -421,7 +421,7 @@ class ProductControllerTest {
 					"첫번째 상품",
 					"첫번째 상품 설명",
 					BigDecimal.valueOf(10000),
-					"서울 강남구"
+					findRegion("1168010100")
 			));
 			Product secondProduct = productRepository.save(Product.create(
 					member,
@@ -429,7 +429,7 @@ class ProductControllerTest {
 					"두번째 상품",
 					"두번째 상품 설명",
 					BigDecimal.valueOf(20000),
-					"서울 강남구"
+					findRegion("1168010100")
 			));
 			Product thirdProduct = productRepository.saveAndFlush(Product.create(
 					member,
@@ -437,7 +437,7 @@ class ProductControllerTest {
 					"세번째 상품",
 					"세번째 상품 설명",
 					BigDecimal.valueOf(30000),
-					"서울 강남구"
+					findRegion("1168010100")
 			));
 
 			mockMvc.perform(get("/api/products")
@@ -524,7 +524,7 @@ class ProductControllerTest {
 						"상품 " + i,
 						"상품 설명 " + i,
 						BigDecimal.valueOf(i * 1000L),
-						"서울 강남구"
+						findRegion("1168010100")
 				));
 			}
 			productRepository.flush();
@@ -548,7 +548,7 @@ class ProductControllerTest {
 						"상품 " + i,
 						"상품 설명 " + i,
 						BigDecimal.valueOf(i * 1000L),
-						"서울 강남구"
+						findRegion("1168010100")
 				));
 			}
 			productRepository.flush();
@@ -581,7 +581,7 @@ class ProductControllerTest {
 				"맥북 에어",
 				"가벼운 맥북입니다.",
 				BigDecimal.valueOf(1000000),
-				"서울 강남구"
+				findRegion("1168010100")
 		);
 		oldProduct.changeTradeStatus(com.dongnemarket.product.entity.TradeStatus.RESERVED);
 		Product savedOldProduct = productRepository.save(oldProduct);
@@ -591,15 +591,15 @@ class ProductControllerTest {
 				"맥북 프로",
 				"성능 좋은 맥북입니다.",
 				BigDecimal.valueOf(1500000),
-				"서울 서초구"
+				findRegion("1165010800")
 		);
 		newProduct.changeTradeStatus(com.dongnemarket.product.entity.TradeStatus.RESERVED);
 		Product savedNewProduct = productRepository.save(newProduct);
-		productRepository.save(Product.create(member, otherCategory, "맥북 관련 책", "맥북 설명서입니다.", BigDecimal.valueOf(20000), "서울 송파구"));
-		Product hiddenProduct = Product.create(member, targetCategory, "숨김 맥북", "숨김 상품입니다.", BigDecimal.valueOf(1200000), "서울 마포구");
+		productRepository.save(Product.create(member, otherCategory, "맥북 관련 책", "맥북 설명서입니다.", BigDecimal.valueOf(20000), findRegion("1171010100")));
+		Product hiddenProduct = Product.create(member, targetCategory, "숨김 맥북", "숨김 상품입니다.", BigDecimal.valueOf(1200000), findRegion("1144012400"));
 		hiddenProduct.hide();
 		productRepository.save(hiddenProduct);
-		Product deletedProduct = Product.create(member, targetCategory, "삭제 맥북", "삭제 상품입니다.", BigDecimal.valueOf(1300000), "서울 용산구");
+		Product deletedProduct = Product.create(member, targetCategory, "삭제 맥북", "삭제 상품입니다.", BigDecimal.valueOf(1300000), findRegion("1117013000"));
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 
@@ -706,7 +706,7 @@ class ProductControllerTest {
 				"거래완료 맥북",
 				"거래완료 검색 상품입니다.",
 				BigDecimal.valueOf(1000000),
-				"서울 강남구"
+				findRegion("1168010100")
 		);
 		completedProduct.complete();
 		productRepository.saveAndFlush(completedProduct);
@@ -777,9 +777,9 @@ class ProductControllerTest {
 				"오래된 내 상품",
 				"오래된 내 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				findRegion("1168010100")
 		));
-		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", BigDecimal.valueOf(20000), "서울 서초구");
+		Product hiddenProduct = Product.create(member, category, "숨김 내 상품", "숨김 내 상품 설명", BigDecimal.valueOf(20000), findRegion("1165010800"));
 		hiddenProduct.hide();
 		Product savedHiddenProduct = productRepository.save(hiddenProduct);
 		productRepository.save(Product.create(
@@ -788,9 +788,9 @@ class ProductControllerTest {
 				"다른 회원 상품",
 				"다른 회원 상품 설명",
 				BigDecimal.valueOf(30000),
-				"서울 송파구"
+				findRegion("1171010100")
 		));
-		Product deletedProduct = Product.create(member, category, "삭제 내 상품", "삭제 내 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
+		Product deletedProduct = Product.create(member, category, "삭제 내 상품", "삭제 내 상품 설명", BigDecimal.valueOf(40000), findRegion("1144012400"));
 		deletedProduct.softDelete();
 		productRepository.saveAndFlush(deletedProduct);
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -806,7 +806,7 @@ class ProductControllerTest {
 				.andExpect(jsonPath("$.data[0].title").value("숨김 내 상품"))
 				.andExpect(jsonPath("$.data[0].price").value(20000))
 				.andExpect(jsonPath("$.data[0].tradeStatus").value("ON_SALE"))
-				.andExpect(jsonPath("$.data[0].region").value("서울 서초구"))
+				.andExpect(jsonPath("$.data[0].region").doesNotExist())
 				.andExpect(jsonPath("$.data[0].viewCount").value(0))
 				.andExpect(jsonPath("$.data[0].hidden").value(true))
 				.andExpect(jsonPath("$.data[1].productId").value(oldProduct.getId()))
@@ -846,7 +846,7 @@ class ProductControllerTest {
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
 				BigDecimal.valueOf(800000),
-				"서울 강남구"
+				findRegion("1168010100")
 		));
 
 		mockMvc.perform(get("/api/products/{productId}", product.getId()))
@@ -859,7 +859,7 @@ class ProductControllerTest {
 				.andExpect(jsonPath("$.data.description").value("상태 좋은 아이폰입니다."))
 				.andExpect(jsonPath("$.data.price").value(800000))
 				.andExpect(jsonPath("$.data.tradeStatus").value("ON_SALE"))
-				.andExpect(jsonPath("$.data.region").value("서울 강남구"))
+				.andExpect(jsonPath("$.data.region").doesNotExist())
 				.andExpect(jsonPath("$.data.viewCount").value(1))
 				.andExpect(jsonPath("$.data.hidden").value(false));
 	}
@@ -877,7 +877,7 @@ class ProductControllerTest {
 	void returnsDeletedProductWhenProductIsDeleted() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리7"));
-		Product product = Product.create(member, category, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
+		Product product = Product.create(member, category, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(40000), findRegion("1144012400"));
 		product.softDelete();
 		Product savedProduct = productRepository.saveAndFlush(product);
 
@@ -891,7 +891,7 @@ class ProductControllerTest {
 	void returnsHiddenProductWhenProductIsHidden() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리8"));
-		Product product = Product.create(member, category, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(30000), "서울 송파구");
+		Product product = Product.create(member, category, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(30000), findRegion("1171010100"));
 		product.hide();
 		Product savedProduct = productRepository.saveAndFlush(product);
 
@@ -913,7 +913,7 @@ class ProductControllerTest {
 				"탈퇴 판매자 상품",
 				"탈퇴 판매자 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				findRegion("1168010100")
 		));
 
 		mockMvc.perform(get("/api/products/{productId}", product.getId()))
@@ -934,7 +934,7 @@ class ProductControllerTest {
 				"정지 판매자 상품",
 				"정지 판매자 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				findRegion("1168010100")
 		));
 
 		mockMvc.perform(get("/api/products/{productId}", product.getId()))
@@ -953,7 +953,7 @@ class ProductControllerTest {
 				"거래완료 상품",
 				"거래완료 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				findRegion("1168010100")
 		);
 		product.complete();
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -975,7 +975,7 @@ class ProductControllerTest {
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
 				BigDecimal.valueOf(800000),
-				"서울 강남구"
+				findRegion("1168010100")
 		));
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
 		String body = """
@@ -1001,7 +1001,7 @@ class ProductControllerTest {
 				.andExpect(jsonPath("$.data.title").value("맥북 프로"))
 				.andExpect(jsonPath("$.data.description").value("수정된 상품 설명입니다."))
 				.andExpect(jsonPath("$.data.price").value(1500000))
-				.andExpect(jsonPath("$.data.region").value("서울특별시 서초구 서초동"))
+				.andExpect(jsonPath("$.data.region").doesNotExist())
 				.andExpect(jsonPath("$.data.regionCode").value("1165010800"))
 				.andExpect(jsonPath("$.data.regionName").value("서초동"))
 				.andExpect(jsonPath("$.data.regionFullName").value("서울특별시 서초구 서초동"));
@@ -1018,7 +1018,7 @@ class ProductControllerTest {
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
 				BigDecimal.valueOf(800000),
-				"서울 강남구"
+				findRegion("1168010100")
 		);
 		product.changeThumbnailUrl("https://example.com/old-1.jpg");
 		Product savedProduct = productRepository.saveAndFlush(product);
@@ -1084,7 +1084,7 @@ class ProductControllerTest {
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
 				BigDecimal.valueOf(800000),
-				"서울 강남구"
+				findRegion("1168010100")
 		));
 		String token = jwtTokenProvider.createAccessToken(other.getId(), other.getRole().name());
 		String body = """
@@ -1112,7 +1112,7 @@ class ProductControllerTest {
 	void returnsCannotUpdateCompletedProductWhenUpdatingCompletedProduct() throws Exception {
 		Member member = memberRepository.save(Member.createUser("seller@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리12"));
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), findRegion("1168010100"));
 		product.complete();
 		Product savedProduct = productRepository.saveAndFlush(product);
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -1147,7 +1147,7 @@ class ProductControllerTest {
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
 				BigDecimal.valueOf(800000),
-				"서울 강남구"
+				findRegion("1168010100")
 		));
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
 		String body = """
@@ -1171,7 +1171,7 @@ class ProductControllerTest {
 	void updatesHiddenProductStatusByOwner() throws Exception {
 		Member member = memberRepository.save(Member.createUser("hidden-status@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리14"));
-		Product product = Product.create(member, category, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(30000), "서울 송파구");
+		Product product = Product.create(member, category, "숨김 상품", "숨김 상품 설명", BigDecimal.valueOf(30000), findRegion("1171010100"));
 		product.hide();
 		Product savedProduct = productRepository.saveAndFlush(product);
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -1195,7 +1195,7 @@ class ProductControllerTest {
 	void keepsCompletedProductStatusWhenRequestingCompletedAgain() throws Exception {
 		Member member = memberRepository.save(Member.createUser("same-completed-status@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리15"));
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), findRegion("1168010100"));
 		product.complete();
 		Product savedProduct = productRepository.saveAndFlush(product);
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -1241,7 +1241,7 @@ class ProductControllerTest {
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
 				BigDecimal.valueOf(800000),
-				"서울 강남구"
+				findRegion("1168010100")
 		));
 		String token = jwtTokenProvider.createAccessToken(other.getId(), other.getRole().name());
 		String body = """
@@ -1263,7 +1263,7 @@ class ProductControllerTest {
 	void returnsCannotChangeCompletedProductWhenUpdatingCompletedStatus() throws Exception {
 		Member member = memberRepository.save(Member.createUser("completed-status@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리17"));
-		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), "서울 강남구");
+		Product product = Product.create(member, category, "아이폰 15", "상태 좋은 아이폰입니다.", BigDecimal.valueOf(800000), findRegion("1168010100"));
 		product.complete();
 		Product savedProduct = productRepository.saveAndFlush(product);
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -1286,7 +1286,7 @@ class ProductControllerTest {
 	void returnsDeletedProductWhenUpdatingStatusOfDeletedProduct() throws Exception {
 		Member member = memberRepository.save(Member.createUser("deleted-status@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리18"));
-		Product product = Product.create(member, category, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(40000), "서울 마포구");
+		Product product = Product.create(member, category, "삭제 상품", "삭제 상품 설명", BigDecimal.valueOf(40000), findRegion("1144012400"));
 		product.softDelete();
 		Product savedProduct = productRepository.saveAndFlush(product);
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
@@ -1390,7 +1390,7 @@ class ProductControllerTest {
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
 				BigDecimal.valueOf(800000),
-				"서울 강남구"
+				findRegion("1168010100")
 		));
 		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
 
@@ -1424,7 +1424,7 @@ class ProductControllerTest {
 				"아이폰 15",
 				"상태 좋은 아이폰입니다.",
 				BigDecimal.valueOf(800000),
-				"서울 강남구"
+				findRegion("1168010100")
 		));
 		String token = jwtTokenProvider.createAccessToken(other.getId(), other.getRole().name());
 

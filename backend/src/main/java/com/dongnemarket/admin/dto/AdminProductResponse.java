@@ -15,11 +15,10 @@ public class AdminProductResponse {
     private final Long memberId;
     private final Long categoryId;
     private final String title;
-    private final String description;
-	    private final BigDecimal price;
-	    private final TradeStatus tradeStatus;
-	    private final String region;
-	    private final String regionCode;
+	    private final String description;
+		    private final BigDecimal price;
+		    private final TradeStatus tradeStatus;
+		    private final String regionCode;
 	    private final String regionName;
 	    private final String regionFullName;
 	    private final long viewCount;
@@ -27,19 +26,18 @@ public class AdminProductResponse {
     private final LocalDateTime deletedAt;
     private final LocalDateTime createdAt;
 
-	    private AdminProductResponse(Long productId, Long memberId, Long categoryId, String title, String description,
-	                                 BigDecimal price, TradeStatus tradeStatus, String region, String regionCode,
-	                                 String regionName, String regionFullName, long viewCount,
+		    private AdminProductResponse(Long productId, Long memberId, Long categoryId, String title, String description,
+		                                 BigDecimal price, TradeStatus tradeStatus, String regionCode,
+		                                 String regionName, String regionFullName, long viewCount,
 	                                 boolean hidden, LocalDateTime deletedAt, LocalDateTime createdAt) {
         this.productId = productId;
         this.memberId = memberId;
         this.categoryId = categoryId;
         this.title = title;
-        this.description = description;
-	        this.price = price;
-	        this.tradeStatus = tradeStatus;
-	        this.region = region;
-	        this.regionCode = regionCode;
+	        this.description = description;
+		        this.price = price;
+		        this.tradeStatus = tradeStatus;
+		        this.regionCode = regionCode;
 	        this.regionName = regionName;
 	        this.regionFullName = regionFullName;
 	        this.viewCount = viewCount;
@@ -54,11 +52,10 @@ public class AdminProductResponse {
                 product.getMember().getId(),
                 product.getCategory().getId(),
                 product.getTitle(),
-                product.getDescription(),
-	                product.getPrice(),
-	                product.getTradeStatus(),
-	                product.getRegion(),
-	                product.getRegionCode(),
+	                product.getDescription(),
+		                product.getPrice(),
+		                product.getTradeStatus(),
+		                product.getRegionCode(),
 	                product.getRegionName(),
 	                product.getRegionFullName(),
 	                product.getViewCount(),
@@ -72,11 +69,10 @@ public class AdminProductResponse {
     public Long getMemberId() { return memberId; }
     public Long getCategoryId() { return categoryId; }
     public String getTitle() { return title; }
-    public String getDescription() { return description; }
-	    public BigDecimal getPrice() { return price; }
-	    public TradeStatus getTradeStatus() { return tradeStatus; }
-	    public String getRegion() { return region; }
-	    public String getRegionCode() { return regionCode; }
+	    public String getDescription() { return description; }
+		    public BigDecimal getPrice() { return price; }
+		    public TradeStatus getTradeStatus() { return tradeStatus; }
+		    public String getRegionCode() { return regionCode; }
 	    public String getRegionName() { return regionName; }
 	    public String getRegionFullName() { return regionFullName; }
 	    public long getViewCount() { return viewCount; }

@@ -12,6 +12,8 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
 import com.dongnemarket.report.entity.Report;
 import com.dongnemarket.report.entity.ReportReason;
 import com.dongnemarket.report.entity.ReportType;
@@ -41,6 +43,7 @@ class ReportRepositoryTest {
     @Autowired MemberRepository memberRepository;
     @Autowired ProductRepository productRepository;
     @Autowired CategoryRepository categoryRepository;
+    @Autowired RegionRepository regionRepository;
     @Autowired EntityManager entityManager;
 
     @Test
@@ -54,7 +57,7 @@ class ReportRepositoryTest {
         int productReportCount = 5;
         for (int i = 0; i < productReportCount; i++) {
             Product product = productRepository.save(Product.create(
-                    seller, category, "상품 " + i, "설명", BigDecimal.valueOf(10000), "서울 강남구"));
+                    seller, category, "상품 " + i, "설명", BigDecimal.valueOf(10000), saveYeoksam()));
             reportRepository.save(Report.ofProduct(reporter, product, ReportReason.FAKE_ITEM, "신고 " + i));
         }
         reportRepository.save(Report.ofMember(reporter, targetMember, ReportReason.FRAUD_SUSPECTED, "회원 신고"));
@@ -81,5 +84,14 @@ class ReportRepositoryTest {
         // EntityGraph 없이 지연 로딩만 썼다면 목록 조회 1 + 신고 건수(6)만큼의 추가 SELECT가 필요했을 것.
         // fetch join으로 신고 건수와 무관하게 쿼리 수가 일정하게(2건 이하) 유지되는지 확인한다.
         assertThat(queryCount).isLessThanOrEqualTo(2);
+    }
+
+    private Region saveYeoksam() {
+        Region seoul = regionRepository.findByCode("1100000000")
+                .orElseGet(() -> regionRepository.save(Region.root("1100000000", "서울특별시", "서울특별시")));
+        Region gangnam = regionRepository.findByCode("1168000000")
+                .orElseGet(() -> regionRepository.save(Region.child("1168000000", 2, seoul, "서울특별시 강남구", "강남구")));
+        return regionRepository.findByCode("1168010100")
+                .orElseGet(() -> regionRepository.save(Region.child("1168010100", 3, gangnam, "서울특별시 강남구 역삼동", "역삼동")));
     }
 }

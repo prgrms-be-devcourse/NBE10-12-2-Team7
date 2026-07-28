@@ -50,46 +50,23 @@ public class Region {
 	@Column(precision = 10, scale = 7)
 	private BigDecimal longitude;
 
-	@Column(length = 100)
-	private String name;
-
 	protected Region() {
 	}
 
-	/**
-	 * 기존 product/member 문자열 검증 테스트 호환용 생성자.
-	 * Product/MemberLocation 이 regionCode 로 전환되면 제거 대상이다.
-	 */
-	public Region(String name) {
-		this.level = 2;
-		this.fullName = name;
-		this.displayName = name;
-		this.name = name;
-	}
-
-	private Region(String code, int level, Region parent, String fullName, String displayName, String name) {
+	private Region(String code, int level, Region parent, String fullName, String displayName) {
 		this.code = code;
 		this.level = level;
 		this.parent = parent;
 		this.fullName = fullName;
 		this.displayName = displayName;
-		this.name = name;
 	}
 
 	public static Region root(String code, String fullName, String displayName) {
-		return root(code, fullName, displayName, fullName);
-	}
-
-	public static Region root(String code, String fullName, String displayName, String name) {
-		return new Region(code, 1, null, fullName, displayName, name);
+		return new Region(code, 1, null, fullName, displayName);
 	}
 
 	public static Region child(String code, int level, Region parent, String fullName, String displayName) {
-		return child(code, level, parent, fullName, displayName, fullName);
-	}
-
-	public static Region child(String code, int level, Region parent, String fullName, String displayName, String name) {
-		return new Region(code, level, parent, fullName, displayName, name);
+		return new Region(code, level, parent, fullName, displayName);
 	}
 
 	public Long getId() {
@@ -124,7 +101,4 @@ public class Region {
 		return longitude;
 	}
 
-	public String getName() {
-		return name;
-	}
 }

@@ -106,7 +106,6 @@ class ProductServiceTest {
 			assertThat(response.getDescription()).isEqualTo("상태 좋은 아이폰입니다.");
 			assertThat(response.getPrice()).isEqualByComparingTo("800000");
 			assertThat(response.getTradeStatus()).isEqualTo(TradeStatus.ON_SALE);
-			assertThat(response.getRegion()).isEqualTo("서울특별시 강남구 역삼동");
 			assertThat(response.getRegionCode()).isEqualTo("1168010100");
 			assertThat(response.getRegionName()).isEqualTo("역삼동");
 			assertThat(response.getRegionFullName()).isEqualTo("서울특별시 강남구 역삼동");
@@ -613,7 +612,6 @@ class ProductServiceTest {
 			assertThat(response.getTitle()).isEqualTo("맥북 프로");
 			assertThat(response.getDescription()).isEqualTo("수정된 상품 설명입니다.");
 			assertThat(response.getPrice()).isEqualByComparingTo("1500000");
-			assertThat(response.getRegion()).isEqualTo("서울특별시 서초구 서초동");
 			assertThat(response.getRegionCode()).isEqualTo("1165010800");
 			assertThat(response.getRegionName()).isEqualTo("서초동");
 			assertThat(response.getRegionFullName()).isEqualTo("서울특별시 서초구 서초동");
@@ -1376,7 +1374,7 @@ class ProductServiceTest {
 				title,
 				"상품 설명입니다.",
 				price,
-				"서울 강남구"
+				dongRegion()
 		);
 		if (id != null) {
 			ReflectionTestUtils.setField(product, "id", id);
@@ -1411,7 +1409,7 @@ class ProductServiceTest {
 					title,
 					"상품 설명입니다.",
 					BigDecimal.valueOf(800000),
-					"서울 강남구"
+					dongRegion()
 			);
 		}
 
@@ -1435,7 +1433,6 @@ class ProductServiceTest {
 				title,
 				"상태 좋은 아이폰입니다.",
 				price,
-				null,
 				regionCode,
 				imageUrls,
 				thumbnailIndex
@@ -1462,7 +1459,6 @@ class ProductServiceTest {
 				title,
 				"수정된 상품 설명입니다.",
 				price,
-				null,
 				regionCode,
 				imageUrls,
 				thumbnailIndex

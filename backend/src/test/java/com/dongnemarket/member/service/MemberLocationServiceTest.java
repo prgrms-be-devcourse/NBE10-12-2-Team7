@@ -57,7 +57,6 @@ class MemberLocationServiceTest {
 			);
 
 			assertThat(responses).hasSize(1);
-			assertThat(responses.get(0).getRegion()).isEqualTo("서울특별시 강남구 역삼동");
 			assertThat(responses.get(0).getRegionCode()).isEqualTo("1168010100");
 			assertThat(responses.get(0).getRegionName()).isEqualTo("역삼동");
 			assertThat(responses.get(0).getRegionFullName()).isEqualTo("서울특별시 강남구 역삼동");
@@ -80,10 +79,10 @@ class MemberLocationServiceTest {
 					new MemberLocationUpdateRequest(List.of("1168010100", "1144012400"))
 			);
 
-			assertThat(responses).extracting(MemberLocationResponse::getRegion)
-					.containsExactly("서울특별시 강남구 역삼동", "서울특별시 마포구 연남동");
 			assertThat(responses).extracting(MemberLocationResponse::getRegionCode)
 					.containsExactly("1168010100", "1144012400");
+			assertThat(responses).extracting(MemberLocationResponse::getRegionFullName)
+					.containsExactly("서울특별시 강남구 역삼동", "서울특별시 마포구 연남동");
 			assertThat(responses).extracting(MemberLocationResponse::getSortOrder)
 					.containsExactly(0, 1);
 		assertThat(responses).extracting(MemberLocationResponse::isActive)
@@ -107,8 +106,8 @@ class MemberLocationServiceTest {
 			then(memberLocationRepository).should().deleteAllByMemberId(1L);
 			then(memberLocationRepository).should().saveAll(captor.capture());
 			assertThat(captor.getValue()).hasSize(1);
-			assertThat(captor.getValue().get(0).getRegion()).isEqualTo("서울특별시 송파구 잠실동");
 			assertThat(captor.getValue().get(0).getRegionCode()).isEqualTo("1171010100");
+			assertThat(captor.getValue().get(0).getRegionFullName()).isEqualTo("서울특별시 송파구 잠실동");
 		}
 
 	@Test
@@ -137,7 +136,7 @@ class MemberLocationServiceTest {
 			);
 
 			assertThat(responses).hasSize(1);
-			assertThat(responses.get(0).getRegion()).isEqualTo("서울특별시 강남구 역삼동");
+			assertThat(responses.get(0).getRegionFullName()).isEqualTo("서울특별시 강남구 역삼동");
 			then(memberLocationRepository).should().deleteAllByMemberId(1L);
 		}
 

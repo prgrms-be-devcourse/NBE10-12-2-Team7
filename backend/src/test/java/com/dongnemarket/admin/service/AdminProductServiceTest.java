@@ -42,7 +42,7 @@ class AdminProductServiceTest {
     AdminProductService adminProductService;
 
     private Product existingProduct() {
-        return Product.create(null, null, "부적절 상품", "설명", new BigDecimal("10000"), "서울시 강남구");
+        return Product.create(null, null, "부적절 상품", "설명", new BigDecimal("10000"), yeoksam());
     }
 
     @Nested
@@ -98,7 +98,6 @@ class AdminProductServiceTest {
 	
 	        assertThat(response.getTitle()).isEqualTo("거래완료 상품");
 	        assertThat(response.getTradeStatus()).isEqualTo(TradeStatus.COMPLETED);
-	        assertThat(response.getRegion()).isEqualTo("서울특별시 강남구 역삼동");
 	        assertThat(response.getRegionCode()).isEqualTo("1168010100");
 	        assertThat(response.getRegionName()).isEqualTo("역삼동");
 	        assertThat(response.getRegionFullName()).isEqualTo("서울특별시 강남구 역삼동");

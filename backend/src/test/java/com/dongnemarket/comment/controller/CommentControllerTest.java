@@ -12,6 +12,8 @@ import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.notification.repository.NotificationRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -60,6 +62,9 @@ class CommentControllerTest {
     ProductRepository productRepository;
 
     @Autowired
+    RegionRepository regionRepository;
+
+    @Autowired
     CommentRepository commentRepository;
 
     @Autowired
@@ -79,7 +84,7 @@ class CommentControllerTest {
         // 시드된 기본 카테고리(CategorySeeder)와 이름이 겹치지 않도록 테스트 전용 카테고리를 만든다.
         Category category = categoryRepository.save(new Category("댓글테스트전용카테고리"));
         product = productRepository.save(
-                Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), "서울 강남구"));
+                Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), findRegion("1168010100")));
 
         categoryId = category.getId();
         productId = product.getId();
@@ -95,6 +100,10 @@ class CommentControllerTest {
         memberRepository.deleteAll();
         // 시드 카테고리는 보존하고 테스트가 만든 카테고리만 제거한다.
         categoryRepository.deleteById(categoryId);
+    }
+
+    private Region findRegion(String code) {
+        return regionRepository.findByCode(code).orElseThrow();
     }
 
     @Nested
