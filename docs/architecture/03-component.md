@@ -1,6 +1,6 @@
 # C4 L3 — 컴포넌트 (백엔드)
 
-> 최종 수정일: 2026-07-07 · 상태: draft
+> 최종 수정일: 2026-07-28 · 상태: draft
 
 `app` 컨테이너(Spring Boot) 내부 구조. **도메인별 패키지 + 계층형(Controller·Service·Repository)** 이다.
 패키지 루트: `com.dongnemarket`.
@@ -44,7 +44,7 @@ graph TB
     report["report<br/>신고"]:::d
     notification["notification<br/>알림"]:::d
     chat["chat<br/>1:1 채팅"]:::d
-    region["region<br/>지역 사전"]:::d
+    region["region<br/>계층형 지역 마스터"]:::d
     admin["admin<br/>회원·상품·댓글·신고·대시보드<br/>+ admin.ai (Spring AI Tools)"]:::a
 
     classDef g fill:#eef,stroke:#88a
@@ -63,7 +63,7 @@ graph TB
 | **report** | 상품/회원 신고, 증빙 이미지 업로드 | 처리는 admin |
 | **notification** | 알림 생성/조회/읽음 — 댓글·가격변경 트리거 | `NotificationType: COMMENT, PRICE_CHANGE` |
 | **chat** | 1:1 채팅방(`chat_rooms`)·메시지(`chat_messages`)·읽음 처리 | |
-| **region** | 지역 사전(자동완성·검증용) | |
+| **region** | 법정동 코드 기반 시-구-동 계층형 지역 마스터. 상품·회원 동네가 FK로 참조하며 API 식별자는 `regionCode` | |
 | **admin** | 회원 상태 변경, 상품 숨김/삭제, 댓글 삭제, 신고 처리, 대시보드 | `ROLE_ADMIN` 전용 |
 | **admin.ai** | 관리자 AI 어시스턴트 — 자연어 질의를 위 admin 기능으로 Tool Calling | Spring AI + Ollama |
 

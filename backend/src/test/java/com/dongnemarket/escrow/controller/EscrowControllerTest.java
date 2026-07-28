@@ -10,6 +10,8 @@ import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,6 +40,7 @@ class EscrowControllerTest {
     @Autowired CategoryRepository categoryRepository;
     @Autowired ProductRepository productRepository;
     @Autowired EscrowRepository escrowRepository;
+    @Autowired RegionRepository regionRepository;
 
     private static final BigDecimal PRICE = BigDecimal.valueOf(15_000);
 
@@ -58,7 +61,11 @@ class EscrowControllerTest {
     private Product saveOnSaleProduct(Member seller) {
         Category category = categoryRepository.save(new Category("생활/가전"));
         return productRepository.save(
-                Product.create(seller, category, "남은 고기", "같이 먹다 남은 고기", PRICE, "강원 강릉시"));
+                Product.create(seller, category, "남은 고기", "같이 먹다 남은 고기", PRICE, findRegion("5115010100")));
+    }
+
+    private Region findRegion(String code) {
+        return regionRepository.findByCode(code).orElseThrow();
     }
 
     /** 예치중(IN_ESCROW) 거래 + 상품 RESERVED 상태를 준비한다(실제 create가 만드는 상태와 동일). */

@@ -5,17 +5,15 @@ import com.dongnemarket.region.entity.Region;
 public class RegionResponse {
 
 	private final Long regionId;
-	private final String name;
 	private final String code;
 	private final int level;
 	private final String parentCode;
 	private final String fullName;
 	private final String displayName;
 
-	private RegionResponse(Long regionId, String name, String code, int level,
+	private RegionResponse(Long regionId, String code, int level,
 						   String parentCode, String fullName, String displayName) {
 		this.regionId = regionId;
-		this.name = name;
 		this.code = code;
 		this.level = level;
 		this.parentCode = parentCode;
@@ -27,7 +25,6 @@ public class RegionResponse {
 		String parentCode = region.getParent() == null ? null : region.getParent().getCode();
 		return new RegionResponse(
 				region.getId(),
-				region.getName(),
 				region.getCode(),
 				region.getLevel(),
 				parentCode,
@@ -38,10 +35,6 @@ public class RegionResponse {
 
 	public Long getRegionId() {
 		return regionId;
-	}
-
-	public String getName() {
-		return name;
 	}
 
 	public String getCode() {

@@ -208,7 +208,7 @@ class FavoriteControllerTest {
                     .andExpect(jsonPath("$.data[0].favoriteId").exists())
 	                    .andExpect(jsonPath("$.data[0].product.productId").value(otherProductId.intValue()))
 	                    .andExpect(jsonPath("$.data[0].product.title").value("아이패드"))
-	                    .andExpect(jsonPath("$.data[0].product.region").value("서울특별시 강남구 역삼동"))
+	                    .andExpect(jsonPath("$.data[0].product.region").doesNotExist())
 	                    .andExpect(jsonPath("$.data[0].product.regionCode").value("1168010100"))
 	                    .andExpect(jsonPath("$.data[0].product.regionName").value("역삼동"))
 	                    .andExpect(jsonPath("$.data[0].product.regionFullName").value("서울특별시 강남구 역삼동"))

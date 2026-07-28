@@ -144,7 +144,7 @@ class ChatControllerTest {
                     .andExpect(jsonPath("$.data.product.productId").value(productId))
 	                    .andExpect(jsonPath("$.data.product.title").value("맥북 프로"))
 	                    .andExpect(jsonPath("$.data.product.description").value("상태 좋음"))
-	                    .andExpect(jsonPath("$.data.product.region").value("서울특별시 강남구 역삼동"))
+	                    .andExpect(jsonPath("$.data.product.region").doesNotExist())
 	                    .andExpect(jsonPath("$.data.product.regionCode").value("1168010100"))
 	                    .andExpect(jsonPath("$.data.product.regionName").value("역삼동"))
 	                    .andExpect(jsonPath("$.data.product.regionFullName").value("서울특별시 강남구 역삼동"))
