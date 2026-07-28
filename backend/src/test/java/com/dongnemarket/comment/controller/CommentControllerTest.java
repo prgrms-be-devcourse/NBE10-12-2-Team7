@@ -38,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>실제 HTTP 요청으로 사용자 유스케이스(성공·실패·엣지)를 검증한다.
  * 통신 계층만 MockMvc로 대체하고 Controller·Service·Repository는 실제로 동작한다(H2, MySQL/Docker 불필요).
  * 실제 JWT로 @AuthenticationPrincipal(memberId) 바인딩까지 검증한다.
- * Postman 시나리오(docs/postman/comment-create.md)의 응답 예시는 이 테스트로 직접 확인한 값이다.
+ * 응답 예시는 이 테스트로 직접 확인한 값이다.
  */
 @SpringBootTest
 @AutoConfigureMockMvc

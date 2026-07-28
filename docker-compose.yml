@@ -8,7 +8,7 @@ name: dongnemarket
 # 전체 컨테이너 배포(nginx+next+app+mysql)는 지형별로 분리돼 있다:
 #   온프레미스 → infra/onprem/     (로컬 전체 스택, 이미지 로컬 빌드)
 #   클라우드   → infra/cloud/      (EC2 3대, ECR pull)
-# 경계 설계: docs/adr/0004-infra-boundary.md · docs/architecture/07-infra-inventory.md
+# 경계 설계: infra/infra.md
 services:
   mysql:
     image: mysql:8.0

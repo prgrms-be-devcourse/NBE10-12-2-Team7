@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * 실제 SMTP 발송 대신 {@link EmailSender}를 Mock으로 대체해 코드 생성/저장/쿨다운 로직만 검증한다.
- * (실제 메일 발송은 자격증명이 필요하므로 이 테스트 범위 밖 — docs/postman 시나리오에서 별도 확인)
+ * (실제 메일 발송은 자격증명이 필요하므로 이 테스트 범위 밖)
  */
 @SpringBootTest
 @AutoConfigureMockMvc
