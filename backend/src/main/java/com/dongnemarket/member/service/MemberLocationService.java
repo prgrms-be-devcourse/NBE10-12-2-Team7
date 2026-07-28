@@ -14,9 +14,11 @@ import com.dongnemarket.member.entity.MemberLocation;
 import com.dongnemarket.member.entity.MemberStatus;
 import com.dongnemarket.member.repository.MemberLocationRepository;
 import com.dongnemarket.member.repository.MemberRepository;
+import com.dongnemarket.region.entity.Region;
 import com.dongnemarket.region.repository.RegionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @Transactional(readOnly = true)
@@ -37,8 +39,7 @@ public class MemberLocationService {
 	@Transactional
 	public List<MemberLocationResponse> updateMyLocations(Long memberId, MemberLocationUpdateRequest request) {
 		Member member = getActiveMember(memberId);
-		List<String> regions = request.getRegions();
-		validateRegions(regions);
+		List<Region> regions = getRequiredDongRegions(request.getRegionCodes());
 
 		memberLocationRepository.deleteAllByMemberId(memberId);
 		List<MemberLocation> memberLocations = new ArrayList<>();
@@ -74,16 +75,28 @@ public class MemberLocationService {
 		}
 	}
 
-	private void validateRegions(List<String> regions) {
-		Set<String> uniqueRegions = new HashSet<>(regions);
-		if (uniqueRegions.size() != regions.size()) {
+	private List<Region> getRequiredDongRegions(List<String> regionCodes) {
+		if (regionCodes == null || regionCodes.isEmpty()) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
 		}
 
-		for (String region : regions) {
-			if (!regionRepository.existsByName(region)) {
+		Set<String> uniqueRegionCodes = new HashSet<>(regionCodes);
+		if (uniqueRegionCodes.size() != regionCodes.size()) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+		}
+
+		List<Region> regions = new ArrayList<>();
+		for (String regionCode : regionCodes) {
+			if (!StringUtils.hasText(regionCode)) {
 				throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
 			}
+			Region region = regionRepository.findByCode(regionCode)
+					.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT_VALUE));
+			if (region.getLevel() != 3) {
+				throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+			}
+			regions.add(region);
 		}
+		return regions;
 	}
 }

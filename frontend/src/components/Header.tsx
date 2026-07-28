@@ -32,6 +32,8 @@ function formatNotifTime(iso: string) {
 
 const NAV_LINKS = [
   { href: '/products',     label: '상품목록' },
+  /* 실시간 딜: 백엔드 미구현. 버튼만 먼저 노출하고 클릭해도 아무 화면도 뜨지 않는다(기능 구현 후 연결 예정). */
+  { href: '#',             label: '실시간 딜', badge: 'NEW', disabled: true },
   { href: '/products/new', label: '상품등록' },
   { href: '/my-products',  label: '나의 마켓온', match: ['/my-products', '/favorites'] },
   { href: '/my-reports',   label: '신고내역' },
@@ -155,11 +157,24 @@ export default function Header() {
           Market<span>ON</span>
         </Link>
         <nav className="main-nav">
-          {NAV_LINKS.map(({ href, label, match }) => (
-            <Link key={href} href={href} className={(match ?? [href]).includes(pathname ?? '') ? 'on' : ''}>
-              {label}
-            </Link>
-          ))}
+          {NAV_LINKS.map(({ href, label, match, badge, disabled }) => {
+            const cls = [
+              (match ?? [href]).includes(pathname ?? '') ? 'on' : '',
+              badge ? 'new' : '',
+            ].filter(Boolean).join(' ')
+            if (disabled) {
+              return (
+                <a key={label} href="#" className={cls} onClick={e => e.preventDefault()}>
+                  {label}
+                </a>
+              )
+            }
+            return (
+              <Link key={label} href={href} className={cls}>
+                {label}
+              </Link>
+            )
+          })}
         </nav>
         <div className="sp" />
         <button className="icon-btn" onClick={toggleTheme} aria-label="테마 전환" type="button">

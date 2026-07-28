@@ -16,26 +16,33 @@ public class AdminProductResponse {
     private final Long categoryId;
     private final String title;
     private final String description;
-    private final BigDecimal price;
-    private final TradeStatus tradeStatus;
-    private final String region;
-    private final long viewCount;
+	    private final BigDecimal price;
+	    private final TradeStatus tradeStatus;
+	    private final String region;
+	    private final String regionCode;
+	    private final String regionName;
+	    private final String regionFullName;
+	    private final long viewCount;
     private final boolean hidden;
     private final LocalDateTime deletedAt;
     private final LocalDateTime createdAt;
 
-    private AdminProductResponse(Long productId, Long memberId, Long categoryId, String title, String description,
-                                 BigDecimal price, TradeStatus tradeStatus, String region, long viewCount,
-                                 boolean hidden, LocalDateTime deletedAt, LocalDateTime createdAt) {
+	    private AdminProductResponse(Long productId, Long memberId, Long categoryId, String title, String description,
+	                                 BigDecimal price, TradeStatus tradeStatus, String region, String regionCode,
+	                                 String regionName, String regionFullName, long viewCount,
+	                                 boolean hidden, LocalDateTime deletedAt, LocalDateTime createdAt) {
         this.productId = productId;
         this.memberId = memberId;
         this.categoryId = categoryId;
         this.title = title;
         this.description = description;
-        this.price = price;
-        this.tradeStatus = tradeStatus;
-        this.region = region;
-        this.viewCount = viewCount;
+	        this.price = price;
+	        this.tradeStatus = tradeStatus;
+	        this.region = region;
+	        this.regionCode = regionCode;
+	        this.regionName = regionName;
+	        this.regionFullName = regionFullName;
+	        this.viewCount = viewCount;
         this.hidden = hidden;
         this.deletedAt = deletedAt;
         this.createdAt = createdAt;
@@ -48,10 +55,13 @@ public class AdminProductResponse {
                 product.getCategory().getId(),
                 product.getTitle(),
                 product.getDescription(),
-                product.getPrice(),
-                product.getTradeStatus(),
-                product.getRegion(),
-                product.getViewCount(),
+	                product.getPrice(),
+	                product.getTradeStatus(),
+	                product.getRegion(),
+	                product.getRegionCode(),
+	                product.getRegionName(),
+	                product.getRegionFullName(),
+	                product.getViewCount(),
                 product.isHidden(),
                 product.getDeletedAt(),
                 product.getCreatedAt()
@@ -63,10 +73,13 @@ public class AdminProductResponse {
     public Long getCategoryId() { return categoryId; }
     public String getTitle() { return title; }
     public String getDescription() { return description; }
-    public BigDecimal getPrice() { return price; }
-    public TradeStatus getTradeStatus() { return tradeStatus; }
-    public String getRegion() { return region; }
-    public long getViewCount() { return viewCount; }
+	    public BigDecimal getPrice() { return price; }
+	    public TradeStatus getTradeStatus() { return tradeStatus; }
+	    public String getRegion() { return region; }
+	    public String getRegionCode() { return regionCode; }
+	    public String getRegionName() { return regionName; }
+	    public String getRegionFullName() { return regionFullName; }
+	    public long getViewCount() { return viewCount; }
     public boolean isHidden() { return hidden; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }

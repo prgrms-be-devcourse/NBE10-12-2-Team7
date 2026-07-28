@@ -45,10 +45,9 @@ public class FavoriteService {
     /** 관심 상품 등록. 로그인 사용자가 특정 상품을 관심 목록에 추가한다. */
     @Transactional
     public FavoriteResponse add(Long memberId, Long productId) {
-        validateFavoriteCreatable(memberId, productId);
+        Product product = validateFavoriteCreatable(memberId, productId);
 
         Member member = entityManager.find(Member.class, memberId);
-        Product product = entityManager.find(Product.class, productId);
         Favorite saved;
         try {
             saved = favoriteRepository.save(Favorite.of(member, product));
@@ -76,6 +75,11 @@ public class FavoriteService {
                 .toList();
     }
 
+    /** 특정 상품을 관심 등록한 회원 id들(판매자 본인 제외). 가격 변경 알림 수신자 조회용. */
+    public List<Long> findFavoriteMemberIdsForProduct(Long productId) {
+        return favoriteRepository.findFavoriteMemberIdsForProduct(productId);
+    }
+
     /** 관심 상품 취소. 로그인 사용자가 자신이 등록한 관심 상품을 제거한다. */
     @Transactional
     public void remove(Long memberId, Long productId) {
@@ -87,13 +91,20 @@ public class FavoriteService {
     }
 
     /**
-     * 관심 등록 가능 여부 검증: 접근 가능한 상품(삭제·숨김 아님)이어야 하고,
-     * 동일 사용자가 이미 등록하지 않았어야 한다.
+     * 관심 등록 가능 여부를 검증하고 대상 상품을 반환한다: 접근 가능한 상품(삭제·숨김 아님)이어야 하고,
+     * 본인이 등록한 상품이 아니어야 하며, 동일 사용자가 이미 등록하지 않았어야 한다.
+     * 반환한 상품은 호출부가 재조회 없이 그대로 저장에 재사용한다.
      */
-    private void validateFavoriteCreatable(Long memberId, Long productId) {
+    private Product validateFavoriteCreatable(Long memberId, Long productId) {
         productService.validateAccessibleProduct(productId);
+        Product product = entityManager.find(Product.class, productId);
+        // 판매자 본인은 자기 상품을 관심 등록할 수 없다(프록시 id 접근이라 추가 쿼리 없음).
+        if (product.getMember().getId().equals(memberId)) {
+            throw new BusinessException(ErrorCode.CANNOT_FAVORITE_OWN_PRODUCT);
+        }
         if (favoriteRepository.existsByMember_IdAndProduct_Id(memberId, productId)) {
             throw new BusinessException(ErrorCode.FAVORITE_ALREADY_EXISTS);
         }
+        return product;
     }
 }

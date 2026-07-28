@@ -13,6 +13,8 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -47,6 +49,7 @@ class ChatControllerTest {
     @Autowired MemberRepository memberRepository;
     @Autowired CategoryRepository categoryRepository;
     @Autowired ProductRepository productRepository;
+    @Autowired RegionRepository regionRepository;
     @Autowired ChatRoomRepository chatRoomRepository;
     @Autowired ChatMessageRepository chatMessageRepository;
 
@@ -65,8 +68,9 @@ class ChatControllerTest {
         seller = memberRepository.save(Member.createUser("seller@example.com", "encoded-pw", "seller"));
         outsider = memberRepository.save(Member.createUser("outsider@example.com", "encoded-pw", "outsider"));
         Category category = categoryRepository.save(new Category("채팅테스트전용카테고리"));
+        Region region = saveYeoksam();
         Product product = Product.create(seller, category, "맥북 프로", "상태 좋음",
-                BigDecimal.valueOf(1_500_000), "서울 강남구");
+                BigDecimal.valueOf(1_500_000), region);
         product.changeThumbnailUrl("https://img.example/macbook.jpg");
         productRepository.save(product);
 
@@ -90,6 +94,15 @@ class ChatControllerTest {
         return "Bearer " + jwtTokenProvider.createAccessToken(member.getId(), "ROLE_USER");
     }
 
+    private Region saveYeoksam() {
+        Region seoul = regionRepository.findByCode("1100000000")
+                .orElseGet(() -> regionRepository.save(Region.root("1100000000", "서울특별시", "서울특별시")));
+        Region gangnam = regionRepository.findByCode("1168000000")
+                .orElseGet(() -> regionRepository.save(Region.child("1168000000", 2, seoul, "서울특별시 강남구", "강남구")));
+        return regionRepository.findByCode("1168010100")
+                .orElseGet(() -> regionRepository.save(Region.child("1168010100", 3, gangnam, "서울특별시 강남구 역삼동", "역삼동")));
+    }
+
     private ChatRoom saveRoom(Member buyerMember, Member sellerMember) {
         Product product = productRepository.findById(productId).orElseThrow();
         return chatRoomRepository.save(ChatRoom.of(product, buyerMember, sellerMember));
@@ -98,8 +111,9 @@ class ChatControllerTest {
     /** buyer가 참여한 새 방을 별도 상품에 만든다. UNIQUE(product_id, buyer_id)라 방을 여러 개 만들려면 상품이 달라야 한다. */
     private ChatRoom saveRoomOnNewProduct() {
         Category category = categoryRepository.findById(categoryId).orElseThrow();
+        Region region = saveYeoksam();
         Product product = Product.create(seller, category, "상품", "설명",
-                BigDecimal.valueOf(10_000), "서울");
+                BigDecimal.valueOf(10_000), region);
         productRepository.save(product);
         return chatRoomRepository.save(ChatRoom.of(product, buyer, seller));
     }
@@ -107,8 +121,9 @@ class ChatControllerTest {
     /** buyer가 '판매자' 좌석인 방(상대는 outsider). 안읽음 CASE의 판매자 분기를 태우기 위함. */
     private ChatRoom saveRoomWhereBuyerIsSeller() {
         Category category = categoryRepository.findById(categoryId).orElseThrow();
+        Region region = saveYeoksam();
         Product product = Product.create(buyer, category, "내가 파는 상품", "설명",
-                BigDecimal.valueOf(5_000), "서울");
+                BigDecimal.valueOf(5_000), region);
         productRepository.save(product);
         return chatRoomRepository.save(ChatRoom.of(product, outsider, buyer));
     }
@@ -127,11 +142,15 @@ class ChatControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.roomId").isNumber())
                     .andExpect(jsonPath("$.data.product.productId").value(productId))
-                    .andExpect(jsonPath("$.data.product.title").value("맥북 프로"))
-                    .andExpect(jsonPath("$.data.product.description").value("상태 좋음"))
-                    .andExpect(jsonPath("$.data.product.region").value("서울 강남구"))
-                    .andExpect(jsonPath("$.data.product.thumbnailUrl").value("https://img.example/macbook.jpg"))
-                    .andExpect(jsonPath("$.data.seller.nickname").value("seller"));
+	                    .andExpect(jsonPath("$.data.product.title").value("맥북 프로"))
+	                    .andExpect(jsonPath("$.data.product.description").value("상태 좋음"))
+	                    .andExpect(jsonPath("$.data.product.region").value("서울특별시 강남구 역삼동"))
+	                    .andExpect(jsonPath("$.data.product.regionCode").value("1168010100"))
+	                    .andExpect(jsonPath("$.data.product.regionName").value("역삼동"))
+	                    .andExpect(jsonPath("$.data.product.regionFullName").value("서울특별시 강남구 역삼동"))
+	                    .andExpect(jsonPath("$.data.product.thumbnailUrl").value("https://img.example/macbook.jpg"))
+                    .andExpect(jsonPath("$.data.seller.nickname").value("seller"))
+                    .andExpect(jsonPath("$.data.seller.withdrawn").value(false));
         }
 
         @Test
@@ -244,7 +263,7 @@ class ChatControllerTest {
         }
 
         @Test
-        @DisplayName("탈퇴한 상대는 닉네임이 '탈퇴한 사용자'로 마스킹된다")
+        @DisplayName("탈퇴한 상대는 닉네임이 '탈퇴한 사용자'로 마스킹되고 withdrawn=true로 표시된다")
         void withdrawnOpponent_maskedNickname() throws Exception {
             saveRoom(buyer, seller);
             seller.softDelete();            // 상대(판매자) 탈퇴
@@ -253,7 +272,9 @@ class ChatControllerTest {
             mockMvc.perform(get("/api/chat-rooms").header("Authorization", buyerToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.length()").value(1))
-                    .andExpect(jsonPath("$.data[0].opponent.nickname").value("탈퇴한 사용자"));
+                    .andExpect(jsonPath("$.data[0].opponent.nickname").value("탈퇴한 사용자"))
+                    // 프론트가 입력창 비활성화·안내 배너를 띄우는 신뢰 신호
+                    .andExpect(jsonPath("$.data[0].opponent.withdrawn").value(true));
         }
 
         @Test

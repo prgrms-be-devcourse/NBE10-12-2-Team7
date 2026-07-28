@@ -11,6 +11,8 @@ import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.spec.ProductSpecification;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,9 @@ class ProductRepositoryTest {
 
 	@Autowired
 	CategoryRepository categoryRepository;
+
+	@Autowired
+	RegionRepository regionRepository;
 
 	@Autowired
 	EntityManager entityManager;
@@ -544,48 +549,64 @@ class ProductRepositoryTest {
 	}
 
 	@Test
-	@DisplayName("상품 목록 조건은 지역 1개를 지정하면 해당 지역 상품만 조회한다")
-	void findsProductsByOneRegion() {
+	@DisplayName("상품 목록 조건은 시군구 regionCode를 지정하면 하위 동 상품을 조회한다")
+	void findsProductsBySigunguRegionCode() {
 		Member member = memberRepository.save(Member.createUser("region-one@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("지역필터1"));
+		Region gangnam = saveGangnam();
+		Region yeoksam = saveDong(gangnam, "1168010100", "서울특별시 강남구 역삼동", "역삼동");
+		Region daechi = saveDong(gangnam, "1168010600", "서울특별시 강남구 대치동", "대치동");
+		Region songpa = saveSongpaWithDong();
 		Product gangnamProduct = productRepository.save(Product.create(
 				member,
 				category,
-				"강남 상품",
-				"강남 상품 설명",
+				"역삼 상품",
+				"역삼 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				yeoksam
 		));
-		Product mapoProduct = productRepository.saveAndFlush(Product.create(
+		Product daechiProduct = productRepository.save(Product.create(
 				member,
 				category,
-				"마포 상품",
-				"마포 상품 설명",
+				"대치 상품",
+				"대치 상품 설명",
 				BigDecimal.valueOf(20000),
-				"서울 마포구"
+				daechi
+		));
+		Product songpaProduct = productRepository.saveAndFlush(Product.create(
+				member,
+				category,
+				"송파 상품",
+				"송파 상품 설명",
+				BigDecimal.valueOf(30000),
+				songpa
 		));
 
-			List<Product> products = productRepository.findAll(
-					ProductSpecification.list(List.of("서울 강남구"), null),
-					Sort.by(Sort.Direction.DESC, "id")
-			);
+				List<Product> products = productRepository.findAll(
+						ProductSpecification.list(List.of("1168000000"), null),
+						Sort.by(Sort.Direction.DESC, "id")
+				);
 
-		assertThat(products).containsExactly(gangnamProduct);
-		assertThat(products).doesNotContain(mapoProduct);
+		assertThat(products).containsExactly(daechiProduct, gangnamProduct);
+		assertThat(products).doesNotContain(songpaProduct);
 	}
 
 	@Test
-	@DisplayName("상품 목록 조건은 지역 2개를 지정하면 두 지역 상품을 최신순으로 조회한다")
-	void findsProductsByTwoRegionsInLatestOrder() {
+	@DisplayName("상품 목록 조건은 regionCode 2개를 지정하면 두 지역 상품을 최신순으로 조회한다")
+	void findsProductsByTwoRegionCodesInLatestOrder() {
 		Member member = memberRepository.save(Member.createUser("region-two@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("지역필터2"));
+		Region gangnam = saveGangnam();
+		Region yeoksam = saveDong(gangnam, "1168010100", "서울특별시 강남구 역삼동", "역삼동");
+		Region mapo = saveMapoWithDong();
+		Region songpa = saveSongpaWithDong();
 		Product gangnamProduct = productRepository.save(Product.create(
 				member,
 				category,
 				"강남 상품",
 				"강남 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				yeoksam
 		));
 		Product mapoProduct = productRepository.save(Product.create(
 				member,
@@ -593,7 +614,7 @@ class ProductRepositoryTest {
 				"마포 상품",
 				"마포 상품 설명",
 				BigDecimal.valueOf(20000),
-				"서울 마포구"
+				mapo
 		));
 		Product otherProduct = productRepository.saveAndFlush(Product.create(
 				member,
@@ -601,13 +622,13 @@ class ProductRepositoryTest {
 				"송파 상품",
 				"송파 상품 설명",
 				BigDecimal.valueOf(30000),
-				"서울 송파구"
+				songpa
 		));
 
-			List<Product> products = productRepository.findAll(
-					ProductSpecification.list(List.of("서울 강남구", "서울 마포구"), null),
-					Sort.by(Sort.Direction.DESC, "id")
-			);
+				List<Product> products = productRepository.findAll(
+						ProductSpecification.list(List.of("1168000000", "1144000000"), null),
+						Sort.by(Sort.Direction.DESC, "id")
+				);
 
 		assertThat(products).containsExactly(mapoProduct, gangnamProduct);
 		assertThat(products).doesNotContain(otherProduct);
@@ -615,22 +636,24 @@ class ProductRepositoryTest {
 
 	@Test
 	@DisplayName("상품 목록 조건은 존재하지 않는 지역을 지정하면 빈 목록을 반환한다")
-	void returnsEmptyListWhenFilteringByUnknownRegion() {
+	void returnsEmptyListWhenFilteringByUnknownRegionCode() {
 		Member member = memberRepository.save(Member.createUser("region-unknown@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("지역필터없음"));
+		Region gangnam = saveGangnam();
+		Region yeoksam = saveDong(gangnam, "1168010100", "서울특별시 강남구 역삼동", "역삼동");
 		productRepository.saveAndFlush(Product.create(
 				member,
 				category,
 				"강남 상품",
 				"강남 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				yeoksam
 		));
 
-			List<Product> products = productRepository.findAll(
-					ProductSpecification.list(List.of("서울 없는구"), null),
-					Sort.by(Sort.Direction.DESC, "id")
-			);
+				List<Product> products = productRepository.findAll(
+						ProductSpecification.list(List.of("9999999999"), null),
+						Sort.by(Sort.Direction.DESC, "id")
+				);
 
 			assertThat(products).isEmpty();
 		}
@@ -674,87 +697,93 @@ class ProductRepositoryTest {
 			assertThat(products).doesNotContain(cursorProduct, newProduct);
 		}
 
-		@Test
-		@DisplayName("상품 목록 조건은 지역 필터와 커서 조건을 함께 적용한다")
-		void findsProductsByRegionsAndCursor() {
-			Member member = memberRepository.save(Member.createUser("cursor-region-repository@example.com", "encodedPassword", "판매자"));
-			Category category = categoryRepository.save(new Category("커서지역필터"));
-			Product gangnamOldProduct = productRepository.save(Product.create(
-					member,
-					category,
-					"강남 오래된 상품",
-					"강남 오래된 상품 설명",
-					BigDecimal.valueOf(10000),
-					"서울 강남구"
-			));
-			Product mapoProduct = productRepository.save(Product.create(
-					member,
-					category,
-					"마포 상품",
-					"마포 상품 설명",
-					BigDecimal.valueOf(20000),
-					"서울 마포구"
-			));
-			Product gangnamCursorProduct = productRepository.save(Product.create(
-					member,
-					category,
-					"강남 커서 상품",
-					"강남 커서 상품 설명",
-					BigDecimal.valueOf(30000),
-					"서울 강남구"
-			));
-			Product gangnamNewProduct = productRepository.saveAndFlush(Product.create(
-					member,
-					category,
-					"강남 최신 상품",
-					"강남 최신 상품 설명",
-					BigDecimal.valueOf(40000),
-					"서울 강남구"
-			));
+			@Test
+			@DisplayName("상품 목록 조건은 지역 필터와 커서 조건을 함께 적용한다")
+			void findsProductsByRegionCodesAndCursor() {
+				Member member = memberRepository.save(Member.createUser("cursor-region-repository@example.com", "encodedPassword", "판매자"));
+				Category category = categoryRepository.save(new Category("커서지역필터"));
+				Region gangnam = saveGangnam();
+				Region yeoksam = saveDong(gangnam, "1168010100", "서울특별시 강남구 역삼동", "역삼동");
+				Region mapo = saveMapoWithDong();
+				Product gangnamOldProduct = productRepository.save(Product.create(
+						member,
+						category,
+						"강남 오래된 상품",
+						"강남 오래된 상품 설명",
+						BigDecimal.valueOf(10000),
+						yeoksam
+				));
+				Product mapoProduct = productRepository.save(Product.create(
+						member,
+						category,
+						"마포 상품",
+						"마포 상품 설명",
+						BigDecimal.valueOf(20000),
+						mapo
+				));
+				Product gangnamCursorProduct = productRepository.save(Product.create(
+						member,
+						category,
+						"강남 커서 상품",
+						"강남 커서 상품 설명",
+						BigDecimal.valueOf(30000),
+						yeoksam
+				));
+				Product gangnamNewProduct = productRepository.saveAndFlush(Product.create(
+						member,
+						category,
+						"강남 최신 상품",
+						"강남 최신 상품 설명",
+						BigDecimal.valueOf(40000),
+						yeoksam
+				));
 
-			List<Product> products = productRepository.findAll(
-					ProductSpecification.list(List.of("서울 강남구"), gangnamCursorProduct.getId()),
-					Sort.by(Sort.Direction.DESC, "id")
-			);
+				List<Product> products = productRepository.findAll(
+						ProductSpecification.list(List.of("1168000000"), gangnamCursorProduct.getId()),
+						Sort.by(Sort.Direction.DESC, "id")
+				);
 
 			assertThat(products).containsExactly(gangnamOldProduct);
 			assertThat(products).doesNotContain(mapoProduct, gangnamCursorProduct, gangnamNewProduct);
 		}
 
 	@Test
-	@DisplayName("상품 검색 조건은 키워드와 지역 필터를 함께 적용한다")
-	void searchesProductsByKeywordAndRegions() {
-		Member member = memberRepository.save(Member.createUser("region-search@example.com", "encodedPassword", "판매자"));
-		Category category = categoryRepository.save(new Category("지역검색"));
-		Product matchedProduct = productRepository.save(Product.create(
-				member,
-				category,
-				"맥북 프로",
-				"상태 좋은 노트북입니다.",
-				BigDecimal.valueOf(1200000),
-				"서울 강남구"
-		));
-		Product wrongRegionProduct = productRepository.save(Product.create(
-				member,
-				category,
-				"맥북 에어",
-				"가벼운 노트북입니다.",
-				BigDecimal.valueOf(900000),
-				"서울 송파구"
-		));
-		Product wrongKeywordProduct = productRepository.saveAndFlush(Product.create(
-				member,
-				category,
-				"아이패드",
-				"상태 좋은 태블릿입니다.",
-				BigDecimal.valueOf(700000),
-				"서울 강남구"
-		));
+		@DisplayName("상품 검색 조건은 키워드와 지역 필터를 함께 적용한다")
+		void searchesProductsByKeywordAndRegions() {
+			Member member = memberRepository.save(Member.createUser("region-search@example.com", "encodedPassword", "판매자"));
+			Category category = categoryRepository.save(new Category("지역검색"));
+			Region gangnam = saveGangnam();
+			Region yeoksam = saveDong(gangnam, "1168010100", "서울특별시 강남구 역삼동", "역삼동");
+			Region songpa = saveSongpaWithDong();
+			Product matchedProduct = productRepository.save(Product.create(
+					member,
+					category,
+					"맥북 프로",
+					"상태 좋은 노트북입니다.",
+					BigDecimal.valueOf(1200000),
+					yeoksam
+			));
+			Product wrongRegionProduct = productRepository.save(Product.create(
+					member,
+					category,
+					"맥북 에어",
+					"가벼운 노트북입니다.",
+					BigDecimal.valueOf(900000),
+					songpa
+			));
+			Product wrongKeywordProduct = productRepository.saveAndFlush(Product.create(
+					member,
+					category,
+					"아이패드",
+					"상태 좋은 태블릿입니다.",
+					BigDecimal.valueOf(700000),
+					yeoksam
+			));
 
-		List<Product> products = productRepository.findAll(
-				ProductSpecification.search("맥북", null, (BigDecimal) null, null, null, List.of("서울 강남구")),
-				Sort.by(Sort.Direction.DESC, "id")
-		);
+			List<Product> products = productRepository.findAll(
+					ProductSpecification.search("맥북", null, (BigDecimal) null, null, null, List.of("1168000000")),
+					Sort.by(Sort.Direction.DESC, "id")
+			);
 
 		assertThat(products).containsExactly(matchedProduct);
 		assertThat(products).doesNotContain(wrongRegionProduct, wrongKeywordProduct);
@@ -769,15 +798,17 @@ class ProductRepositoryTest {
 		Member suspendedMember = memberRepository.save(Member.createUser("search-visible-suspended@example.com", "encodedPassword", "정지검색판매자"));
 		suspendedMember.changeStatus(MemberStatus.SUSPENDED);
 		Category category = categoryRepository.save(new Category("공개검색정책"));
+		Region gangnam = saveGangnam();
+		Region yeoksam = saveDong(gangnam, "1168010100", "서울특별시 강남구 역삼동", "역삼동");
 		Product visibleProduct = productRepository.save(Product.create(
 				activeMember,
 				category,
 				"정책 맥북",
 				"공개 검색 상품입니다.",
 				BigDecimal.valueOf(1000000),
-				"서울 강남구"
+				yeoksam
 		));
-		Product completedProduct = Product.create(activeMember, category, "정책 완료 맥북", "거래완료 검색 상품입니다.", BigDecimal.valueOf(900000), "서울 강남구");
+		Product completedProduct = Product.create(activeMember, category, "정책 완료 맥북", "거래완료 검색 상품입니다.", BigDecimal.valueOf(900000), yeoksam);
 		completedProduct.complete();
 		productRepository.save(completedProduct);
 		Product deletedSellerProduct = productRepository.save(Product.create(
@@ -786,7 +817,7 @@ class ProductRepositoryTest {
 				"정책 탈퇴 맥북",
 				"탈퇴 판매자 검색 상품입니다.",
 				BigDecimal.valueOf(800000),
-				"서울 강남구"
+				yeoksam
 		));
 		Product suspendedSellerProduct = productRepository.saveAndFlush(Product.create(
 				suspendedMember,
@@ -794,11 +825,11 @@ class ProductRepositoryTest {
 				"정책 정지 맥북",
 				"정지 판매자 검색 상품입니다.",
 				BigDecimal.valueOf(700000),
-				"서울 강남구"
+				yeoksam
 		));
 
 		List<Product> products = productRepository.findAll(
-				ProductSpecification.search("정책", null, null, null, null, List.of("서울 강남구")),
+				ProductSpecification.search("정책", null, null, null, null, List.of("1168000000")),
 				Sort.by(Sort.Direction.DESC, "id")
 		);
 
@@ -874,5 +905,32 @@ class ProductRepositoryTest {
 
 		assertThat(products).containsExactly(visibleProduct);
 		assertThat(products).doesNotContain(completedProduct, deletedSellerProduct, suspendedSellerProduct);
+	}
+
+	private Region saveSeoul() {
+		return regionRepository.findByCode("1100000000")
+				.orElseGet(() -> regionRepository.save(Region.root("1100000000", "서울특별시", "서울특별시")));
+	}
+
+	private Region saveGangnam() {
+		return regionRepository.findByCode("1168000000")
+				.orElseGet(() -> regionRepository.save(Region.child("1168000000", 2, saveSeoul(), "서울특별시 강남구", "강남구")));
+	}
+
+	private Region saveMapoWithDong() {
+		Region mapo = regionRepository.findByCode("1144000000")
+				.orElseGet(() -> regionRepository.save(Region.child("1144000000", 2, saveSeoul(), "서울특별시 마포구", "마포구")));
+		return saveDong(mapo, "1144012400", "서울특별시 마포구 연남동", "연남동");
+	}
+
+	private Region saveSongpaWithDong() {
+		Region songpa = regionRepository.findByCode("1171000000")
+				.orElseGet(() -> regionRepository.save(Region.child("1171000000", 2, saveSeoul(), "서울특별시 송파구", "송파구")));
+		return saveDong(songpa, "1171010100", "서울특별시 송파구 잠실동", "잠실동");
+	}
+
+	private Region saveDong(Region parent, String code, String fullName, String displayName) {
+		return regionRepository.findByCode(code)
+				.orElseGet(() -> regionRepository.save(Region.child(code, 3, parent, fullName, displayName)));
 	}
 	}

@@ -69,20 +69,24 @@ class MemberLocationControllerTest {
 	@Test
 	@DisplayName("유효한 토큰으로 동네 2개를 설정하면 200과 저장된 동네 목록을 반환한다")
 	void updatesMyLocations() throws Exception {
-		saveRegionIfAbsent("서울 강남구");
-		saveRegionIfAbsent("서울 마포구");
 		String token = getAccessToken("locations-put@example.com", "password123!", "locPutUser");
 
 		mockMvc.perform(put("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"regions\":[\"서울 강남구\",\"서울 마포구\"]}"))
+						.content("{\"regionCodes\":[\"1168010100\",\"1144012400\"]}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value(200))
-				.andExpect(jsonPath("$.data[0].region").value("서울 강남구"))
+				.andExpect(jsonPath("$.data[0].region").value("서울특별시 강남구 역삼동"))
+				.andExpect(jsonPath("$.data[0].regionCode").value("1168010100"))
+				.andExpect(jsonPath("$.data[0].regionName").value("역삼동"))
+				.andExpect(jsonPath("$.data[0].regionFullName").value("서울특별시 강남구 역삼동"))
 				.andExpect(jsonPath("$.data[0].sortOrder").value(0))
 				.andExpect(jsonPath("$.data[0].active").value(true))
-				.andExpect(jsonPath("$.data[1].region").value("서울 마포구"))
+				.andExpect(jsonPath("$.data[1].region").value("서울특별시 마포구 연남동"))
+				.andExpect(jsonPath("$.data[1].regionCode").value("1144012400"))
+				.andExpect(jsonPath("$.data[1].regionName").value("연남동"))
+				.andExpect(jsonPath("$.data[1].regionFullName").value("서울특별시 마포구 연남동"))
 				.andExpect(jsonPath("$.data[1].sortOrder").value(1))
 				.andExpect(jsonPath("$.data[1].active").value(false));
 	}
@@ -90,21 +94,21 @@ class MemberLocationControllerTest {
 	@Test
 	@DisplayName("설정 후 조회하면 정렬 순서대로 동네 목록을 반환한다")
 	void getsMyLocations() throws Exception {
-		saveRegionIfAbsent("서울 강남구");
-		saveRegionIfAbsent("서울 마포구");
 		String token = getAccessToken("locations-get@example.com", "password123!", "locGetUser");
 		mockMvc.perform(put("/api/members/me/locations")
 				.header("Authorization", "Bearer " + token)
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"regions\":[\"서울 강남구\",\"서울 마포구\"]}"));
+				.content("{\"regionCodes\":[\"1168010100\",\"1144012400\"]}"));
 
 		mockMvc.perform(get("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value(200))
-				.andExpect(jsonPath("$.data[0].region").value("서울 강남구"))
+				.andExpect(jsonPath("$.data[0].region").value("서울특별시 강남구 역삼동"))
+				.andExpect(jsonPath("$.data[0].regionCode").value("1168010100"))
 				.andExpect(jsonPath("$.data[0].active").value(true))
-				.andExpect(jsonPath("$.data[1].region").value("서울 마포구"))
+				.andExpect(jsonPath("$.data[1].region").value("서울특별시 마포구 연남동"))
+				.andExpect(jsonPath("$.data[1].regionCode").value("1144012400"))
 				.andExpect(jsonPath("$.data[1].active").value(false));
 	}
 
@@ -126,7 +130,7 @@ class MemberLocationControllerTest {
 	void updateMyLocationsWithoutTokenReturns401() throws Exception {
 		mockMvc.perform(put("/api/members/me/locations")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"regions\":[\"서울 강남구\"]}"))
+						.content("{\"regionCodes\":[\"1168010100\"]}"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
 	}
@@ -140,27 +144,27 @@ class MemberLocationControllerTest {
 	}
 
 	@Test
-	@DisplayName("동네 목록이 빈 리스트이면 400과 INVALID_INPUT_VALUE를 반환한다")
-	void rejectsEmptyRegions() throws Exception {
+	@DisplayName("regionCode 목록이 빈 리스트이면 400과 INVALID_INPUT_VALUE를 반환한다")
+	void rejectsEmptyRegionCodes() throws Exception {
 		String token = getAccessToken("locations-empty-list@example.com", "password123!", "locEmptyListUser");
 
 		mockMvc.perform(put("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"regions\":[]}"))
+						.content("{\"regionCodes\":[]}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
 	}
 
 	@Test
-	@DisplayName("동네 목록이 null이면 400과 INVALID_INPUT_VALUE를 반환한다")
-	void rejectsNullRegions() throws Exception {
+	@DisplayName("regionCode 목록이 null이면 400과 INVALID_INPUT_VALUE를 반환한다")
+	void rejectsNullRegionCodes() throws Exception {
 		String token = getAccessToken("locations-null@example.com", "password123!", "locNullUser");
 
 		mockMvc.perform(put("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"regions\":null}"))
+						.content("{\"regionCodes\":null}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
 	}
@@ -173,47 +177,59 @@ class MemberLocationControllerTest {
 		mockMvc.perform(put("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"regions\":[\"서울 강남구\",\"서울 마포구\",\"서울 송파구\"]}"))
+						.content("{\"regionCodes\":[\"1168010100\",\"1144012400\",\"1171010100\"]}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
 	}
 
 	@Test
-	@DisplayName("동네 원소가 공백이면 400과 INVALID_INPUT_VALUE를 반환한다")
-	void rejectsBlankRegion() throws Exception {
+	@DisplayName("regionCode 원소가 공백이면 400과 INVALID_INPUT_VALUE를 반환한다")
+	void rejectsBlankRegionCode() throws Exception {
 		String token = getAccessToken("locations-blank@example.com", "password123!", "locBlankUser");
 
 		mockMvc.perform(put("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"regions\":[\" \"]}"))
+						.content("{\"regionCodes\":[\" \"]}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
 	}
 
 	@Test
-	@DisplayName("리스트 안에 중복 지역이 있으면 400과 INVALID_INPUT_VALUE를 반환한다")
-	void rejectsDuplicateRegions() throws Exception {
-		saveRegionIfAbsent("서울 강남구");
+	@DisplayName("리스트 안에 중복 regionCode가 있으면 400과 INVALID_INPUT_VALUE를 반환한다")
+	void rejectsDuplicateRegionCodes() throws Exception {
 		String token = getAccessToken("locations-duplicate@example.com", "password123!", "locDuplicateUser");
 
 		mockMvc.perform(put("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"regions\":[\"서울 강남구\",\"서울 강남구\"]}"))
+						.content("{\"regionCodes\":[\"1168010100\",\"1168010100\"]}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
 	}
 
 	@Test
-	@DisplayName("지역 마스터에 없는 지역이면 400과 INVALID_INPUT_VALUE를 반환한다")
-	void rejectsUnknownRegion() throws Exception {
+	@DisplayName("지역 마스터에 없는 regionCode이면 400과 INVALID_INPUT_VALUE를 반환한다")
+	void rejectsUnknownRegionCode() throws Exception {
 		String token = getAccessToken("locations-unknown@example.com", "password123!", "locUnknownUser");
 
 		mockMvc.perform(put("/api/members/me/locations")
 						.header("Authorization", "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"regions\":[\"강남\"]}"))
+						.content("{\"regionCodes\":[\"9999999999\"]}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
+	}
+
+	@Test
+	@DisplayName("level 3이 아닌 regionCode이면 400과 INVALID_INPUT_VALUE를 반환한다")
+	void rejectsNonDongRegionCode() throws Exception {
+		String token = getAccessToken("locations-level2@example.com", "password123!", "locLevel2User");
+
+		mockMvc.perform(put("/api/members/me/locations")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"regionCodes\":[\"1168000000\"]}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
 	}
@@ -237,9 +253,4 @@ class MemberLocationControllerTest {
 				.path("data").path("accessToken").asText();
 	}
 
-	private void saveRegionIfAbsent(String name) {
-		if (!regionRepository.existsByName(name)) {
-			regionRepository.save(new Region(name));
-		}
-	}
 }

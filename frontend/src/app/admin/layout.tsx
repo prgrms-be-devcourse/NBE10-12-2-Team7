@@ -10,10 +10,12 @@ import styles from './admin.module.css'
 const NAV = [
   { href: '/admin/dashboard', label: '📊 대시보드' },
   { href: '/admin/members',   label: '👤 회원 관리' },
+  { href: '/admin/manner-scores', label: '🌡️ 매너온도 모니터링' },
   { href: '/admin/products',  label: '📦 상품 관리' },
   { href: '/admin/reports',   label: '🚨 신고 관리' },
   { href: '/admin/comments',  label: '💬 댓글 관리' },
   { href: '/admin/ai',        label: '🤖 AI 어시스턴트' },
+  { href: '/admin/storage',   label: '🗑️ 저장소 정리' },
 ]
 
 type GuardStatus = 'checking' | 'ok' | 'unauthenticated' | 'forbidden'

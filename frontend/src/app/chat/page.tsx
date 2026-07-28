@@ -17,6 +17,7 @@ interface ChatProductSummary {
 interface ChatMemberSummary {
   memberId: number
   nickname: string
+  withdrawn: boolean
 }
 
 interface ChatMessage {
@@ -119,6 +120,7 @@ export default function ChatListPage() {
                 <div className={styles.body}>
                   <div className={styles.top}>
                     <span className={styles.nick}>{room.opponent.nickname}</span>
+                    {room.opponent.withdrawn && <span className={styles.withdrawnTag}>탈퇴</span>}
                   </div>
                   <div className={styles.pname}>{room.product.title} · {priceText(room.product.price)}</div>
                   <div className={styles.last}>{room.lastMessage ? room.lastMessage.content : '대화를 시작해보세요'}</div>

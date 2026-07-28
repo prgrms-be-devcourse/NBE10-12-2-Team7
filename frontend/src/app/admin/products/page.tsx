@@ -13,7 +13,7 @@ interface Product {
   title: string
   price: number
   tradeStatus: TradeStatus
-  region: string
+  regionFullName: string
   viewCount: number
   hidden: boolean
   deletedAt: string | null

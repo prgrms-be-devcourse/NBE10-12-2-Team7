@@ -13,6 +13,8 @@ import com.dongnemarket.product.entity.ProductImage;
 import com.dongnemarket.product.entity.TradeStatus;
 import com.dongnemarket.product.repository.ProductImageRepository;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -56,6 +58,9 @@ class ProductControllerTest {
 	ProductImageRepository productImageRepository;
 
 	@Autowired
+	RegionRepository regionRepository;
+
+	@Autowired
 	EntityManager entityManager;
 
 	@AfterEach
@@ -75,7 +80,7 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구"
+				  "regionCode": "1168010100"
 				}
 				""";
 
@@ -98,7 +103,7 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구",
+				  "regionCode": "1168010100",
 				  "imageUrls": ["https://example.com/product-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -117,7 +122,10 @@ class ProductControllerTest {
 				.andExpect(jsonPath("$.data.description").value("상태 좋은 아이폰입니다."))
 				.andExpect(jsonPath("$.data.price").value(800000))
 				.andExpect(jsonPath("$.data.tradeStatus").value("ON_SALE"))
-				.andExpect(jsonPath("$.data.region").value("서울 강남구"))
+				.andExpect(jsonPath("$.data.region").value("서울특별시 강남구 역삼동"))
+				.andExpect(jsonPath("$.data.regionCode").value("1168010100"))
+				.andExpect(jsonPath("$.data.regionName").value("역삼동"))
+				.andExpect(jsonPath("$.data.regionFullName").value("서울특별시 강남구 역삼동"))
 				.andExpect(jsonPath("$.data.viewCount").value(0))
 				.andExpect(jsonPath("$.data.hidden").value(false));
 	}
@@ -133,7 +141,7 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구",
+				  "regionCode": "1168010100",
 				  "imageUrls": ["https://example.com/product-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -159,7 +167,7 @@ class ProductControllerTest {
 				  "title": " ",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구",
+				  "regionCode": "1168010100",
 				  "imageUrls": ["https://example.com/product-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -185,7 +193,7 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": -1,
-				  "region": "서울 강남구",
+				  "regionCode": "1168010100",
 				  "imageUrls": ["https://example.com/product-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -211,7 +219,7 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구",
+				  "regionCode": "1168010100",
 				  "imageUrls": ["https://example.com/1.jpg", " "],
 				  "thumbnailIndex": 0
 				}
@@ -237,7 +245,33 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울시 강남구",
+				  "regionCode": "9999999999",
+				  "imageUrls": ["https://example.com/product-1.jpg"],
+				  "thumbnailIndex": 0
+				}
+				""".formatted(category.getId());
+
+		mockMvc.perform(post("/api/products")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
+	}
+
+	@Test
+	@DisplayName("level 3이 아닌 지역 코드로 상품 등록 시 INVALID_INPUT_VALUE를 반환한다")
+	void returnsInvalidInputValueWhenCreatingWithNonDongRegionCode() throws Exception {
+		Member member = memberRepository.save(Member.createUser("level2-region-seller@example.com", "encodedPassword", "판매자"));
+		Category category = categoryRepository.save(new Category("테스트카테고리시군구지역"));
+		String token = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+		String body = """
+				{
+				  "categoryId": %d,
+				  "title": "아이폰 15",
+				  "description": "상태 좋은 아이폰입니다.",
+				  "price": 800000,
+				  "regionCode": "1168000000",
 				  "imageUrls": ["https://example.com/product-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -334,17 +368,20 @@ class ProductControllerTest {
 	}
 
 		@Test
-		@DisplayName("상품 목록은 지역 2개로 필터링해 최신 등록순으로 조회한다")
-	void getsProductsFilteredByTwoRegions() throws Exception {
+	@DisplayName("상품 목록은 지역 2개로 필터링해 최신 등록순으로 조회한다")
+		void getsProductsFilteredByTwoRegions() throws Exception {
 		Member member = memberRepository.save(Member.createUser("region-list-controller@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("테스트카테고리지역목록"));
+		Region gangnam = findRegion("1168010100");
+		Region mapo = findRegion("1144012400");
+		Region songpa = findRegion("1171010100");
 		Product gangnamProduct = productRepository.save(Product.create(
 				member,
 				category,
 				"강남 상품",
 				"강남 상품 설명",
 				BigDecimal.valueOf(10000),
-				"서울 강남구"
+				gangnam
 		));
 		Product mapoProduct = productRepository.save(Product.create(
 				member,
@@ -352,7 +389,7 @@ class ProductControllerTest {
 				"마포 상품",
 				"마포 상품 설명",
 				BigDecimal.valueOf(20000),
-				"서울 마포구"
+				mapo
 		));
 		productRepository.saveAndFlush(Product.create(
 				member,
@@ -360,11 +397,11 @@ class ProductControllerTest {
 				"송파 상품",
 				"송파 상품 설명",
 				BigDecimal.valueOf(30000),
-				"서울 송파구"
+				songpa
 		));
 
 			mockMvc.perform(get("/api/products")
-							.param("regions", "서울 강남구", "서울 마포구"))
+							.param("regionCodes", "1168000000", "1144000000"))
 					.andExpect(status().isOk())
 					.andExpect(jsonPath("$.data.items.length()").value(2))
 					.andExpect(jsonPath("$.data.items[0].productId").value(mapoProduct.getId()))
@@ -424,16 +461,19 @@ class ProductControllerTest {
 
 		@Test
 		@DisplayName("상품 목록은 지역 필터와 커서를 함께 적용한다")
-		void getsProductsWithRegionsAndCursor() throws Exception {
+		void getsProductsWithRegionCodesAndCursor() throws Exception {
 			Member member = memberRepository.save(Member.createUser("cursor-region-list-controller@example.com", "encodedPassword", "판매자"));
 			Category category = categoryRepository.save(new Category("테스트카테고리커서지역목록"));
+			Region gangnam = findRegion("1168010100");
+			Region mapo = findRegion("1144012400");
+			Region songpa = findRegion("1171010100");
 			Product gangnamOldProduct = productRepository.save(Product.create(
 					member,
 					category,
 					"강남 오래된 상품",
 					"강남 오래된 상품 설명",
 					BigDecimal.valueOf(10000),
-					"서울 강남구"
+					gangnam
 			));
 			Product mapoProduct = productRepository.save(Product.create(
 					member,
@@ -441,7 +481,7 @@ class ProductControllerTest {
 					"마포 상품",
 					"마포 상품 설명",
 					BigDecimal.valueOf(20000),
-					"서울 마포구"
+					mapo
 			));
 			productRepository.save(Product.create(
 					member,
@@ -449,7 +489,7 @@ class ProductControllerTest {
 					"송파 상품",
 					"송파 상품 설명",
 					BigDecimal.valueOf(30000),
-					"서울 송파구"
+					songpa
 			));
 			Product gangnamNewProduct = productRepository.saveAndFlush(Product.create(
 					member,
@@ -457,11 +497,11 @@ class ProductControllerTest {
 					"강남 최신 상품",
 					"강남 최신 상품 설명",
 					BigDecimal.valueOf(40000),
-					"서울 강남구"
+					gangnam
 			));
 
 			mockMvc.perform(get("/api/products")
-							.param("regions", "서울 강남구")
+							.param("regionCodes", "1168000000")
 							.param("cursor", String.valueOf(gangnamNewProduct.getId()))
 							.param("size", "2"))
 					.andExpect(status().isOk())
@@ -521,10 +561,10 @@ class ProductControllerTest {
 		}
 
 	@Test
-	@DisplayName("상품 목록 지역 필터가 3개이면 INVALID_INPUT_VALUE를 반환한다")
+	@DisplayName("상품 목록 regionCode 필터가 3개이면 INVALID_INPUT_VALUE를 반환한다")
 	void returnsInvalidInputValueWhenGettingProductsWithMoreThanTwoRegions() throws Exception {
 		mockMvc.perform(get("/api/products")
-						.param("regions", "서울 강남구", "서울 마포구", "서울 송파구"))
+						.param("regionCodes", "1168000000", "1144000000", "1171000000"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
 	}
@@ -585,13 +625,15 @@ class ProductControllerTest {
 	void searchesProductsWithKeywordAndRegions() throws Exception {
 		Member member = memberRepository.save(Member.createUser("search-region-controller@example.com", "encodedPassword", "판매자"));
 		Category category = categoryRepository.save(new Category("검색지역카테고리"));
+		Region gangnam = findRegion("1168010100");
+		Region songpa = findRegion("1171010100");
 		Product matchedProduct = productRepository.save(Product.create(
 				member,
 				category,
 				"맥북 프로",
 				"상태 좋은 노트북입니다.",
 				BigDecimal.valueOf(1500000),
-				"서울 강남구"
+				gangnam
 		));
 		productRepository.save(Product.create(
 				member,
@@ -599,7 +641,7 @@ class ProductControllerTest {
 				"맥북 에어",
 				"가벼운 노트북입니다.",
 				BigDecimal.valueOf(1000000),
-				"서울 송파구"
+				songpa
 		));
 		productRepository.saveAndFlush(Product.create(
 				member,
@@ -607,12 +649,12 @@ class ProductControllerTest {
 				"아이패드",
 				"상태 좋은 태블릿입니다.",
 				BigDecimal.valueOf(700000),
-				"서울 강남구"
+				gangnam
 		));
 
 		mockMvc.perform(get("/api/products/search")
 						.param("keyword", "맥북")
-						.param("regions", "서울 강남구"))
+						.param("regionCodes", "1168000000"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.length()").value(1))
 				.andExpect(jsonPath("$.data[0].productId").value(matchedProduct.getId()));
@@ -629,23 +671,24 @@ class ProductControllerTest {
 		suspendedMember.changeStatus(MemberStatus.SUSPENDED);
 		suspendedMember = memberRepository.save(suspendedMember);
 		Category category = categoryRepository.save(new Category("검색공개정책"));
+		Region gangnam = findRegion("1168010100");
 		Product visibleProduct = productRepository.save(Product.create(
 				activeMember,
 				category,
 				"정책 맥북",
 				"정책 검색 상품입니다.",
 				BigDecimal.valueOf(1000000),
-				"서울 강남구"
+				gangnam
 		));
-		Product completedProduct = Product.create(activeMember, category, "정책 완료 맥북", "거래완료 검색 상품입니다.", BigDecimal.valueOf(900000), "서울 강남구");
+		Product completedProduct = Product.create(activeMember, category, "정책 완료 맥북", "거래완료 검색 상품입니다.", BigDecimal.valueOf(900000), gangnam);
 		completedProduct.complete();
 		productRepository.save(completedProduct);
-		productRepository.save(Product.create(deletedMember, category, "정책 탈퇴 맥북", "탈퇴 판매자 검색 상품입니다.", BigDecimal.valueOf(800000), "서울 강남구"));
-		productRepository.saveAndFlush(Product.create(suspendedMember, category, "정책 정지 맥북", "정지 판매자 검색 상품입니다.", BigDecimal.valueOf(700000), "서울 강남구"));
+		productRepository.save(Product.create(deletedMember, category, "정책 탈퇴 맥북", "탈퇴 판매자 검색 상품입니다.", BigDecimal.valueOf(800000), gangnam));
+		productRepository.saveAndFlush(Product.create(suspendedMember, category, "정책 정지 맥북", "정지 판매자 검색 상품입니다.", BigDecimal.valueOf(700000), gangnam));
 
 		mockMvc.perform(get("/api/products/search")
 						.param("keyword", "정책")
-						.param("regions", "서울 강남구"))
+						.param("regionCodes", "1168000000"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.length()").value(1))
 				.andExpect(jsonPath("$.data[0].productId").value(visibleProduct.getId()))
@@ -676,10 +719,10 @@ class ProductControllerTest {
 	}
 
 	@Test
-	@DisplayName("상품 검색 지역 필터가 3개이면 INVALID_INPUT_VALUE를 반환한다")
+	@DisplayName("상품 검색 regionCode 필터가 3개이면 INVALID_INPUT_VALUE를 반환한다")
 	void returnsInvalidInputValueWhenSearchingWithMoreThanTwoRegions() throws Exception {
 		mockMvc.perform(get("/api/products/search")
-						.param("regions", "서울 강남구", "서울 마포구", "서울 송파구"))
+						.param("regionCodes", "1168000000", "1144000000", "1171000000"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("INVALID_INPUT_VALUE"));
 	}
@@ -941,7 +984,7 @@ class ProductControllerTest {
 				  "title": "맥북 프로",
 				  "description": "수정된 상품 설명입니다.",
 				  "price": 1500000,
-				  "region": "서울 서초구",
+				  "regionCode": "1165010800",
 				  "imageUrls": ["https://example.com/update-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -958,7 +1001,10 @@ class ProductControllerTest {
 				.andExpect(jsonPath("$.data.title").value("맥북 프로"))
 				.andExpect(jsonPath("$.data.description").value("수정된 상품 설명입니다."))
 				.andExpect(jsonPath("$.data.price").value(1500000))
-				.andExpect(jsonPath("$.data.region").value("서울 서초구"));
+				.andExpect(jsonPath("$.data.region").value("서울특별시 서초구 서초동"))
+				.andExpect(jsonPath("$.data.regionCode").value("1165010800"))
+				.andExpect(jsonPath("$.data.regionName").value("서초동"))
+				.andExpect(jsonPath("$.data.regionFullName").value("서울특별시 서초구 서초동"));
 	}
 
 	@Test
@@ -985,7 +1031,7 @@ class ProductControllerTest {
 				  "title": "아이폰 15",
 				  "description": "상태 좋은 아이폰입니다.",
 				  "price": 800000,
-				  "region": "서울 강남구",
+				  "regionCode": "1168010100",
 				  "imageUrls": ["https://example.com/old-1.jpg", "https://example.com/old-2.jpg"],
 				  "thumbnailIndex": 1
 				}
@@ -1013,7 +1059,7 @@ class ProductControllerTest {
 				  "title": "맥북 프로",
 				  "description": "수정된 상품 설명입니다.",
 				  "price": 1500000,
-				  "region": "서울 서초구",
+				  "regionCode": "1165010800",
 				  "imageUrls": ["https://example.com/update-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -1047,7 +1093,7 @@ class ProductControllerTest {
 				  "title": "맥북 프로",
 				  "description": "수정된 상품 설명입니다.",
 				  "price": 1500000,
-				  "region": "서울 서초구",
+				  "regionCode": "1165010800",
 				  "imageUrls": ["https://example.com/update-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -1076,7 +1122,7 @@ class ProductControllerTest {
 				  "title": "맥북 프로",
 				  "description": "수정된 상품 설명입니다.",
 				  "price": 1500000,
-				  "region": "서울 서초구",
+				  "regionCode": "1165010800",
 				  "imageUrls": ["https://example.com/update-1.jpg"],
 				  "thumbnailIndex": 0
 				}
@@ -1386,5 +1432,9 @@ class ProductControllerTest {
 						.header("Authorization", "Bearer " + token))
 				.andExpect(status().isForbidden())
 				.andExpect(jsonPath("$.error").value("PRODUCT_OWNER_ONLY"));
+	}
+
+	private Region findRegion(String code) {
+		return regionRepository.findByCode(code).orElseThrow();
 	}
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import AuthBootstrap from '@/components/AuthBootstrap'
 import Header from '@/components/Header'
+import LegalChatWidget from '@/components/LegalChatWidget'
 import './globals.css'
 
 const SITE_URL = 'https://marketon.inyeon.io'
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthBootstrap />
         <Header />
         {children}
+        <LegalChatWidget />
       </body>
     </html>
   )

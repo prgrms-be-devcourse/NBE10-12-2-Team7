@@ -16,7 +16,7 @@ interface MyProduct {
   title: string
   price: number
   tradeStatus: TradeStatus
-  region: string
+  regionFullName: string
   viewCount: number
   favoriteCount: number
   thumbnailUrl: string | null
@@ -189,7 +189,7 @@ export default function MyProductsPage() {
                       {priceText(product.price)}
                     </div>
                     <div className={styles.meta}>
-                      <span>{product.region}</span>
+                      <span>{product.regionFullName}</span>
                       <span className={styles.dot} />
                       <span>♡ {product.favoriteCount}</span>
                       <span className={styles.dot} />

@@ -2,6 +2,7 @@ package com.dongnemarket.notification.service;
 
 import com.dongnemarket.chat.dto.ChatRoomListResponse;
 import com.dongnemarket.chat.service.ChatService;
+import com.dongnemarket.favorite.service.FavoriteService;
 import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.notification.dto.NotificationResponse;
 import com.dongnemarket.notification.entity.Notification;
@@ -14,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 @Service
@@ -26,13 +29,16 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final ChatService chatService;
+    private final FavoriteService favoriteService;
     private final EntityManager entityManager;
 
     public NotificationService(NotificationRepository notificationRepository,
                                ChatService chatService,
+                               FavoriteService favoriteService,
                                EntityManager entityManager) {
         this.notificationRepository = notificationRepository;
         this.chatService = chatService;
+        this.favoriteService = favoriteService;
         this.entityManager = entityManager;
     }
 
@@ -47,14 +53,19 @@ public class NotificationService {
     }
 
     /**
-     * 상품 가격 변경 알림을 저장한다. 그 상품에 채팅방을 연 <b>구매자들</b>에게 각각 상품별 코얼레싱으로 저장한다.
-     * 판매자는 자기 상품 구매 불가(CANNOT_CHAT_WITH_SELF)라 수신자에 포함되지 않는다.
+     * 상품 가격 변경 알림을 저장한다. 그 상품에 <b>채팅방을 연 구매자</b>와 <b>관심 등록한 사용자</b>의 합집합에게
+     * 각각 상품별 코얼레싱으로 저장한다. 두 집합에 모두 속한 사용자는 {@link LinkedHashSet}으로 한 번만 발송한다
+     * (설령 중복 발송돼도 코얼레싱이 안읽은 알림을 1행으로 수렴시키므로, Set은 불필요한 renotify를 아끼는 최적화다).
+     * <p>판매자 본인은 두 집합 모두에서 제외된다: 채팅은 자기 상품 채팅 불가(CANNOT_CHAT_WITH_SELF),
+     * 관심은 쿼리에서 판매자 id를 제외({@code findFavoriteMemberIdsForProduct})한다.
      */
     @Transactional
     public void notifyPriceChange(Long productId, String productTitle) {
         String message = buildPriceChangeMessage(productTitle);
-        for (Long buyerId : chatService.findBuyerIdsForProduct(productId)) {
-            coalesceOrSave(buyerId, productId, NotificationType.PRICE_CHANGE, message);
+        Set<Long> recipientIds = new LinkedHashSet<>(chatService.findBuyerIdsForProduct(productId));
+        recipientIds.addAll(favoriteService.findFavoriteMemberIdsForProduct(productId));
+        for (Long recipientId : recipientIds) {
+            coalesceOrSave(recipientId, productId, NotificationType.PRICE_CHANGE, message);
         }
     }
 
@@ -121,7 +132,7 @@ public class NotificationService {
         LocalDateTime occurredAt = room.getLastMessage() != null
                 ? room.getLastMessage().getCreatedAt()
                 : room.getCreatedAt();
-        String message = buildChatMessage(room.getProduct().getTitle(), room.getOpponent().getNickname());
+        String message = buildChatMessage(room.getProduct().getTitle());
         return NotificationResponse.chat(message, room.getProduct().getProductId(), room.getRoomId(), occurredAt);
     }
 
@@ -134,7 +145,9 @@ public class NotificationService {
         return "🏷️ \"" + productTitle + "\"의 가격이 변경되었습니다.";
     }
 
-    private String buildChatMessage(String productTitle, String opponentNickname) {
-        return "🔔 \"" + productTitle + "\"에 대해 \"" + opponentNickname + "\"님의 새로운 채팅이 도착했습니다!";
+    private String buildChatMessage(String productTitle) {
+        // 상대 닉네임을 넣지 않는다: 채팅 알림은 조회 시점 파생이라, 상대가 나중에 탈퇴하면
+        // 과거 문구가 "탈퇴한 사용자"로 소급 표시되는 드리프트가 생기기 때문(상품명만으로 안내).
+        return "🔔 \"" + productTitle + "\"에 새로운 채팅이 도착했습니다!";
     }
 }

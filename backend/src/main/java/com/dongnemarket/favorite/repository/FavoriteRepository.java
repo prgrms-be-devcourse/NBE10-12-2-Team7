@@ -28,4 +28,13 @@ public interface FavoriteRepository extends JpaRepository<Favorite, Long> {
             "AND p.deletedAt IS NULL AND p.hidden = false " +
             "ORDER BY f.createdAt DESC, f.id DESC")
     List<Favorite> findMyFavoritesWithProduct(@Param("memberId") Long memberId, Limit limit);
+
+    /**
+     * 특정 상품을 관심 등록한 회원 id들. 가격 변경 알림 수신자(그 상품에 관심 있는 사용자) 조회용.
+     * <p>판매자 본인은 제외한다({@code f.member.id <> f.product.member.id}). 자기 상품 찜이 현재 가능하므로
+     * 이 제외 조건은 <b>필수</b>다(가격 변경 주체인 판매자에게 자기 알림이 가지 않게 함) — 무심코 제거하면 안 된다.
+     */
+    @Query("SELECT f.member.id FROM Favorite f " +
+            "WHERE f.product.id = :productId AND f.member.id <> f.product.member.id")
+    List<Long> findFavoriteMemberIdsForProduct(@Param("productId") Long productId);
 }

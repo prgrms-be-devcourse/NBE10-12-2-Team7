@@ -10,6 +10,8 @@ import com.dongnemarket.member.entity.Member;
 import com.dongnemarket.member.repository.MemberRepository;
 import com.dongnemarket.product.entity.Product;
 import com.dongnemarket.product.repository.ProductRepository;
+import com.dongnemarket.region.entity.Region;
+import com.dongnemarket.region.repository.RegionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -56,12 +58,16 @@ class FavoriteControllerTest {
     ProductRepository productRepository;
 
     @Autowired
+    RegionRepository regionRepository;
+
+    @Autowired
     FavoriteRepository favoriteRepository;
 
     private Long productId;
     private Long otherProductId;
     private Long categoryId;
     private String token;
+    private String sellerToken;
 
     @BeforeEach
     void setUp() {
@@ -69,16 +75,18 @@ class FavoriteControllerTest {
         Member seller = memberRepository.save(Member.createUser("seller@example.com", "encoded-pw", "seller"));
         // 시드된 기본 카테고리(CategorySeeder)와 이름이 겹치지 않도록 테스트 전용 카테고리를 만든다.
         Category category = categoryRepository.save(new Category("관심테스트전용카테고리"));
-        Product product = Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), "서울 강남구");
+        Region region = saveYeoksam();
+        Product product = Product.create(seller, category, "맥북 프로", "상태 좋음", BigDecimal.valueOf(1_500_000), region);
         product.changeThumbnailUrl("https://img.example/macbook.jpg");
         product = productRepository.save(product);
         Product otherProduct = productRepository.save(
-                Product.create(seller, category, "아이패드", "상태 좋음", BigDecimal.valueOf(700_000), "서울 강남구"));
+                Product.create(seller, category, "아이패드", "상태 좋음", BigDecimal.valueOf(700_000), region));
 
         categoryId = category.getId();
         productId = product.getId();
         otherProductId = otherProduct.getId();
         token = "Bearer " + jwtTokenProvider.createAccessToken(buyer.getId(), "ROLE_USER");
+        sellerToken = "Bearer " + jwtTokenProvider.createAccessToken(seller.getId(), "ROLE_USER");
     }
 
     @AfterEach
@@ -158,6 +166,15 @@ class FavoriteControllerTest {
         }
 
         @Test
+        @DisplayName("판매자가 자기 상품을 관심 등록하면 400과 CANNOT_FAVORITE_OWN_PRODUCT를 반환한다")
+        void ownProduct_returns400() throws Exception {
+            mockMvc.perform(post("/api/products/{productId}/favorites", productId)
+                            .header("Authorization", sellerToken))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("CANNOT_FAVORITE_OWN_PRODUCT"));
+        }
+
+        @Test
         @DisplayName("이미 관심 등록한 상품을 다시 등록하면 409와 FAVORITE_ALREADY_EXISTS를 반환한다")
         void duplicate_returns409() throws Exception {
             mockMvc.perform(post("/api/products/{productId}/favorites", productId)
@@ -189,12 +206,17 @@ class FavoriteControllerTest {
                     .andExpect(jsonPath("$.status").value(200))
                     .andExpect(jsonPath("$.data.length()").value(2))
                     .andExpect(jsonPath("$.data[0].favoriteId").exists())
-                    .andExpect(jsonPath("$.data[0].product.productId").value(otherProductId.intValue()))
-                    .andExpect(jsonPath("$.data[0].product.title").value("아이패드"))
-                    .andExpect(jsonPath("$.data[0].product.tradeStatus").value("ON_SALE"))
-                    .andExpect(jsonPath("$.data[1].product.productId").value(productId.intValue()))
-                    .andExpect(jsonPath("$.data[1].product.title").value("맥북 프로"))
-                    .andExpect(jsonPath("$.data[1].product.thumbnailUrl").value("https://img.example/macbook.jpg"));
+	                    .andExpect(jsonPath("$.data[0].product.productId").value(otherProductId.intValue()))
+	                    .andExpect(jsonPath("$.data[0].product.title").value("아이패드"))
+	                    .andExpect(jsonPath("$.data[0].product.region").value("서울특별시 강남구 역삼동"))
+	                    .andExpect(jsonPath("$.data[0].product.regionCode").value("1168010100"))
+	                    .andExpect(jsonPath("$.data[0].product.regionName").value("역삼동"))
+	                    .andExpect(jsonPath("$.data[0].product.regionFullName").value("서울특별시 강남구 역삼동"))
+	                    .andExpect(jsonPath("$.data[0].product.tradeStatus").value("ON_SALE"))
+	                    .andExpect(jsonPath("$.data[1].product.productId").value(productId.intValue()))
+	                    .andExpect(jsonPath("$.data[1].product.title").value("맥북 프로"))
+	                    .andExpect(jsonPath("$.data[1].product.regionCode").value("1168010100"))
+	                    .andExpect(jsonPath("$.data[1].product.thumbnailUrl").value("https://img.example/macbook.jpg"));
         }
 
         @Test
@@ -289,5 +311,14 @@ class FavoriteControllerTest {
                     .andExpect(status().isUnauthorized())
                     .andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
         }
+    }
+
+    private Region saveYeoksam() {
+        Region seoul = regionRepository.findByCode("1100000000")
+                .orElseGet(() -> regionRepository.save(Region.root("1100000000", "서울특별시", "서울특별시")));
+        Region gangnam = regionRepository.findByCode("1168000000")
+                .orElseGet(() -> regionRepository.save(Region.child("1168000000", 2, seoul, "서울특별시 강남구", "강남구")));
+        return regionRepository.findByCode("1168010100")
+                .orElseGet(() -> regionRepository.save(Region.child("1168010100", 3, gangnam, "서울특별시 강남구 역삼동", "역삼동")));
     }
 }

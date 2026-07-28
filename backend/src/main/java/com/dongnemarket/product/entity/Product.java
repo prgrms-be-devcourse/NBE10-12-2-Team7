@@ -3,6 +3,7 @@ package com.dongnemarket.product.entity;
 import com.dongnemarket.category.entity.Category;
 import com.dongnemarket.global.common.BaseTimeEntity;
 import com.dongnemarket.member.entity.Member;
+import com.dongnemarket.region.entity.Region;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -51,6 +52,10 @@ public class Product extends BaseTimeEntity {
 	@Column(nullable = false, length = 100)
 	private String region;
 
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "region_id")
+	private Region regionRef;
+
 	@Column(nullable = false)
 	private long viewCount;
 
@@ -73,7 +78,12 @@ public class Product extends BaseTimeEntity {
 	}
 
 	private Product(Member member, Category category, String title, String description,
-					BigDecimal price, String region) {
+						BigDecimal price, String region) {
+		this(member, category, title, description, price, region, null);
+	}
+
+	private Product(Member member, Category category, String title, String description,
+					BigDecimal price, String region, Region regionRef) {
 		this.member = member;
 		this.category = category;
 		this.title = title;
@@ -81,14 +91,20 @@ public class Product extends BaseTimeEntity {
 		this.price = price;
 		this.tradeStatus = TradeStatus.ON_SALE;
 		this.region = region;
+		this.regionRef = regionRef;
 		this.viewCount = 0L;
 		this.favoriteCount = 0;
 		this.hidden = false;
 	}
 
 	public static Product create(Member member, Category category, String title, String description,
-								 BigDecimal price, String region) {
+									 BigDecimal price, String region) {
 		return new Product(member, category, title, description, price, region);
+	}
+
+	public static Product create(Member member, Category category, String title, String description,
+								 BigDecimal price, Region regionRef) {
+		return new Product(member, category, title, description, price, regionRef.getFullName(), regionRef);
 	}
 
 	public void hide() {
@@ -109,6 +125,20 @@ public class Product extends BaseTimeEntity {
 		this.description = description;
 		this.price = price;
 		this.region = region;
+	}
+
+	public void update(Category category, String title, String description, BigDecimal price, Region regionRef) {
+		this.category = category;
+		this.title = title;
+		this.description = description;
+		this.price = price;
+		this.region = regionRef.getFullName();
+		this.regionRef = regionRef;
+	}
+
+	public void backfillRegion(Region regionRef) {
+		this.regionRef = regionRef;
+		this.region = regionRef.getFullName();
 	}
 
 	public void changeTradeStatus(TradeStatus tradeStatus) {
@@ -164,6 +194,22 @@ public class Product extends BaseTimeEntity {
 
 	public String getRegion() {
 		return region;
+	}
+
+	public Region getRegionRef() {
+		return regionRef;
+	}
+
+	public String getRegionCode() {
+		return regionRef == null ? null : regionRef.getCode();
+	}
+
+	public String getRegionName() {
+		return regionRef == null ? null : regionRef.getDisplayName();
+	}
+
+	public String getRegionFullName() {
+		return regionRef == null ? null : regionRef.getFullName();
 	}
 
 	public long getViewCount() {

@@ -10,40 +10,53 @@ public class FavoriteProductSummary {
 
     private final Long productId;
     private final Long categoryId;
-    private final String title;
-    private final BigDecimal price;
-    private final String region;
-    private final TradeStatus tradeStatus;
-    private final String thumbnailUrl;
-
-    private FavoriteProductSummary(Long productId, Long categoryId, String title, BigDecimal price,
-                                   String region, TradeStatus tradeStatus, String thumbnailUrl) {
-        this.productId = productId;
-        this.categoryId = categoryId;
-        this.title = title;
-        this.price = price;
-        this.region = region;
-        this.tradeStatus = tradeStatus;
-        this.thumbnailUrl = thumbnailUrl;
-    }
+	    private final String title;
+	    private final BigDecimal price;
+	    private final String region;
+	    private final String regionCode;
+	    private final String regionName;
+	    private final String regionFullName;
+	    private final TradeStatus tradeStatus;
+	    private final String thumbnailUrl;
+	
+	    private FavoriteProductSummary(Long productId, Long categoryId, String title, BigDecimal price,
+	                                   String region, String regionCode, String regionName, String regionFullName,
+	                                   TradeStatus tradeStatus, String thumbnailUrl) {
+	        this.productId = productId;
+	        this.categoryId = categoryId;
+	        this.title = title;
+	        this.price = price;
+	        this.region = region;
+	        this.regionCode = regionCode;
+	        this.regionName = regionName;
+	        this.regionFullName = regionFullName;
+	        this.tradeStatus = tradeStatus;
+	        this.thumbnailUrl = thumbnailUrl;
+	    }
 
     public static FavoriteProductSummary from(Product product) {
         return new FavoriteProductSummary(
                 product.getId(),
                 product.getCategory().getId(),
-                product.getTitle(),
-                product.getPrice(),
-                product.getRegion(),
-                product.getTradeStatus(),
-                product.getThumbnailUrl()
-        );
+	                product.getTitle(),
+	                product.getPrice(),
+	                product.getRegion(),
+	                product.getRegionCode(),
+	                product.getRegionName(),
+	                product.getRegionFullName(),
+	                product.getTradeStatus(),
+	                product.getThumbnailUrl()
+	        );
     }
 
     public Long getProductId() { return productId; }
     public Long getCategoryId() { return categoryId; }
-    public String getTitle() { return title; }
-    public BigDecimal getPrice() { return price; }
-    public String getRegion() { return region; }
-    public TradeStatus getTradeStatus() { return tradeStatus; }
-    public String getThumbnailUrl() { return thumbnailUrl; }
-}
+	    public String getTitle() { return title; }
+	    public BigDecimal getPrice() { return price; }
+	    public String getRegion() { return region; }
+	    public String getRegionCode() { return regionCode; }
+	    public String getRegionName() { return regionName; }
+	    public String getRegionFullName() { return regionFullName; }
+	    public TradeStatus getTradeStatus() { return tradeStatus; }
+	    public String getThumbnailUrl() { return thumbnailUrl; }
+	}
