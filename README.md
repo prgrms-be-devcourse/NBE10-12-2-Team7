@@ -16,7 +16,6 @@
 | `mobile/` | Kotlin + Compose Android 앱 | [mobile/mobile.md](mobile/mobile.md) |
 | `agent/` | Python + LangGraph AI 에이전트 서비스 | [agent/agent.md](agent/agent.md) |
 | `infra/` | 배포 자원 (온프레미스 · AWS) | [infra/infra.md](infra/infra.md) |
-| `wiki/` | 작업 기록 — PR별 "왜·어떻게 했나" | [wiki/INDEX.md](wiki/INDEX.md) |
 
 그 밖에:
 
@@ -87,7 +86,7 @@ AWS **EC2 3대(앱 · DB · 모니터링) + ECR**. DB는 관리형 RDS가 아니
 - 모듈 이야기 → 그 폴더의 `<모듈>.md`
 - 리포 전체 이야기 → 이 `README.md`
 - 에이전트 작업 규칙 → [`AGENTS.md`](AGENTS.md)
-- 이번 작업을 왜·어떻게 했나 → [`wiki/`](wiki/INDEX.md) (PR 번호별 기록)
+- 이번 작업을 왜·어떻게 했나 → **PR 본문** (머지된 PR이 작업 기록의 정본이다)
 
 API 요청/응답 스키마의 정본은 **Swagger**(`http://localhost:8080/swagger-ui.html`)다 — 코드에서 자동 생성되므로 별도 문서로 옮겨 적지 않는다.
 
