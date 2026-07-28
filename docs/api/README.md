@@ -1,6 +1,6 @@
 # API 명세 (api)
 
-> 최종 수정일: 2026-07-07 · 상태: draft
+> 최종 수정일: 2026-07-28 · 상태: draft
 
 ## 정본은 Swagger (Springdoc)
 
@@ -50,3 +50,19 @@ API의 **source of truth는 코드에서 자동 생성되는 OpenAPI/Swagger**�
 | admin | `/api/admin` | `members`(+`{id}/status`) · `products`(+`{id}/hidden`,`{id}/status`) · `comments` · `reports`(+`{id}/status`) · `dashboard` · `ai` |
 
 > 인증 불필요(공개): 회원가입·로그인, 상품 목록/상세, 카테고리, 댓글 목록. 그 외 쓰기·내 정보·`/api/admin/**`(ROLE_ADMIN)은 인증 필요.
+
+## 지역 필드 규약
+
+지역은 문자열 이름이 아니라 `regionCode`를 식별자로 사용한다. 화면 표시에는 `regionFullName`을 사용한다.
+
+| 필드 | 의미 | 사용처 |
+| --- | --- | --- |
+| `regionCode` | 법정동 코드. 지역 선택·상품 등록/수정·동네 설정·상품 지역 필터의 식별자 | 요청/응답 |
+| `regionName` | 현재 선택된 지역의 표시명. 예: `역삼동` | 응답 |
+| `regionFullName` | 전체 표시명. 예: `서울특별시 강남구 역삼동` | 응답 화면 표시 |
+
+상품·회원 동네·상품 관련 요약 응답에서 과거 호환 필드였던 `region`은 제거됐다. 기존 표시값이 필요하면 `regionFullName`을 사용한다.
+
+상품 등록/수정 요청은 `regionCode`가 필수이며 신규 상품은 level 3 지역만 허용한다. 회원 내 동네 설정도 `regionCodes` 리스트를 사용한다.
+
+`GET /api/regions`는 계층형 지역 사전을 반환한다. 파라미터 없이 호출하면 최상위 지역 목록을 반환하고, `parentCode`를 넘기면 해당 지역의 하위 지역을 반환한다.
