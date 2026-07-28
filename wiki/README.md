@@ -16,6 +16,7 @@ MarketON(dongnemarket) 레포 안의 **LLM 위키**입니다.
 ```
 wiki/
 ├── CLAUDE.md      # ⭐ Claude 문서화 규칙 (가장 중요, 먼저 읽기)
+├── INDEX.md       # 📇 전체 색인 (자동 생성) — 태그 역색인·상호참조 포함
 ├── features/      # 기능: FEAT-###-설명.md
 ├── bugs/          # 버그: BUG-###-증상.md
 ├── issues/        # 논의/이슈: ISSUE-###-주제.md
@@ -24,6 +25,9 @@ wiki/
 ```
 
 각 폴더의 `TEMPLATE.md`가 표준 양식입니다. 문서 번호 `###` = **GitHub PR 번호**.
+
+> 📇 **먼저 [INDEX.md](INDEX.md)를 읽으세요.** 150개 문서를 매번 grep하는 대신 색인 한 번으로
+> 후보를 좁힐 수 있습니다. 문서를 추가·수정하면 색인도 다시 생성해야 합니다.
 
 ---
 
